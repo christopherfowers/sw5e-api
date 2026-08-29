@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -13,18 +14,47 @@ namespace Sw5e.Api.Tests.Integration;
 public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
     : IClassFixture<WebApplicationFactory<Program>>
 {
+    /// <summary>
+    /// Every header SecurityHeadersMiddleware emits. Adding one to the
+    /// middleware without adding it here leaves it permanently unasserted,
+    /// which is how Cross-Origin-Resource-Policy went uncovered.
+    /// </summary>
+    public static TheoryData<string> SecurityHeaderNames() =>
+    [
+        "Content-Security-Policy",
+        "X-Content-Type-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+        "Cross-Origin-Opener-Policy",
+        "Cross-Origin-Resource-Policy",
+    ];
+
     [Theory]
-    [InlineData("Content-Security-Policy")]
-    [InlineData("X-Content-Type-Options")]
-    [InlineData("Referrer-Policy")]
-    [InlineData("Permissions-Policy")]
-    [InlineData("Cross-Origin-Opener-Policy")]
+    [MemberData(nameof(SecurityHeaderNames))]
     public async Task Response_IncludesSecurityHeader(string headerName)
     {
         var response = await factory.CreateClient().GetAsync("/health");
 
         response.Headers.Contains(headerName).ShouldBeTrue(
             $"every response must carry the {headerName} header");
+    }
+
+    /// <summary>
+    /// SecurityHeadersMiddleware documents itself as running first so that
+    /// error responses are covered too, but nothing verified that claim: every
+    /// other assertion here hits a route that exists. A 404 never reaches an
+    /// endpoint, so this fails if the middleware is ever reordered behind
+    /// routing or reimplemented as something endpoint-scoped.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(SecurityHeaderNames))]
+    public async Task ErrorResponse_IncludesSecurityHeader(string headerName)
+    {
+        var response = await factory.CreateClient().GetAsync("/no-such-route");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.Contains(headerName).ShouldBeTrue(
+            $"error responses must carry the {headerName} header too");
     }
 
     [Fact]
