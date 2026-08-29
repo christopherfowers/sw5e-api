@@ -22,3 +22,10 @@ scanners without a demonstrated exploit path.
 ## Supported versions
 
 The `main` branch is the only supported version. Fixes ship forward.
+
+## Deployment configuration
+
+Running behind a reverse proxy without configuring its trusted address
+silently disables transport security — no HSTS header, and no test or
+health check will flag it. See [Deployment](README.md#deployment) in the
+README for the required configuration.
