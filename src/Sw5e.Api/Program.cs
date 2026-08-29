@@ -1,3 +1,5 @@
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
 using Sw5e.Api.Features.Health;
 using Sw5e.Api.Security;
 
@@ -6,10 +8,79 @@ var builder = WebApplication.CreateBuilder(args);
 // Suppress the server identity banner; it offers attackers free reconnaissance.
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
+// Behind a TLS-terminating proxy (Azure App Service, nginx, a load balancer)
+// the connection Kestrel actually accepts is plain HTTP, so Request.Scheme is
+// "http" and Request.IsHttps is false even though the client spoke HTTPS.
+// Two things break silently as a result: UseHsts() emits nothing, because the
+// HSTS middleware skips non-HTTPS requests, so the production HSTS policy
+// never reaches a browser; and UseHttpsRedirection() issues a redirect the
+// proxy forwards straight back as HTTP, producing a loop. The same scheme
+// detection will later drive `Secure` cookie emission for identity, where
+// getting it wrong means session cookies travel unprotected.
+//
+// Honouring X-Forwarded-Proto restores the original scheme. X-Forwarded-For
+// is included so request logging and future rate limiting see the client
+// address rather than the proxy's.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // Forwarded headers are attacker-controllable: anything that can reach
+    // Kestrel directly can claim any scheme and any source IP. ASP.NET Core
+    // therefore trusts them from loopback only by default, and that default is
+    // deliberately left in place here.
+    //
+    // A deployment whose proxy is NOT loopback (Azure App Service's front end
+    // and any separate load balancer both qualify) MUST widen that trust
+    // explicitly, or forwarded headers are ignored and the problems above
+    // return. Configure it, for example via App Service application settings:
+    //
+    //   ForwardedHeaders__KnownProxies__0  = 10.0.0.4
+    //   ForwardedHeaders__KnownNetworks__0 = 10.0.0.0/16
+    //
+    // Do not "fix" a misconfigured proxy by clearing KnownProxies and
+    // KnownNetworks unless the app is genuinely unreachable except through
+    // that proxy. An empty trust list makes the middleware accept forwarded
+    // headers from every source, which hands any client the ability to spoof
+    // its scheme and its address.
+    foreach (var proxy in builder.Configuration
+                 .GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+    {
+        options.KnownProxies.Add(IPAddress.Parse(proxy));
+    }
+
+    foreach (var network in builder.Configuration
+                 .GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+    {
+        // IPNetwork.Parse requires CIDR notation and rejects a base address
+        // with host bits set, so a typo like 10.0.0.4/16 fails at startup
+        // rather than silently widening or narrowing the trusted range.
+        // Fully qualified: Microsoft.AspNetCore.HttpOverrides also defines an
+        // IPNetwork, and the deprecated KnownNetworks property is the one that
+        // takes it. KnownIPNetworks takes the System.Net type.
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+    }
+});
+
+// One year, covering subdomains, and preload-eligible. The framework default
+// is 30 days with neither flag, which is below the minimum every browser
+// preload list requires and leaves subdomains unprotected.
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = true;
+    options.Preload = true;
+});
+
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+
+// Must run before anything that reads the scheme or the client address,
+// including the HSTS and HTTPS-redirection middleware below.
+app.UseForwardedHeaders();
 
 app.UseSw5eSecurityHeaders();
 
