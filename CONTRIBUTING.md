@@ -13,6 +13,9 @@ Thanks for helping maintain this community resource.
   commit placeholders to `.env.example` instead.
 - Every dependency must carry an OSI-approved license compatible with MIT
   redistribution. Check before adding it, not after.
+- The project's assertion library is Shouldly. Never add FluentAssertions,
+  even via a Dependabot upgrade: version 8+ ships under a paid Xceed
+  commercial license, incompatible with this MIT-licensed project.
 
 ## Getting set up
 
