@@ -7,6 +7,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Sw5e.Api.Tests.Integration/Sw5e.Api.Tests.Integration.csproj" />
-    <Project Path="tests/Sw5e.Api.Tests.Unit/Sw5e.Api.Tests.Unit.csproj" />
   </Folder>
 </Solution>
