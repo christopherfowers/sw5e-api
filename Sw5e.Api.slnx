@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sw5e.Api/Sw5e.Api.csproj" />
+    <Project Path="src/Sw5e.Domain/Sw5e.Domain.csproj" />
+    <Project Path="src/Sw5e.Email/Sw5e.Email.csproj" />
+    <Project Path="src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sw5e.Api.Tests.Integration/Sw5e.Api.Tests.Integration.csproj" />
+    <Project Path="tests/Sw5e.Api.Tests.Unit/Sw5e.Api.Tests.Unit.csproj" />
+  </Folder>
+</Solution>

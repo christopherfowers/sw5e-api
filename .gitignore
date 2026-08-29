@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pfx
+appsettings.*.local.json
+secrets.json
+
+# Tooling directories that must never be published
+.claude/
+CLAUDE.md
+AGENTS.md
+.cursor/
+.aider*
+.github/copilot-instructions.md
+
+# Editor
+.vs/
+.idea/
+*.swp
+.DS_Store
