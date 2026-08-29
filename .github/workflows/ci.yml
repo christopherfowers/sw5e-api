@@ -29,8 +29,23 @@ jobs:
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Audit dependencies
+        env:
+          # Pin the SDK's output language so the marker string below cannot be
+          # invalidated by a localised runner image.
+          DOTNET_CLI_UI_LANGUAGE: en
         run: |
+          # pipefail matters: without it `tee`'s exit status masks a failing
+          # `dotnet list`, leaving an empty audit.txt that greps clean and
+          # reports the gate as passed.
+          set -euo pipefail
+
           dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.txt
+
+          if [ ! -s audit.txt ]; then
+            echo "::error::Dependency audit produced no output; treating as a failed audit"
+            exit 1
+          fi
+
           if grep -q "has the following vulnerable packages" audit.txt; then
             echo "::error::Vulnerable packages detected"
             exit 1
