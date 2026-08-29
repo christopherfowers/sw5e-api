@@ -68,6 +68,12 @@ public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
     {
         public Uri ServerAddress { get; private set; } = null!;
 
+        // The second, real Kestrel host built in CreateHost. Only the
+        // TestServer-based host returned from CreateHost is disposed by the
+        // base class, so this one must be stopped and disposed explicitly or
+        // its listening socket leaks for the rest of the test process.
+        private IHost? _kestrelHost;
+
         protected override IHost CreateHost(IHostBuilder builder)
         {
             // Build the in-memory TestServer host first; it's what this
@@ -81,10 +87,10 @@ public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
                 .UseKestrel()
                 .UseUrls("http://127.0.0.1:0"));
 
-            var kestrelHost = builder.Build();
-            kestrelHost.Start();
+            _kestrelHost = builder.Build();
+            _kestrelHost.Start();
 
-            var addresses = kestrelHost.Services
+            var addresses = _kestrelHost.Services
                 .GetRequiredService<IServer>()
                 .Features
                 .Get<IServerAddressesFeature>();
@@ -95,6 +101,30 @@ public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
 
             testHost.Start();
             return testHost;
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            if (_kestrelHost is not null)
+            {
+                await _kestrelHost.StopAsync();
+                _kestrelHost.Dispose();
+                _kestrelHost = null;
+            }
+
+            await base.DisposeAsync();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _kestrelHost is not null)
+            {
+                _kestrelHost.StopAsync().GetAwaiter().GetResult();
+                _kestrelHost.Dispose();
+                _kestrelHost = null;
+            }
+
+            base.Dispose(disposing);
         }
     }
 }
