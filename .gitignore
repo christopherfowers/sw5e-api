@@ -18,6 +18,7 @@ secrets.json
 .claude/
 CLAUDE.md
 AGENTS.md
+.agents/
 .cursor/
 .aider*
 .github/copilot-instructions.md
