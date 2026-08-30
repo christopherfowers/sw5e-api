@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 
 namespace Sw5e.Infrastructure.Persistence.Content;
@@ -118,7 +118,44 @@ internal static class ContentReferenceMap
 
         /// <summary>The maneuver a tiered maneuver upgrades.</summary>
         public const string ImprovesManeuver = "improvesManeuver";
+
+        /// <summary>A starship modification another modification is built on.</summary>
+        public const string PrerequisiteStarshipModification = "prerequisiteStarshipModification";
+
+        /// <summary>A piece of starship equipment a modification requires fitted.</summary>
+        public const string PrerequisiteStarshipEquipment = "prerequisiteStarshipEquipment";
+
+        /// <summary>A starship venture another venture is built on.</summary>
+        public const string PrerequisiteStarshipVenture = "prerequisiteStarshipVenture";
+
+        /// <summary>The deployment a venture requires a rank in.</summary>
+        public const string PrerequisiteStarshipDeployment = "prerequisiteStarshipDeployment";
+
+        /// <summary>A launcher that fires a piece of starship ammunition.</summary>
+        public const string AmmunitionLauncher = "ammunitionLauncher";
     }
+
+    /// <summary>
+    /// Prerequisite fields the starship types carry, paired with the content
+    /// type each points at and the relation it produces.
+    /// </summary>
+    /// <remarks>
+    /// The starship prerequisite lists are the one place in this corpus where a
+    /// reference is already resolved in the document: the import parsed each
+    /// printed clause and, where it could name what the clause meant, wrote the
+    /// target into a field of its own beside the wording. So unlike a feat's
+    /// prerequisite, which has to be picked out of prose here, these are read
+    /// straight off the entry — and an entry whose field is absent is one the
+    /// import deliberately declined to resolve, not one this map should guess at.
+    /// </remarks>
+    private static readonly (string Field, string TargetType, string Relation)[]
+        StarshipPrerequisiteFields =
+        [
+            ("modificationName", "starship-modification", Relations.PrerequisiteStarshipModification),
+            ("equipmentName", "starship-equipment", Relations.PrerequisiteStarshipEquipment),
+            ("ventureName", "starship-venture", Relations.PrerequisiteStarshipVenture),
+            ("deploymentName", "starship-deployment", Relations.PrerequisiteStarshipDeployment),
+        ];
 
     /// <summary>
     /// The types a feature can name as its grantor. Closed, because
@@ -204,9 +241,97 @@ internal static class ContentReferenceMap
                 }
 
                 break;
+
+            case "starship-modification":
+            case "starship-venture":
+                ExtractStarshipPrerequisites(body, references);
+                break;
+
+            case "starship-equipment":
+                ExtractAmmunitionLaunchers(body, references);
+                break;
         }
 
         return references;
+    }
+
+    /// <summary>
+    /// Reads the resolved targets out of a starship prerequisite list.
+    /// </summary>
+    /// <remarks>
+    /// One entry can produce at most one edge, and most produce none: a clause
+    /// that requires a ship size, a weapon mounting or twelve Constitution has
+    /// nothing in this database to point at. The array index is part of the
+    /// path because a modification can require two different modifications, and
+    /// a chain such as the plating upgrades requires an armour and a
+    /// modification from the same list.
+    /// </remarks>
+    private static void ExtractStarshipPrerequisites(
+        JsonElement body,
+        List<ExtractedReference> references)
+    {
+        if (!body.TryGetProperty("prerequisites", out var prerequisites) ||
+            prerequisites.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var index = 0;
+
+        foreach (var entry in prerequisites.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.Object)
+            {
+                index++;
+                continue;
+            }
+
+            foreach (var (field, targetType, relation) in StarshipPrerequisiteFields)
+            {
+                if (TryReadString(entry, field, out var target))
+                {
+                    Add(references, relation, Path("$.prerequisites", index, field),
+                        targetType, ContentReferenceTargetKind.Name, target, index);
+                }
+            }
+
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// Links a piece of ammunition to the launchers that fire it.
+    /// </summary>
+    /// <remarks>
+    /// The edge runs from the ammunition rather than from the launcher because
+    /// that is the direction the book prints: ammunition is listed under its
+    /// launcher's heading, and a launcher's own row says nothing about what it
+    /// takes. Both directions are queryable once the edge exists.
+    /// </remarks>
+    private static void ExtractAmmunitionLaunchers(
+        JsonElement body,
+        List<ExtractedReference> references)
+    {
+        if (!body.TryGetProperty("firedBy", out var launchers) ||
+            launchers.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var index = 0;
+
+        foreach (var launcher in launchers.EnumerateArray())
+        {
+            if (launcher.ValueKind == JsonValueKind.String &&
+                launcher.GetString() is { Length: > 0 } name)
+            {
+                Add(references, Relations.AmmunitionLauncher,
+                    Path("$.firedBy", index, null), "starship-equipment",
+                    ContentReferenceTargetKind.Name, name, index);
+            }
+
+            index++;
+        }
     }
 
     private static void ExtractGrantor(JsonElement body, List<ExtractedReference> references)

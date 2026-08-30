@@ -1,0 +1,13 @@
+{
+  "key": "reinforced-armor",
+  "name": "Reinforced armor",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "category": "armor",
+  "costInCredits": 3700,
+  "armor": {
+    "armorClass": "10 + Dex modifier (max 0)",
+    "damageReduction": 6,
+    "stealthDisadvantage": true
+  }
+}

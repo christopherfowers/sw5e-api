@@ -246,10 +246,11 @@ Three tables in a `content` schema.
 | `content_reference` | One row per cross-reference found in a document, resolved where the target exists and recorded as intent where it does not |
 | `content_type` | The type registry, seeded by migration so the type column can carry a foreign key |
 
-**The document is stored whole, not shredded into a table per type.** The nine
-SW5e content types have very little in common below the surface — a species has
-`traits[]` and markdown lore, a monster has a nested stat block, equipment
-changes shape depending on whether it is a weapon or armour — and normalising
+**The document is stored whole, not shredded into a table per type.** The
+twenty-four SW5e content types have very little in common below the surface — a
+species has `traits[]` and markdown lore, a monster has a nested stat block, a
+starship base size has a six-row tier table and six roles, equipment changes
+shape depending on whether it is a weapon or armour — and normalising
 all of it is roughly forty tables that no endpoint queries. It would also cost
 something specific: the published contract for `GET /api/content/{type}/{key}`
 is that the response body *is* the type's JSON Schema, passed through unaltered.

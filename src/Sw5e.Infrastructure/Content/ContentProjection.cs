@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace Sw5e.Infrastructure.Content;
@@ -106,6 +106,45 @@ internal static class ContentProjection
                 "name",
                 ["flavorText", "sectionText"],
                 ["size", "types", "alignment", "challengeRating", "experiencePoints"]),
+
+            // Starship types. The facets are the columns a reader scans a
+            // shipyard list by, which is a different question per type: what a
+            // modification costs in slots (its grade) and what upgrades it
+            // continues (its type), what mounting a weapon needs, what rank a
+            // venture is gated behind. `savingThrows` earns a facet on base
+            // sizes because it is the only proficiency a hull is born with.
+            ["starship-base-size"] = new(
+                "name",
+                ["lore"],
+                ["savingThrows", "modifications.baseModificationSlots"]),
+            ["starship-deployment"] = new(
+                "name",
+                ["role"],
+                ["role"]),
+            ["starship-equipment"] = new(
+                "name",
+                ["description"],
+                [
+                    "category",
+                    "costInCredits",
+                    "weapon.mounting",
+                    "weapon.weaponSize",
+                    "hyperdriveClass",
+                ]),
+            ["starship-modification"] = new(
+                "name",
+                ["description"],
+                ["modificationType", "grade"]),
+            ["starship-venture"] = new(
+                "name",
+                ["description"],
+                []),
+            ["starship-rule"] = new(
+                // Chapters are titled, not named, exactly as sources are.
+                "title",
+                ["body"],
+                ["chapterNumber"]),
+
             ["credit-category"] = new(
                 "title",
                 ["description"],

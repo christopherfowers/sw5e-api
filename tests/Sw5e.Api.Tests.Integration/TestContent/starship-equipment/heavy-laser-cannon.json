@@ -1,0 +1,27 @@
+{
+  "key": "heavy-laser-cannon",
+  "name": "Heavy laser cannon",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "category": "weapon",
+  "costInCredits": 4150,
+  "weapon": {
+    "mounting": "primary",
+    "weaponSize": "small"
+  },
+  "properties": [
+    "power",
+    "constitution 15",
+    "heavy",
+    "overheat 2"
+  ],
+  "damage": {
+    "numberOfDice": 1,
+    "dieFaces": 12,
+    "type": "energy"
+  },
+  "range": {
+    "normal": 1200,
+    "long": 4800
+  }
+}
