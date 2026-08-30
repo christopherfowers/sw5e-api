@@ -132,6 +132,11 @@ below is supplied at run time.
 | `ASPNETCORE_URLS` | `http://+:8080` | Set by the image. Overriding it is how you move the listener; `EXPOSE` and the healthcheck both assume 8080. |
 | `Content__RootPath` | `/srv/content` | Where the content volume is mounted. A relative value resolves against the app's content root (`/app`). |
 | `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document. Do not set it in a deployed stack. |
+| `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development** — the app refuses to start without it. See [Email](#email). |
+| `Email__FromAddress` | unset | The sending mailbox. Required whenever `Email__Provider` is set. |
+| `Email__MailerSend__ApiToken` | unset | **Secret.** Required when the provider is `MailerSend`. Never bake it into the image. |
+| `Email__Smtp__Host` | unset | Required when the provider is `Smtp`. |
+| `Email__Smtp__Password` | unset | **Secret.** Required when `Email__Smtp__UserName` is set. |
 | `ForwardedHeaders__KnownNetworks__0` | unset | The proxy's network in CIDR notation. **Required behind a containerised proxy** — see below. |
 | `ForwardedHeaders__KnownProxies__0` | unset | An exact proxy IP, as an alternative to the network above. |
 | `HTTPS_PORT` | unset | Port `UseHttpsRedirection` redirects to. Leave it unset and let the proxy handle the HTTP-to-HTTPS redirect at the edge. |
@@ -163,11 +168,46 @@ not of a broken API — check the startup log rather than the health endpoint.
 ```bash
 docker run --rm -p 8080:8080 \
   -v /srv/sw5e/content:/srv/content:ro \
+  -e Email__Provider=Capture \
+  -e Email__FromAddress=noreply@example.com \
   ghcr.io/christopherfowers/sw5e-api:latest
 ```
 
+The image runs as Production, so it will not start without an email provider —
+see [Email](#email). `Capture` is the credential-free choice for a local run:
+it writes messages to the log and delivers nothing.
+
 `GET /health` answers `{"status":"healthy"}` and is the same endpoint the
 image's own healthcheck probes.
+
+## Email
+
+Transactional mail — address verification and password reset — lives in
+`src/Sw5e.Email`, behind an `IEmailSender` seam so that swapping provider is a
+configuration change rather than a code change. MailerSend's HTTP API is the
+intended production provider; a generic SMTP relay and an in-memory capture
+provider satisfy the same interface.
+
+[`src/Sw5e.Email/README.md`](src/Sw5e.Email/README.md) documents the seam, every
+configuration key, and the contract the account flows consume.
+
+Two things matter at the deployment level:
+
+- **`Email__Provider` and `Email__FromAddress` are required outside
+  Development**, along with whatever credential the chosen provider needs. A
+  missing value throws at startup and the host does not come up. That is
+  deliberate: the alternative is a deployment that looks healthy, returns a
+  failure on every send that nobody reads, and is discovered by a locked-out
+  user whose reset email never arrived. Set `Email__Provider=Capture` in an
+  environment that should not send real mail yet — it logs messages and
+  delivers nothing.
+- **Credentials never live in the repository or the image.** The MailerSend API
+  token and the SMTP password have no defaults and no committed placeholder.
+  Supply them as environment variables from the deployment's secret store.
+
+In Development, with nothing configured at all, the app runs on the capture
+provider: messages go to the log, links included, and no credentials are needed
+to work on the account flows locally.
 
 ## Deployment
 

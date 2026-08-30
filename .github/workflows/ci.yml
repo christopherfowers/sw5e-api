@@ -88,8 +88,17 @@ jobs:
           # The content directory is mounted read-only at the path the image
           # defaults Content__RootPath to, mirroring the compose stack's shared
           # volume. The test fixture stands in for the sw5e-database content.
+          #
+          # The image runs as Production, where the email subsystem refuses to
+          # register without a provider — a deployment that cannot send a
+          # password-reset email should not come up quietly. Capture satisfies
+          # that gate without credentials and delivers nothing, which is what a
+          # smoke test wants. A container that fails to start because these are
+          # missing is the gate working, not the image being broken.
           docker run --detach --name sw5e-api-smoke \
             --publish 127.0.0.1:8080:8080 \
+            --env Email__Provider=Capture \
+            --env Email__FromAddress=noreply@sw5e.test \
             --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
             --health-interval=2s \
             --health-start-period=1s \

@@ -4,6 +4,32 @@
     <ProjectReference Include="..\Sw5e.Domain\Sw5e.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- This library is referenced by the web host but is deliberately not a
+         web project: nothing here should be able to reach for HttpContext.
+         The pieces of the generic host it does need are taken as individual
+         packages rather than by pulling in the whole Microsoft.AspNetCore.App
+         framework reference, so the dependency surface stays legible.
+
+         Microsoft.Extensions.Http supplies IHttpClientFactory. The MailerSend
+         adapter must not hold a long-lived HttpClient of its own — that is the
+         classic socket-exhaustion and stale-DNS bug — nor create one per send.
+
+         Hosting.Abstractions is here only for IHostEnvironment, which decides
+         whether an unconfigured provider is a fatal error or a development
+         convenience. See EmailServiceCollectionExtensions. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The retry decorator's clock and jitter are internal seams, exposed so
+         the backoff schedule can be asserted exactly rather than approximated
+         by a test that sleeps and hopes. -->
+    <InternalsVisibleTo Include="Sw5e.Email.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

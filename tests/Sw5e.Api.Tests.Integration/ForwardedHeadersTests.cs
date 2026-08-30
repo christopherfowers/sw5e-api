@@ -29,6 +29,15 @@ public sealed class ForwardedHeadersTests
             // UseHsts is only wired up outside Development.
             builder.UseEnvironment("Production");
 
+            // Outside Development the email subsystem refuses to register
+            // without a provider, so a Production host will not start without
+            // one. That refusal is deliberate — it is what stops a deployment
+            // going live with no way to send a password-reset email — so the
+            // fix is to configure a provider here rather than to soften it.
+            // Capture delivers nothing, which is what a test wants.
+            builder.UseSetting("Email:Provider", "Capture");
+            builder.UseSetting("Email:FromAddress", "noreply@sw5e.test");
+
             builder.ConfigureTestServices(services =>
                 services.Configure<ForwardedHeadersOptions>(options =>
                 {

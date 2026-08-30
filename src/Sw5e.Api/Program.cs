@@ -4,6 +4,7 @@ using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
 using Sw5e.Api.Security;
 using Sw5e.Domain.Content;
+using Sw5e.Email.Configuration;
 using Sw5e.Infrastructure.Content;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -78,6 +79,19 @@ builder.Services.AddHsts(options =>
 
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+
+// Transactional email, behind IEmailSender so nothing above it learns which
+// provider is configured. MailerSend is the intended production provider and a
+// generic SMTP relay is the fallback; which one runs is Email:Provider and
+// nothing else. See src/Sw5e.Email/README.md for the seam and for the contract
+// the account flows consume.
+//
+// Registration validates eagerly and throws before the host is built, so a
+// deployment missing its API token stops here rather than starting happily and
+// silently dropping every password-reset email. Development is the one
+// exception: with no provider configured it captures to the log, so the
+// application runs with no credentials at all.
+builder.Services.AddSw5eEmail(builder.Configuration, builder.Environment);
 
 // The content store is registered behind IContentRepository so the endpoints
 // never learn where the catalogue actually lives. The intended home is
