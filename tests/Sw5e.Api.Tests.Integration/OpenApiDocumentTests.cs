@@ -27,6 +27,16 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/content/{type}")]
     [InlineData("/api/content/{type}/{key}")]
     [InlineData("/api/search")]
+    [InlineData("/api/auth/register")]
+    [InlineData("/api/auth/email/verify")]
+    [InlineData("/api/auth/passkey/register/begin")]
+    [InlineData("/api/auth/passkey/register/complete")]
+    [InlineData("/api/auth/passkey/login/begin")]
+    [InlineData("/api/auth/passkey/login/complete")]
+    [InlineData("/api/auth/mfa/totp/enroll")]
+    [InlineData("/api/auth/mfa/totp/verify")]
+    [InlineData("/api/auth/logout")]
+    [InlineData("/api/auth/me")]
     public async Task Document_DescribesEveryContentRoute(string path)
     {
         var document = await DocumentAsync(factory);
@@ -51,8 +61,19 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
             .Select(operation => operation.Value.GetProperty("operationId").GetString())
             .ToArray();
 
+        // Exhaustive rather than a subset check. An operation added without an
+        // id would otherwise slip through, and the generated client would name
+        // its method after the route — which then changes whenever the route
+        // does.
         ids.ShouldBe(
-            ["listContentTypes", "listContent", "getContentItem", "searchContent"],
+            [
+                "listContentTypes", "listContent", "getContentItem", "searchContent",
+                "register", "verifyEmail",
+                "beginPasskeyRegistration", "completePasskeyRegistration",
+                "beginPasskeyLogin", "completePasskeyLogin",
+                "enrollTotp", "verifyTotp",
+                "logout", "currentUser", "assignRoles",
+            ],
             ignoreOrder: true);
     }
 

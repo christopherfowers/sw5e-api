@@ -20,8 +20,22 @@ public class ContentApiFactory : WebApplicationFactory<Program>
 
     protected virtual string ContentRootPath => FixturePath;
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.UseSetting("Content:RootPath", ContentRootPath);
+
+        // The identity registration insists on a connection string, because a
+        // deployment without one has no accounts and should say so at startup
+        // rather than at the first sign-in. These tests are about content and
+        // never touch an account, so a well-formed placeholder is enough: EF
+        // Core parses it while composing the context and opens nothing until
+        // somebody queries. If a content test ever does make the API talk to
+        // the identity store, it will fail here with a connection error, which
+        // is the correct and informative outcome.
+        builder.UseSetting(
+            "ConnectionStrings:Sw5eIdentity",
+            "Host=127.0.0.1;Port=1;Database=sw5e_identity_unused;Username=unused");
+    }
 }
 
 /// <summary>

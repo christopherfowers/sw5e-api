@@ -6,8 +6,8 @@ using Xunit;
 
 namespace Sw5e.Api.Tests.Integration;
 
-public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthEndpointTests(ContentApiFactory factory)
+    : IClassFixture<ContentApiFactory>
 {
     [Fact]
     public async Task Health_ReturnsOk()

@@ -24,7 +24,7 @@ public sealed class ForwardedHeadersTests
     private const string ProxiedHost = "api.sw5e.test";
 
     private static WebApplicationFactory<Program> CreateProductionFactory() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new ContentApiFactory().WithWebHostBuilder(builder =>
         {
             // UseHsts is only wired up outside Development.
             builder.UseEnvironment("Production");

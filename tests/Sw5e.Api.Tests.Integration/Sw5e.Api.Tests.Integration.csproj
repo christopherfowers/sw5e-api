@@ -14,6 +14,17 @@
     <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+
+    <!-- The account tests run against a real PostgreSQL instance. The identity
+         schema uses a JSON column, a non-default schema and a unique index the
+         registration flow depends on; no substitute provider models all three,
+         so a suite running against one would assert on behaviour the deployed
+         system does not have. -->
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.14.0" />
+
+    <!-- WebAuthn carries attestation objects and public keys as CBOR. The
+         virtual authenticator has to produce both. -->
+    <PackageReference Include="System.Formats.Cbor" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
