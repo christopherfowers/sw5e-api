@@ -1,0 +1,19 @@
+# Default-deny. The build context is exactly what the image needs and nothing
+# else, so nothing new at the repository root — history, tests, editor state,
+# local tooling directories, a stray .env — can leak into an image or bust the
+# build cache by changing. Anything the Dockerfile needs is re-included below.
+*
+
+!global.json
+!src/
+
+# Build output, in case the context is a working checkout that has been built
+# locally: it would otherwise be copied over the layer the SDK just produced.
+**/bin/
+**/obj/
+
+# Local developer settings and per-environment overrides never belong in an
+# image; configuration arrives as environment variables at run time.
+**/*.user
+**/appsettings.*.local.json
+**/Properties/launchSettings.json
