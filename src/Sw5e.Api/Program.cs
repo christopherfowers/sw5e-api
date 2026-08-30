@@ -1,7 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
+using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
 using Sw5e.Api.Security;
+using Sw5e.Domain.Content;
+using Sw5e.Infrastructure.Content;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,7 +79,43 @@ builder.Services.AddHsts(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
+// The content store is registered behind IContentRepository so the endpoints
+// never learn where the catalogue actually lives. The intended home is
+// PostgreSQL; until that exists, the same contract is satisfied by an index
+// built from the JSON content files. Swapping the two is this one registration.
+builder.Services.AddSingleton<IContentRepository>(services =>
+{
+    // Relative paths resolve against the content root rather than the current
+    // directory, which differs between `dotnet run`, a published deployment and
+    // a test host.
+    var configured = builder.Configuration["Content:RootPath"] ?? "content";
+    var rootPath = Path.IsPathRooted(configured)
+        ? configured
+        : Path.Combine(builder.Environment.ContentRootPath, configured);
+
+    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Api.Content");
+    var result = FileContentRepository.Load(rootPath);
+
+    // Warnings name files on disk, so they are logged and never returned. A
+    // missing or half-populated content directory is a degraded catalogue, not
+    // a failure to start: the content lives in a separate repository that is
+    // still being filled in.
+    foreach (var warning in result.Warnings)
+    {
+        logger.LogWarning("Content load: {Warning}", warning);
+    }
+
+    logger.LogInformation("Content index built with {ItemCount} items.", result.ItemCount);
+
+    return result.Repository;
+});
+
 var app = builder.Build();
+
+// Force the index to be built now rather than on the first request, so a
+// content problem shows up in the startup log and the first visitor does not
+// pay for the scan.
+app.Services.GetRequiredService<IContentRepository>();
 
 // Must run before anything that reads the scheme or the client address,
 // including the HSTS and HTTPS-redirection middleware below.
@@ -91,6 +130,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.MapHealthEndpoints();
+app.MapContentEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

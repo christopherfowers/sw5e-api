@@ -1,0 +1,16 @@
+{
+  "key": "bothan",
+  "name": "Bothan",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "size": "small",
+  "homeworld": "Bothawui",
+  "nativeLanguage": "Bothese",
+  "lore": "Bothans are famed for their spy networks and their appetite for political intrigue.",
+  "traits": [
+    {
+      "name": "Sneaky",
+      "description": "You are proficient in the Stealth skill."
+    }
+  ]
+}

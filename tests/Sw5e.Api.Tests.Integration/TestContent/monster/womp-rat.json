@@ -1,0 +1,68 @@
+{
+  "key": "womp-rat",
+  "name": "Womp rat",
+  "sourceKey": "snv",
+  "contentSet": "core",
+  "size": "medium",
+  "types": [
+    "beast"
+  ],
+  "alignment": "unaligned",
+  "armor": {
+    "class": 12
+  },
+  "hitPoints": {
+    "average": 11,
+    "roll": "2d8 + 2"
+  },
+  "speed": {
+    "walk": 40,
+    "text": "40 ft."
+  },
+  "abilities": {
+    "strength": {
+      "score": 12,
+      "modifier": 1
+    },
+    "dexterity": {
+      "score": 14,
+      "modifier": 2
+    },
+    "constitution": {
+      "score": 13,
+      "modifier": 1
+    },
+    "intelligence": {
+      "score": 2,
+      "modifier": -4
+    },
+    "wisdom": {
+      "score": 12,
+      "modifier": 1
+    },
+    "charisma": {
+      "score": 5,
+      "modifier": -3
+    }
+  },
+  "languages": [
+    "None"
+  ],
+  "challengeRating": "1/4",
+  "experiencePoints": 50,
+  "behaviors": [
+    {
+      "name": "Bite",
+      "behaviorType": "action",
+      "description": "The womp rat makes a bite attack against one target it can reach.",
+      "attackType": "meleeWeapon",
+      "attackBonus": 4,
+      "range": "5 ft.",
+      "targets": "one target",
+      "averageDamage": 5,
+      "damageRoll": "1d6 + 2",
+      "damageType": "kinetic"
+    }
+  ],
+  "sectionText": "Womp rats are aggressive scavengers native to the canyons of Tatooine."
+}
