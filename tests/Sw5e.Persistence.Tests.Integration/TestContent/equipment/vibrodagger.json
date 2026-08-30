@@ -1,0 +1,21 @@
+{
+  "key": "vibrodagger",
+  "name": "Vibrodagger",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "category": "weapon",
+  "costInCredits": 20,
+  "weight": 1.0,
+  "stealthDisadvantage": false,
+  "weaponClassification": "simpleVibroweapon",
+  "damage": {
+    "numberOfDice": 1,
+    "dieFaces": 4,
+    "type": "kinetic"
+  },
+  "properties": [
+    "finesse",
+    "light"
+  ],
+  "description": "A short blade whose ultrasonic edge parts armour plating."
+}

@@ -4,6 +4,30 @@
     <ProjectReference Include="..\Sw5e.Domain\Sw5e.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The Npgsql provider brings EF Core Relational transitively; it is
+         referenced explicitly all the same because the migrations in this
+         assembly are written against Relational's MigrationBuilder and would
+         otherwise depend on a transitive version nobody chose. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+
+    <!-- The health check itself only needs the abstractions, but registering it
+         from this assembly's own DI extension needs AddHealthChecks, which
+         lives here. Registering it from the API instead would mean every
+         consumer of AddSw5ePersistence has to remember to. -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The persistence tests reach the entity model and the importer directly
+         so they can assert on rows rather than only on what the repository
+         chooses to project. Nothing outside the test assembly sees them. -->
+    <InternalsVisibleTo Include="Sw5e.Persistence.Tests.Integration" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

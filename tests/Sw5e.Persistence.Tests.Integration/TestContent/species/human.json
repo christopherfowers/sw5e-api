@@ -1,0 +1,16 @@
+{
+  "key": "human",
+  "name": "Human",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "size": "medium",
+  "homeworld": "Coruscant",
+  "nativeLanguage": "Galactic Basic",
+  "lore": "Humans are the most numerous and adaptable species in the galaxy.",
+  "traits": [
+    {
+      "name": "Versatile",
+      "description": "You gain proficiency in one skill of your choice."
+    }
+  ]
+}

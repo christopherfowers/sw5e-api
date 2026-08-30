@@ -1,0 +1,16 @@
+{
+  "key": "wookiee",
+  "name": "Wookiee",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "size": "medium",
+  "homeworld": "Kashyyyk",
+  "nativeLanguage": "Shyriiwook",
+  "lore": "Wookiees are tall, fur-covered bipeds from the forest world of Kashyyyk, whose life debts outlast empires.",
+  "traits": [
+    {
+      "name": "Powerful Build",
+      "description": "You count as one size larger when determining your carrying capacity."
+    }
+  ]
+}

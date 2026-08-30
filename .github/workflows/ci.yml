@@ -26,7 +26,34 @@ jobs:
         run: dotnet build --no-restore --configuration Release /warnaserror
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: |
+          set -euo pipefail
+
+          # pipefail matters here for the same reason it does in the audit
+          # below: without it `tee`'s exit status hides a failing test run.
+          dotnet test --no-build --configuration Release --verbosity normal \
+            | tee test-output.txt
+
+      # The PostgreSQL integration tests start a real database with
+      # Testcontainers, and skip themselves when no Docker daemon is reachable
+      # so the suite still runs on a machine without one. That escape hatch is
+      # only safe if something notices when it is taken somewhere it should not
+      # be: a runner has a daemon, so a skip here means the probe is broken and
+      # the entire database layer went untested behind a green build.
+      - name: Verify the database tests actually ran
+        run: |
+          set -euo pipefail
+
+          if ! grep -q "Sw5e.Persistence.Tests.Integration.dll" test-output.txt; then
+            echo "::error::The persistence test assembly did not run at all"
+            exit 1
+          fi
+
+          if grep -qE "Skipped:[[:space:]]*[1-9]" test-output.txt; then
+            echo "::error::Tests were skipped on a runner that has a Docker daemon"
+            grep -E "\[SKIP\]" test-output.txt | head -20
+            exit 1
+          fi
 
       - name: Audit dependencies
         env:
@@ -154,6 +181,101 @@ jobs:
             exit 1
           fi
 
+      # The same image, deployed the way the QA stack deploys it: run the
+      # migrator once against PostgreSQL, then serve from the database instead
+      # of from the content volume.
+      #
+      # The integration tests already prove the migrator and the database store
+      # work. What only this step can prove is that they are actually in the
+      # published image and reachable through its entry point — a Dockerfile
+      # that forgot to publish the migrator, or an appsettings default that made
+      # `Content__Store=database` unreachable, would pass every test and fail on
+      # the first deploy.
+      - name: Migrate into PostgreSQL and serve from it
+        run: |
+          set -euo pipefail
+
+          docker network create sw5e-ci
+
+          docker run --detach --name sw5e-db --network sw5e-ci \
+            --env POSTGRES_DB=sw5e \
+            --env POSTGRES_USER=sw5e \
+            --env POSTGRES_PASSWORD=ci-only-not-a-secret \
+            postgres:17-alpine
+
+          for _ in $(seq 1 30); do
+            if docker exec sw5e-db pg_isready -U sw5e -d sw5e >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+          docker exec sw5e-db pg_isready -U sw5e -d sw5e
+
+          connection="Host=sw5e-db;Port=5432;Database=sw5e;Username=sw5e;Password=ci-only-not-a-secret"
+
+          # The deploy-time job: apply migrations, then import the content. The
+          # entry point is overridden because the image's default is the API.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll all
+
+          # Running it twice must be safe. A deploy can be retried, and an
+          # importer that was not idempotent would only reveal that in
+          # production.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll all
+
+          # No content volume this time: if the API answered from the
+          # filesystem after all, every count below would be zero.
+          docker run --detach --name sw5e-api-db --network sw5e-ci \
+            --publish 127.0.0.1:8081:8080 \
+            --env Content__Store=database \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            sw5e-api:ci
+
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8081/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:8081/health
+
+          # Readiness must report the database as healthy, which also means the
+          # schema is not behind the build.
+          curl --fail --silent --show-error http://127.0.0.1:8081/health/ready > ready.json
+          cat ready.json
+          jq -e '.status == "healthy"' ready.json > /dev/null
+          jq -e '.checks[] | select(.name == "database") | .status == "healthy"' ready.json > /dev/null
+
+          # The counts served from PostgreSQL must match the ones the
+          # file-backed container served from the same corpus earlier in this
+          # job. Comparing the two is what makes this more than a smoke test:
+          # a store that silently returned nothing would answer 200 with every
+          # type listed at zero.
+          curl --fail --silent --show-error http://127.0.0.1:8081/api/content-types \
+            > content-types-db.json
+
+          diff <(jq -S '.' content-types.json) <(jq -S '.' content-types-db.json) \
+            || { echo "::error::The two stores disagree about the catalogue"; exit 1; }
+
+          # One document in full, to prove the body survives the round trip
+          # through jsonb rather than only the row projection.
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8081/api/content/species/wookiee > wookiee.json
+          jq -e '.data.traits | length > 0' wookiee.json > /dev/null
+          jq -e '.data.homeworld == "Kashyyyk"' wookiee.json > /dev/null
+
       - name: Container logs
         if: always()
-        run: docker logs sw5e-api-smoke || true
+        run: |
+          docker logs sw5e-api-smoke || true
+          docker logs sw5e-api-db || true
+          docker logs sw5e-db || true

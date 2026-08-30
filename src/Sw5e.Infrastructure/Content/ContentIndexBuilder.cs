@@ -33,6 +33,14 @@ internal static class ContentIndexBuilder
     /// Outcome of one scan: the index to serve, plus anything an operator
     /// should see in the log.
     /// </summary>
+    /// <param name="Items">
+    /// Every item the scan loaded, in scan order. Exposed alongside the index
+    /// because the database importer reads the same directory and needs the
+    /// same items: what counts as a valid content file, how its display name is
+    /// found, and how its row and search text are projected are decisions that
+    /// have to be made identically by both stores, and the only way to
+    /// guarantee that is for both to come through this one scan.
+    /// </param>
     /// <param name="ItemCount">Total items indexed across all types.</param>
     /// <param name="Warnings">
     /// Human-readable notes about skipped files. These are logged at startup
@@ -40,6 +48,7 @@ internal static class ContentIndexBuilder
     /// </param>
     internal sealed record Result(
         ContentIndex Index,
+        IReadOnlyList<IndexedContentItem> Items,
         int ItemCount,
         IReadOnlyList<string> Warnings);
 
@@ -60,7 +69,7 @@ internal static class ContentIndexBuilder
             warnings.Add(
                 $"Content directory '{root}' does not exist; serving an empty catalogue.");
 
-            return new Result(ContentIndex.Empty, 0, warnings);
+            return new Result(ContentIndex.Empty, [], 0, warnings);
         }
 
         var items = new List<IndexedContentItem>();
@@ -87,6 +96,7 @@ internal static class ContentIndexBuilder
 
         return new Result(
             ContentIndex.Create(items, ComputeIndexVersion(items)),
+            items,
             items.Count,
             warnings);
     }

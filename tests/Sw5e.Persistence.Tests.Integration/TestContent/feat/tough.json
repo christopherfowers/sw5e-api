@@ -1,0 +1,11 @@
+{
+  "key": "tough",
+  "name": "Tough",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "prerequisite": "4th level, Durable feat",
+  "abilityScoreIncreases": [
+    "constitution"
+  ],
+  "description": "Your hit point maximum increases with every level you gain."
+}

@@ -1,0 +1,16 @@
+{
+  "key": "zabrak",
+  "name": "Zabrak",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "size": "medium",
+  "homeworld": "Iridonia",
+  "nativeLanguage": "Zabraki",
+  "lore": "Zabraks are a hardy species marked by vestigial horns and an unbending will.",
+  "traits": [
+    {
+      "name": "Iron Will",
+      "description": "You have advantage on saving throws against being frightened."
+    }
+  ]
+}

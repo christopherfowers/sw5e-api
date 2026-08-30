@@ -79,9 +79,20 @@ internal static class ContentProjection
         Projections.TryGetValue(typeKey, out var projection) ? projection.NameField : "name";
 
     /// <summary>The type-specific display fields for a row, absent fields omitted.</summary>
+    /// <remarks>
+    /// Ordered by field name rather than by the order of the list above.
+    /// Nothing about a row's rendering depends on the order — the site reads
+    /// these by name — but search does: when a query matches more than one
+    /// display field, the first match is the one reported as the explanation,
+    /// so the iteration order decides which field a user is told about. A
+    /// database-backed store cannot reproduce "the order this array happens to
+    /// be written in" without carrying it in the row; it can reproduce a sort.
+    /// Making the order a sort in both stores is what keeps the explanation the
+    /// same whichever store answered.
+    /// </remarks>
     public static IReadOnlyDictionary<string, string> Facets(string typeKey, JsonElement body)
     {
-        var facets = new Dictionary<string, string>(StringComparer.Ordinal);
+        var facets = new SortedDictionary<string, string>(StringComparer.Ordinal);
 
         if (!Projections.TryGetValue(typeKey, out var projection))
         {

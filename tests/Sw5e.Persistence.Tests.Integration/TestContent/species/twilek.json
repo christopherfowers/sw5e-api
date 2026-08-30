@@ -1,0 +1,16 @@
+{
+  "key": "twilek",
+  "name": "Twi'lek",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "size": "medium",
+  "homeworld": "Ryloth",
+  "nativeLanguage": "Ryl",
+  "lore": "Twi'leks are known across the galaxy for their expressive lekku and their talent for negotiation.",
+  "traits": [
+    {
+      "name": "Darkvision",
+      "description": "You can see in dim light within 60 feet."
+    }
+  ]
+}
