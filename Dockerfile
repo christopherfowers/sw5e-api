@@ -19,14 +19,10 @@ COPY src/Sw5e.Api/Sw5e.Api.csproj src/Sw5e.Api/
 COPY src/Sw5e.Domain/Sw5e.Domain.csproj src/Sw5e.Domain/
 COPY src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj src/Sw5e.Infrastructure/
 COPY src/Sw5e.Email/Sw5e.Email.csproj src/Sw5e.Email/
-<<<<<<< HEAD
 COPY src/Sw5e.Identity/Sw5e.Identity.csproj src/Sw5e.Identity/
-RUN dotnet restore src/Sw5e.Api/Sw5e.Api.csproj
-=======
 COPY src/Sw5e.Migrator/Sw5e.Migrator.csproj src/Sw5e.Migrator/
 RUN dotnet restore src/Sw5e.Api/Sw5e.Api.csproj \
  && dotnet restore src/Sw5e.Migrator/Sw5e.Migrator.csproj
->>>>>>> 014fb30 (feat: persist content in PostgreSQL behind the existing repository contract)
 
 COPY src/ src/
 
