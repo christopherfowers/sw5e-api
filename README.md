@@ -222,10 +222,19 @@ builder.Services.AddSw5ePersistence(builder.Configuration);
 builder.Services.AddDatabaseContentStore();
 ```
 
-`AddSw5ePersistence` owns the shared plumbing — the connection string, a single
+`AddSw5ePersistence` owns the content connection: `ConnectionStrings:Sw5e`, an
 `NpgsqlDataSource`, the pooled context factory and the database health check.
-Everything that needs the database resolves that one data source, so there is
-one pool and one place a credential is read.
+
+The data source is registered under a service key rather than as a plain
+`NpgsqlDataSource` singleton, so nothing can resolve it by accident. Identity
+reads its own connection string — `Identity:ConnectionString`, then
+`ConnectionStrings:Sw5eIdentity`, falling back to `ConnectionStrings:Sw5e` —
+precisely so a deployment can give account data a least-privileged role, or a
+database of its own. An unkeyed singleton would sit in the container waiting for
+someone to resolve it "to share the pool", and would then route account data
+down the content connection with nothing to say it had happened. A context that
+genuinely wants this connection can still ask for it by key, which makes sharing
+a decision somebody wrote down.
 
 ### The schema, and why it looks like this
 
@@ -348,8 +357,8 @@ stops rather than publishing an empty catalogue.
 
 | Endpoint | Answers |
 |---|---|
-| `GET /health` | Liveness. Never consults a dependency, so a database outage does not make an orchestrator restart every API container. This is the probe the image's `HEALTHCHECK` uses. |
-| `GET /health/ready` | Readiness. `healthy`, `degraded` (reachable, schema behind this build) or `unhealthy` (unreachable), with one entry per check. |
+| `GET /health`, `GET /api/health` | Liveness. Never consults a dependency, so a database outage does not make an orchestrator restart every API container. `/health` is the probe the image's `HEALTHCHECK` uses; `/api/health` is where it lands through the reverse proxy. |
+| `GET /health/ready`, `GET /api/health/ready` | Readiness. `healthy`, `degraded` (reachable, schema behind this build) or `unhealthy` (unreachable), with one entry per check. |
 
 Neither ever returns a connection string, a host name or a stack trace.
 

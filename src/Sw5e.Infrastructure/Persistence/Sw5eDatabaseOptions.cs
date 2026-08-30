@@ -17,11 +17,14 @@ namespace Sw5e.Infrastructure.Persistence;
 /// slight asymmetry.
 /// </para>
 /// <para>
-/// One connection string serves the whole application, not one per feature.
-/// Content and identity are two schemas in one database, so they must agree on
-/// the host, the credentials and the pool; giving each its own setting would
-/// let them drift onto different servers, at which point a transaction that
-/// spans both silently stops being one.
+/// <c>ConnectionStrings:Sw5e</c> is the platform-wide connection string and the
+/// one this content store uses. Identity reads its own —
+/// <c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
+/// falling back to this one — so a small deployment can run everything through
+/// a single role while a larger one gives account data a role, or a database,
+/// with no rights over content at all. Nothing here assumes the two resolve to
+/// the same server, and nothing here should: content and identity are never
+/// written in one transaction.
 /// </para>
 /// </remarks>
 public sealed class Sw5eDatabaseOptions

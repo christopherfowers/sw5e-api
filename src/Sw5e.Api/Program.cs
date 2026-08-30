@@ -123,10 +123,11 @@ var contentStore = builder.Configuration["Content:Store"] ?? "file";
 
 if (string.Equals(contentStore, "database", StringComparison.OrdinalIgnoreCase))
 {
-    // Owns the connection string, the shared data source, the content context
-    // and the database health check. A second context — identity — resolves the
-    // same data source from here rather than configuring a connection of its
-    // own.
+    // Owns the content connection: ConnectionStrings:Sw5e, a data source keyed
+    // to this store, the content context and the database health check.
+    // Identity is registered separately and resolves its own connection string,
+    // so a deployment can give account data a least-privileged role without
+    // touching any of this.
     builder.Services.AddSw5ePersistence(builder.Configuration);
     builder.Services.AddDatabaseContentStore();
 }

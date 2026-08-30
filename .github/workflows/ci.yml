@@ -234,13 +234,25 @@ jobs:
           # No content volume this time: if the API answered from the
           # filesystem after all, every count below would be zero.
           #
-          # The email settings are the same ones the file-backed container above
-          # is given. Outside Development a missing provider is a startup
-          # failure by design, so every container in this job has to supply one.
+          # The email and identity settings are the ones the file-backed
+          # container above is given. Outside Development both subsystems treat
+          # a missing setting as a startup failure by design, so every container
+          # in this job has to supply them.
+          #
+          # Identity is deliberately pointed at a database that does not exist
+          # on this server. It never connects during startup — schema is the
+          # migrator's job, not a starting web process's — so an unreachable
+          # identity database is harmless here, and naming a different one turns
+          # the separation into something this step can actually prove: if the
+          # content store resolved identity's connection string through some
+          # fallback, every content request below would fail against a database
+          # that was never created.
           docker run --detach --name sw5e-api-db --network sw5e-ci \
             --publish 127.0.0.1:8081:8080 \
             --env Content__Store=database \
             --env "ConnectionStrings__Sw5e=$connection" \
+            --env "ConnectionStrings__Sw5eIdentity=Host=sw5e-db;Port=5432;Database=sw5e_identity_does_not_exist;Username=sw5e;Password=ci-only-not-a-secret" \
+            --env 'Identity__PublicSiteUrl=https://sw5e.example' \
             --env Email__Provider=Capture \
             --env Email__FromAddress=noreply@sw5e.test \
             sw5e-api:ci

@@ -16,27 +16,34 @@ namespace Sw5e.Infrastructure.Persistence;
 public static class PersistenceServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the shared database connection, the content context and the
+    /// Registers the content database connection, the content context and the
     /// database health check.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The shared data source is the point of this method.</b> Content and
-    /// identity are separate contexts with separate schemas and separate
-    /// migration histories, but they are one database and must be one
-    /// connection pool. Registering <see cref="NpgsqlDataSource"/> as a
-    /// singleton and having every context resolve it means there is exactly one
-    /// place a credential is read, one pool to size, and no way for two
-    /// features to end up pointed at two different servers. A second context
-    /// added later resolves the same instance and needs no configuration of its
-    /// own beyond its migrations history table.
+    /// <b>This registers the connection for content, and only for content.</b>
+    /// The data source is keyed with <see cref="ContentDataSourceKey"/> rather
+    /// than registered as a bare <see cref="NpgsqlDataSource"/> singleton, and
+    /// that is deliberate. Identity resolves its own connection string —
+    /// <c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
+    /// then <c>ConnectionStrings:Sw5e</c> — precisely so a deployment can give
+    /// account data a least-privileged role, or a database of its own, without
+    /// touching anything here. An unkeyed singleton would sit in the container
+    /// waiting for someone to resolve it "to share the pool", and would then
+    /// route account data down the content connection with nothing to say it
+    /// had happened. Being unable to reach it by accident is worth more than
+    /// the pool that sharing would have saved.
+    /// </para>
+    /// <para>
+    /// A second context that genuinely wants this connection can still ask for
+    /// it by key, which makes sharing a decision someone wrote down rather than
+    /// something that happened.
     /// </para>
     /// <para>
     /// It is safe to call more than once: a second call returns immediately.
-    /// Content and identity both depend on persistence, and both will ask for
-    /// it; without the guard the second call would register a second health
-    /// check under the same name, which throws at the first probe rather than
-    /// at startup.
+    /// Without the guard, a second call would register a second health check
+    /// under the same name, which throws at the first probe rather than at
+    /// startup.
     /// </para>
     /// </remarks>
     /// <param name="services">The application's service collection.</param>
@@ -49,6 +56,16 @@ public static class PersistenceServiceCollectionExtensions
     /// first use, so a misconfigured deployment fails while it is starting
     /// instead of on a user's request.
     /// </exception>
+    /// <summary>
+    /// Service key the content data source is registered under.
+    /// </summary>
+    /// <remarks>
+    /// Public so a second context can opt into this connection explicitly. It
+    /// is not the connection string's name: the connection string is shared
+    /// configuration, this key names one pool built from it.
+    /// </remarks>
+    public const string ContentDataSourceKey = "Sw5eContent";
+
     public static IServiceCollection AddSw5ePersistence(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -66,9 +83,11 @@ public static class PersistenceServiceCollectionExtensions
         }
 
         // Calling this twice would register a second health check under the same
-        // name, which throws at first probe rather than at startup. Content and
-        // identity both depend on persistence, so both will ask for it.
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(NpgsqlDataSource)))
+        // name, which throws at the first probe rather than at startup.
+        if (services.Any(descriptor =>
+                descriptor.IsKeyedService &&
+                descriptor.ServiceType == typeof(NpgsqlDataSource) &&
+                Equals(descriptor.ServiceKey, ContentDataSourceKey)))
         {
             return services;
         }
@@ -78,15 +97,15 @@ public static class PersistenceServiceCollectionExtensions
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-        services.TryAddSingleton(provider =>
+        services.TryAddKeyedSingleton(ContentDataSourceKey, (provider, _) =>
         {
             var builder = new NpgsqlDataSourceBuilder(connectionString);
 
-            // Npgsql logs command text at debug level, and command text here
-            // carries content names and search phrases rather than anything
-            // sensitive. Parameter values are deliberately left out: the
-            // identity context shares this data source, and its parameters are
-            // email addresses and token hashes.
+            // Npgsql logs command text at debug level. Parameter logging is
+            // deliberately left off: content names and search phrases are not
+            // sensitive, but the switch is per data source rather than per
+            // query, and a habit of enabling it here is a habit that reaches
+            // somewhere it should not.
             builder.UseLoggerFactory(provider.GetRequiredService<ILoggerFactory>());
 
             return builder.Build();
@@ -121,10 +140,10 @@ public static class PersistenceServiceCollectionExtensions
     /// Registers <see cref="DbContentRepository"/> as the content store.
     /// </summary>
     /// <remarks>
-    /// Separate from <see cref="AddSw5ePersistence"/> so that having a database
-    /// and serving content from it stay independent decisions. Identity needs
-    /// the database whether or not the catalogue lives there, and a deployment
-    /// mid-migration may want both registered and only one of them in use.
+    /// Separate from <see cref="AddSw5ePersistence"/> so that having a content
+    /// database and serving content from it stay independent decisions: the
+    /// migrator wants the first without the second, and a deployment part-way
+    /// through a migration may want both registered and only one in use.
     /// </remarks>
     public static IServiceCollection AddDatabaseContentStore(this IServiceCollection services)
     {
@@ -160,7 +179,7 @@ public static class PersistenceServiceCollectionExtensions
                                     .Get<Sw5eDatabaseOptions>() ?? new Sw5eDatabaseOptions();
 
         builder.UseNpgsql(
-            provider.GetRequiredService<NpgsqlDataSource>(),
+            provider.GetRequiredKeyedService<NpgsqlDataSource>(ContentDataSourceKey),
             npgsql =>
             {
                 // Kept inside the content schema so a second context's history

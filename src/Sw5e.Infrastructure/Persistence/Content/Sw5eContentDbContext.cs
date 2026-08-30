@@ -19,13 +19,19 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// applied independently without one rebasing on the other.
 /// </para>
 /// <para>
-/// The two share a connection: <c>AddSw5ePersistence</c> registers one
-/// <c>NpgsqlDataSource</c> and both contexts resolve it, so there is a single
-/// pool and a single place a credential is configured. A second context added
-/// later must call <see cref="MigrationsHistoryTableName"/>'s counterpart in
-/// its own schema — pointing both at the default <c>public.__EFMigrationsHistory</c>
-/// makes each context believe the other's migrations are unknown ones of its
-/// own, and the first <c>Migrate</c> after that tries to re-create every table.
+/// They do not share a connection. <c>AddSw5ePersistence</c> registers this
+/// context's data source under a service key rather than as a plain singleton,
+/// so identity cannot pick it up by accident: identity resolves its own
+/// connection string, which a deployment may point at a least-privileged role
+/// or a separate database entirely.
+/// </para>
+/// <para>
+/// What both contexts must do — and what the identity context also does — is
+/// keep the migration history table inside their own schema. Pointing both at
+/// the default <c>public.__EFMigrationsHistory</c> makes each read the other's
+/// rows as unknown migrations of its own, and the next <c>Migrate</c> on either
+/// tries to create tables that already exist. Nothing about the content schema
+/// looks wrong when that happens.
 /// </para>
 /// </remarks>
 public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> options)
