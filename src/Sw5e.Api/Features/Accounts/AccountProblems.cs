@@ -87,6 +87,41 @@ internal static class AccountProblems
         detail: detail,
         statusCode: StatusCodes.Status400BadRequest);
 
+    /// <summary>
+    /// The caller asked to remove a credential that is not on their account.
+    /// </summary>
+    /// <remarks>
+    /// Safe to distinguish, because the route already requires a session and
+    /// the only credentials it can speak about are the caller's own. It tells
+    /// an account holder nothing they could not learn from
+    /// <c>GET /api/auth/me</c>, and it is the difference between a page that
+    /// says "already gone" and one that silently claims success.
+    /// </remarks>
+    public static ProblemHttpResult NoSuchCredential => TypedResults.Problem(
+        title: "No such passkey",
+        detail: "That passkey is not registered to this account.",
+        statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>
+    /// The caller asked to remove the only credential their account has.
+    /// </summary>
+    /// <remarks>
+    /// Refused rather than obeyed. Passkeys are the only credential this
+    /// platform issues, so removing the last one does not lock the account
+    /// down, it strands it: nobody — including the owner — can sign in again,
+    /// and the only way back is the recovery email, which re-credentials the
+    /// account rather than restoring it. A reader who genuinely wants to stop
+    /// using a device enrols the replacement first, which is what the
+    /// <c>code</c> below lets the front end say.
+    /// </remarks>
+    public static ProblemHttpResult LastCredential => TypedResults.Problem(
+        title: "Last passkey",
+        detail:
+            "That is the only passkey on this account. Add another one first, " +
+            "or the account would have no way to sign in.",
+        statusCode: StatusCodes.Status409Conflict,
+        extensions: new Dictionary<string, object?> { ["code"] = "last-credential" });
+
     /// <summary>The named account does not exist. Administrative routes only.</summary>
     /// <remarks>
     /// Distinguishable from success on purpose, and safe because every route

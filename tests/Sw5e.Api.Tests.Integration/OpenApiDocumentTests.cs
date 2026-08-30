@@ -31,6 +31,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/auth/email/verify")]
     [InlineData("/api/auth/passkey/register/begin")]
     [InlineData("/api/auth/passkey/register/complete")]
+    [InlineData("/api/auth/passkey/{credentialId}")]
     [InlineData("/api/auth/passkey/login/begin")]
     [InlineData("/api/auth/passkey/login/complete")]
     [InlineData("/api/auth/mfa/totp/enroll")]
@@ -70,7 +71,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
                 "register", "verifyEmail",
-                "beginPasskeyRegistration", "completePasskeyRegistration",
+                "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
                 "logout", "currentUser", "assignRoles",

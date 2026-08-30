@@ -236,17 +236,26 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // exist here, which a fetch() client sees as a successful
             // navigation to nowhere. Answer with the status codes the contract
             // promises instead.
-            cookie.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
-            };
+            //
+            // The body matters as much as the status. Setting the status alone
+            // produces a 401 with no content type and no payload, which is
+            // indistinguishable — to a client that decides what happened by
+            // looking at the body — from a reverse proxy answering while the
+            // API is not mounted. A browser client that made that mistake would
+            // tell every signed-out reader the service was unreachable instead
+            // of offering them a way to sign in. Every other refusal in this
+            // API is a problem document, so these two are as well.
+            cookie.Events.OnRedirectToLogin = context => WriteProblemAsync(
+                context.HttpContext,
+                StatusCodes.Status401Unauthorized,
+                "Authentication required",
+                "This request requires a signed-in account.");
 
-            cookie.Events.OnRedirectToAccessDenied = context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return Task.CompletedTask;
-            };
+            cookie.Events.OnRedirectToAccessDenied = context => WriteProblemAsync(
+                context.HttpContext,
+                StatusCodes.Status403Forbidden,
+                "Forbidden",
+                "This account may not perform that action.");
 
             cookie.Events.OnRedirectToLogout = context =>
             {
@@ -376,6 +385,42 @@ public static class Sw5eIdentityServiceCollectionExtensions
         var request = context.HttpContext.Request;
         return string.Equals(origin.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase)
             && string.Equals(origin.Authority, request.Host.Value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Writes an RFC 9457 problem document for a refusal raised by the
+    /// authentication handler rather than by an endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Routed through <see cref="IProblemDetailsService"/> so these two answers
+    /// are shaped by the same configuration, and carry the same trace
+    /// identifier, as every refusal an endpoint produces. Falling back to a
+    /// bare status code if the service is not registered keeps this from being
+    /// the reason a request fails.
+    /// </remarks>
+    private static async Task WriteProblemAsync(
+        HttpContext context,
+        int statusCode,
+        string title,
+        string detail)
+    {
+        context.Response.StatusCode = statusCode;
+
+        if (context.RequestServices.GetService<IProblemDetailsService>() is not { } problems)
+        {
+            return;
+        }
+
+        await problems.WriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = context,
+            ProblemDetails =
+            {
+                Status = statusCode,
+                Title = title,
+                Detail = detail,
+            },
+        });
     }
 
     private static void AddAuthorizationPolicies(IServiceCollection services)

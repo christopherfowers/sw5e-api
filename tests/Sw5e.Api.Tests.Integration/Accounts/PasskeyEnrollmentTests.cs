@@ -157,7 +157,7 @@ public sealed class PasskeyEnrollmentTests(PostgresFixture postgres) : IAsyncLif
         await account.EnrollPasskeyAsync();
 
         var me = await (await client.GetAsync("/api/auth/me")).ReadJsonAsync();
-        me.GetProperty("passkeyCount").GetInt32().ShouldBe(2);
+        me.GetProperty("passkeys").GetArrayLength().ShouldBe(2);
 
         account.Authenticator.CredentialIds.Count.ShouldBe(2);
     }
