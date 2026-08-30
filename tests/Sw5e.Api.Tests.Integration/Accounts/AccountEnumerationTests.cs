@@ -99,8 +99,31 @@ public sealed class AccountEnumerationTests(PostgresFixture postgres) : IAsyncLi
         unknown.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         wrongToken.StatusCode.ShouldBe(unknown.StatusCode);
 
-        (await wrongToken.Content.ReadAsStringAsync())
-            .ShouldBe(await unknown.Content.ReadAsStringAsync());
+        (await WithoutCorrelationAsync(wrongToken))
+            .ShouldBe(await WithoutCorrelationAsync(unknown));
+    }
+
+    /// <summary>
+    /// A response body with the per-request correlation identifier removed.
+    /// </summary>
+    /// <remarks>
+    /// Problem Details stamps a distinct <c>traceId</c> onto every response, so
+    /// two bodies are never byte-identical and comparing them raw would fail
+    /// against a perfectly indistinguishable pair. The trace id is not an
+    /// enumeration channel — it is freshly generated per request and says
+    /// nothing about the account — but every other field is, so everything else
+    /// is compared exactly.
+    /// </remarks>
+    private static async Task<string> WithoutCorrelationAsync(HttpResponseMessage response)
+    {
+        var body = await response.ReadJsonAsync();
+
+        return string.Join(
+            '\n',
+            body.EnumerateObject()
+                .Where(property => property.Name is not "traceId")
+                .OrderBy(property => property.Name, StringComparer.Ordinal)
+                .Select(property => $"{property.Name}={property.Value}"));
     }
 
     [Fact]

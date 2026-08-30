@@ -35,6 +35,15 @@ public class ContentApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "ConnectionStrings:Sw5eIdentity",
             "Host=127.0.0.1;Port=1;Database=sw5e_identity_unused;Username=unused");
+
+        // Data protection eagerly loads its key ring during startup so that a
+        // broken key store is reported at boot rather than at the first
+        // request. Pointed at the placeholder above it fails every time and
+        // logs the whole connection stack, which would bury the output of every
+        // content test in an error that is expected and irrelevant here. The
+        // behaviour is deliberately not changed — only its volume in this one
+        // fixture.
+        builder.UseSetting("Logging:LogLevel:Microsoft.AspNetCore.DataProtection", "None");
     }
 }
 
