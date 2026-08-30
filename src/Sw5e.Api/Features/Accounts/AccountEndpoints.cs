@@ -115,6 +115,27 @@ internal static class AccountEndpoints
              .AllowAnonymous()
              .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
 
+        // Requires a real session rather than an enrolment ticket. A ticket is
+        // permission to add a credential after proving mailbox control; if it
+        // also removed them, an intercepted recovery link would be a way to
+        // strip an account of every credential it already had.
+        group.MapDelete("/passkey/{credentialId}", PasskeyHandlers.RemoveAsync)
+             .WithName("removePasskey")
+             .WithSummary("Remove a passkey from the account.")
+             .WithDescription(
+                 "Revokes one of the signed-in account's credentials, named by its base64url " +
+                 "credential id. Refuses to remove the last remaining passkey, because passkeys " +
+                 "are the only credential this platform issues and removing the last one would " +
+                 "strand the account rather than secure it. The account is emailed about the " +
+                 "change.")
+             .Produces<PasskeyRemovedResponse>()
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .ProducesProblem(StatusCodes.Status409Conflict)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.SignedIn)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
         group.MapPost("/passkey/login/begin", PasskeyHandlers.BeginLoginAsync)
              .WithName("beginPasskeyLogin")
              .WithSummary("Start signing in with a passkey.")

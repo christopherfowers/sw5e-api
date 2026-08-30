@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
 
@@ -19,11 +20,16 @@ namespace Sw5e.Api.Features.Accounts;
 /// What is deliberately absent: the security stamp and the concurrency stamp
 /// (internal values whose disclosure helps an attacker reason about token
 /// validity), the lockout state (which tells a thief holding a session whether
-/// their guessing elsewhere is working), the password hash column, and the
-/// passkey credential identifiers themselves. The passkey <em>count</em> is
-/// included because the account holder needs to know whether they have a second
-/// device enrolled; the identifiers are not, because nothing in this contract
-/// needs them.
+/// their guessing elsewhere is working), and the password hash column.
+/// </para>
+/// <para>
+/// The passkey list is present, and used to be a bare count. Revocation is what
+/// changed the calculation: naming a credential to remove requires its
+/// identifier, and an account that can only add credentials cannot cut off a
+/// lost device. The identifiers are not secrets — the browser and the
+/// authenticator hold them already, and they are disclosed here only to the
+/// account holder — whereas the public key and the signature counter stay out,
+/// because nothing in this contract needs them.
 /// </para>
 /// </remarks>
 internal static class AccountProfile
@@ -41,6 +47,14 @@ internal static class AccountProfile
             user.DisplayName,
             [.. roles.OrderBy(role => role, StringComparer.Ordinal)],
             user.TwoFactorEnabled,
-            passkeys.Count);
+            // Oldest first, so the list a reader sees does not reshuffle
+            // between requests and the credential they are about to revoke does
+            // not move under the cursor.
+            [.. passkeys
+                .OrderBy(passkey => passkey.CreatedAt)
+                .Select(passkey => new PasskeySummary(
+                    Base64Url.EncodeToString(passkey.CredentialId),
+                    passkey.Name,
+                    passkey.CreatedAt))]);
     }
 }
