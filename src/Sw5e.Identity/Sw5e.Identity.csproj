@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- The identity stack lives in the ASP.NET Core shared framework:
+         SignInManager, IPasskeyHandler, the cookie authentication handler and
+         data protection all come from here. A plain class library gets none of
+         them without this reference. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core Identity's EF Core stores. Nothing in this assembly
+         hashes a credential, formats a token or decides how a passkey is
+         verified; all of that is the framework's, and deliberately so. -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+
+    <!-- Keeps the data protection key ring in the identity schema rather than
+         on a container-local file system. See AddSw5eIdentity: without it,
+         every restart silently invalidates every session and every emailed
+         token, and no two replicas agree on a key. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
+
+    <!-- Design-time only: the migration tooling needs it, the running
+         application must never ship it. PrivateAssets keeps it out of anything
+         that references this project, and out of the published image. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

@@ -20,8 +20,31 @@ public class ContentApiFactory : WebApplicationFactory<Program>
 
     protected virtual string ContentRootPath => FixturePath;
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.UseSetting("Content:RootPath", ContentRootPath);
+
+        // The identity registration insists on a connection string, because a
+        // deployment without one has no accounts and should say so at startup
+        // rather than at the first sign-in. These tests are about content and
+        // never touch an account, so a well-formed placeholder is enough: EF
+        // Core parses it while composing the context and opens nothing until
+        // somebody queries. If a content test ever does make the API talk to
+        // the identity store, it will fail here with a connection error, which
+        // is the correct and informative outcome.
+        builder.UseSetting(
+            "ConnectionStrings:Sw5eIdentity",
+            "Host=127.0.0.1;Port=1;Database=sw5e_identity_unused;Username=unused");
+
+        // Data protection eagerly loads its key ring during startup so that a
+        // broken key store is reported at boot rather than at the first
+        // request. Pointed at the placeholder above it fails every time and
+        // logs the whole connection stack, which would bury the output of every
+        // content test in an error that is expected and irrelevant here. The
+        // behaviour is deliberately not changed — only its volume in this one
+        // fixture.
+        builder.UseSetting("Logging:LogLevel:Microsoft.AspNetCore.DataProtection", "None");
+    }
 }
 
 /// <summary>

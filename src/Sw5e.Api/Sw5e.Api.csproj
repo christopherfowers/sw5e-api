@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Sw5e.Domain\Sw5e.Domain.csproj" />
     <ProjectReference Include="..\Sw5e.Infrastructure\Sw5e.Infrastructure.csproj" />
     <ProjectReference Include="..\Sw5e.Email\Sw5e.Email.csproj" />
+    <ProjectReference Include="..\Sw5e.Identity\Sw5e.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>

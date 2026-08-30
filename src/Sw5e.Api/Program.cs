@@ -1,10 +1,13 @@
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
+using Sw5e.Api.Features.Accounts;
 using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
 using Sw5e.Api.Security;
 using Sw5e.Domain.Content;
 using Sw5e.Email.Configuration;
+using Sw5e.Identity;
+using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Content;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -124,6 +127,19 @@ builder.Services.AddSingleton<IContentRepository>(services =>
     return result.Repository;
 });
 
+// Accounts: the identity store, the cookie policy, passkey configuration and
+// the authorization policies. Everything security-relevant about them lives in
+// AddSw5eIdentity rather than here, so that it can be reviewed in one piece.
+builder.Services.AddSw5eIdentity(builder.Configuration);
+builder.Services.AddScoped<AccountStateCookies>();
+builder.Services.AddSw5eAuthRateLimiting(builder.Configuration);
+
+// Bridges the identity system's IAccountEmailSender onto the email library
+// registered above. Registered after AddSw5eIdentity so it replaces the
+// fail-closed stub that only exists to stop a deployment quietly pretending it
+// sent anything.
+builder.Services.AddScoped<IAccountEmailSender, ProviderAccountEmailSender>();
+
 var app = builder.Build();
 
 // Force the index to be built now rather than on the first request, so a
@@ -143,12 +159,25 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Rate limiting sits ahead of authentication so that a flood of sign-in
+// attempts is refused before any of them costs a database read or a signature
+// verification, and after UseForwardedHeaders so the partition key is the
+// client's own address rather than the proxy's.
+app.UseRateLimiter();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapHealthEndpoints();
 app.MapContentEndpoints();
+app.MapAccountEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // Anonymous explicitly. AddSw5eIdentity installs a fallback authorization
+    // policy that denies any endpoint which has not said otherwise, and that
+    // includes this one.
+    app.MapOpenApi().AllowAnonymous();
 }
 
 app.Run();

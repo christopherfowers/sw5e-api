@@ -11,8 +11,8 @@ using Xunit;
 
 namespace Sw5e.Api.Tests.Integration;
 
-public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class SecurityHeadersTests(ContentApiFactory factory)
+    : IClassFixture<ContentApiFactory>
 {
     /// <summary>
     /// Every header SecurityHeadersMiddleware emits. Adding one to the
@@ -94,7 +94,7 @@ public sealed class SecurityHeadersTests(WebApplicationFactory<Program> factory)
     /// port instead of the in-memory TestServer, so headers Kestrel itself
     /// would add or suppress are actually observable over the wire.
     /// </summary>
-    private sealed class KestrelWebApplicationFactory : WebApplicationFactory<Program>
+    private sealed class KestrelWebApplicationFactory : ContentApiFactory
     {
         public Uri ServerAddress { get; private set; } = null!;
 

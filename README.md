@@ -5,7 +5,8 @@ Backend API for the SW5e community platform.
 ## Requirements
 
 - .NET SDK 10.0.302 or later
-- Docker (for PostgreSQL 17; not required for the current test suite)
+- Docker, for PostgreSQL 17. The account tests start one through Testcontainers
+  and will fail without a running daemon; the content tests need nothing.
 
 ## Getting started
 
@@ -24,7 +25,8 @@ probe. In development, the OpenAPI document is served at `/openapi/v1.json`.
 |---|---|
 | `Sw5e.Api` | Endpoints, composition root, HTTP concerns |
 | `Sw5e.Domain` | Content graph model and rules |
-| `Sw5e.Infrastructure` | Persistence, search, identity |
+| `Sw5e.Infrastructure` | Content persistence and search |
+| `Sw5e.Identity` | Accounts, roles, passkeys, and their own DbContext and schema |
 | `Sw5e.Email` | Email abstraction and provider adapters |
 
 Endpoints are organized as vertical feature slices under `Features/`. Each
@@ -77,11 +79,188 @@ integration tests use a fixture committed under
 `tests/Sw5e.Api.Tests.Integration/TestContent`, so they never depend on that
 sibling checkout.
 
+## Accounts
+
+Authentication is by **passkey**, with an optional authenticator-app second
+factor. There are no passwords: no endpoint sets one, no endpoint checks one,
+and the `PasswordHash` column the framework's schema defines stays null for
+every account this platform creates.
+
+| Endpoint | Who may call it |
+|---|---|
+| `POST /api/auth/register` | anyone |
+| `POST /api/auth/email/verify` | anyone, with the token from the emailed link |
+| `POST /api/auth/passkey/register/begin` | a signed-in account, or a verified address inside its enrolment window |
+| `POST /api/auth/passkey/register/complete` | as above |
+| `POST /api/auth/passkey/login/begin` | anyone |
+| `POST /api/auth/passkey/login/complete` | anyone |
+| `POST /api/auth/mfa/totp/enroll` | a signed-in account |
+| `POST /api/auth/mfa/totp/verify` | a signed-in account enrolling, or a caller awaiting a second factor |
+| `POST /api/auth/logout` | anyone |
+| `GET /api/auth/me` | a signed-in account |
+| `PUT /api/auth/admin/users/{userId}/roles` | an administrator |
+
+### The one way in
+
+A passkey assertion, followed by whatever second factor the account has, is the
+**only** thing that issues a session cookie. Verifying an email address does not
+sign anybody in. Registering a passkey does not sign anybody in either — the
+client follows enrolment with an ordinary sign-in. That leaves a single code
+path to audit, and it is why an account that switched on two-factor
+authentication cannot be entered by a route that skips it.
+
+The framework's `SignInManager.PasskeySignInAsync` is deliberately not used: it
+completes sign-in with `bypassTwoFactor` set, which is defensible on the
+reasoning that a user-verifying passkey is already two factors, and would have
+made this platform's TOTP option decorative for everyone who enabled it.
+
+### Registering, and recovering
+
+`register` takes an address and a display name and answers `202` with the same
+body every time — whether the address was free, already belonged to an
+unverified account, or already belonged to a verified one. It cannot say "that
+address is taken" without confirming to a stranger that somebody has an account
+here, so it says nothing and emails the account holder instead:
+
+- a free address gets a verification link;
+- an unverified account gets its verification link again;
+- a **verified** account gets a passkey recovery link, phrased for somebody who
+  did not ask for it.
+
+That last case is the recovery flow. Somebody who has lost every device they
+enrolled registers again with the same address, and the link that arrives lets
+them enrol a fresh passkey. Redeeming any of these links rotates the account's
+security stamp, which invalidates every other outstanding link for it and drops
+any session already open — the correct outcome when somebody has just proved
+mailbox control in order to re-credential.
+
+Sign-in requires **discoverable** passkeys, so `passkey/login/begin` takes no
+identifier and returns an empty `allowCredentials` list. The browser picks the
+account; the server is never told who is signing in before the signature
+arrives. There is no input to vary, so there is nothing to enumerate.
+
+### Roles
+
+| Role | Grants |
+|---|---|
+| `Community` | The default for every account. Nothing beyond what an anonymous visitor has; content stays read-only. |
+| `Contributor` | May upload base game rules and content. Granted by an administrator, never on request. |
+| `Administrator` | Everything, including granting and revoking the other roles. |
+
+The first administrator comes from `Identity:BootstrapAdministratorEmail`. That
+setting creates nothing: the named person registers through the ordinary public
+flow and proves control of the address like anybody else, and the setting only
+decides which of the resulting accounts is promoted, on the next start. It is
+therefore safe if it leaks.
+
+An administrator cannot remove their own administrator role — the role is the
+only thing that can grant the role, so the last one revoking themselves would
+leave the platform with no way to appoint another.
+
+### Configuration
+
+| Variable | Required | Notes |
+|---|---|---|
+| `ConnectionStrings__Sw5eIdentity` | **yes** | PostgreSQL, for the `identity` schema. `Identity__ConnectionString` overrides it, and `ConnectionStrings__Sw5e` is the fallback. **The API refuses to start without one of them** — an API that boots happily with no account system is one serving an unauthenticated site without saying so. |
+| `Identity__PublicSiteUrl` | **yes, to send mail** | The public base URL of the browser application, used to build emailed links. Configured rather than derived from the request: deriving it would let anyone who can set a `Host` header decide where a recovery link points. |
+| `Identity__RelyingPartyId` | in every deployed environment | The registrable domain passkeys are bound to — `sw5e.example`, with no scheme, port or path. Unset, the framework uses the request's own host, which is right for `localhost` and wrong for anything served under more than one hostname. **Changing it invalidates every existing passkey.** |
+| `Identity__AllowedOrigins__0` | only for a separately hosted front end | Exact origins, compared exactly, no wildcards. Empty means same-origin only, which is correct when the site and the API share a hostname behind the proxy. Read by both the WebAuthn origin check and the cross-site request check. |
+| `Identity__SessionLifetime` | no | Sliding; `08:00:00` by default. |
+| `Identity__EmailTokenLifetime` | no | `01:00:00` by default. |
+| `Identity__InitializeDatabaseAtStartup` | no | Off by default. Migrations are a deliberate, separate step in production; a web process that migrates its own database holds schema rights at runtime and races its own replicas. |
+| `Identity__BootstrapAdministratorEmail` | no | See above. |
+| `Auth__RateLimits__SensitiveAttempts` | no | Attempts per window against a guessable endpoint. `20` per five minutes by default, per client address **and** per endpoint. |
+| `Auth__RateLimits__StandardRequests` | no | `120` per minute by default. |
+
+The identity tables live in their own `identity` schema, created by the
+migration in `Sw5e.Identity`. Apply it before serving traffic:
+
+```bash
+dotnet ef database update --project src/Sw5e.Identity
+```
+
+Data protection keys — which sign the session cookie, the two-factor cookie, the
+passkey challenge cookies and every emailed token — are persisted into that
+schema rather than to the container's file system. On the default file-system
+key ring they would be lost on every restart, silently logging every user out
+and invalidating every outstanding verification link, and two replicas would
+reject each other's cookies.
+
+Account email goes through `IAccountEmailSender`, which `Sw5e.Identity` defines
+and `ProviderAccountEmailSender` bridges onto the email library — so the
+identity code never learns which provider is configured, and the mail code never
+learns what a passkey is. Verification is delegated to `IAccountEmailService`,
+whose message is exactly right for it; the passkey recovery and security-notice
+messages are composed alongside, because a passwordless site must not send a
+"choose a new password" email. Every path turns an undelivered message into a
+failure rather than reporting success, since registration that claims to have
+sent nothing is indistinguishable, to the user, from an attacker's request being
+quietly dropped.
+
 ## Security
 
 Every response carries a restrictive baseline of security headers, applied by
 `SecurityHeadersMiddleware` before any other middleware so that error responses
 are covered. See [SECURITY.md](SECURITY.md) for reporting instructions.
+
+### Sessions
+
+The session cookie is `__Host-sw5e.session`: `HttpOnly`, `Secure` in every
+environment, and `SameSite=Strict`. The `__Host-` prefix is not decoration — a
+browser refuses to store such a cookie unless it is `Secure`, has `Path=/` and
+carries no `Domain`, so no sibling subdomain can set it and nothing served over
+plain HTTP can either.
+
+A cookie rather than a bearer token, because a token has to live somewhere
+JavaScript can reach it, which makes any cross-site scripting bug anywhere on
+the origin an immediate credential theft. `SameSite=Strict` rather than `Lax`,
+because `Lax` still attaches the cookie to top-level cross-site navigations.
+
+Sessions are re-checked against the account's security stamp every five minutes
+rather than the framework's default thirty, so a revoked role or a locked
+account drops a live session in minutes rather than at expiry.
+
+### Cross-site request forgery
+
+Three independent layers, none of which is a token shipped to JavaScript:
+
+1. `SameSite=Strict`, so a request initiated from another site arrives without
+   the cookie and is refused as unauthenticated.
+2. An origin check on every unsafe request, which refuses anything whose
+   `Origin` is not an origin this deployment serves. It fails closed: a request
+   with neither `Origin` nor `Sec-Fetch-Site` is refused, because every browser
+   has sent `Origin` on unsafe requests for years.
+3. A JSON body. HTML forms — the only way to make a browser issue a
+   cross-origin `POST` without CORS approval — can send exactly three content
+   types, and `application/json` is not among them.
+
+### Brute force
+
+Lockout is five failed attempts and fifteen minutes, and applies to new accounts
+too; the framework's default exempts them, which would leave the freshest
+accounts as the only ones with unlimited attempts. Rate limits are partitioned
+by client address *and* endpoint, so hammering sign-in cannot exhaust somebody
+else's ability to register.
+
+Lockout answers the per-account attack and rate limiting answers the per-caller
+one — an attacker spreading a single guess across ten thousand accounts trips no
+lockout counter at all.
+
+### What errors do not say
+
+Every authentication failure gives the same answer: unknown credential, invalid
+signature, expired challenge, unverified address, locked-out account. Reporting
+a lockout confirms the account exists and tells somebody running a lockout
+attack that their denial of service is working. The server log distinguishes all
+of these in full, keyed by account identifier.
+
+### Deny by default
+
+Every mapped endpoint without an explicit policy is refused. This is the
+opposite of the framework's default, where an endpoint with no `[Authorize]` is
+public — fine for a mostly public site, and the wrong way round where forgetting
+is a breach. The genuinely public endpoints all say `AllowAnonymous` explicitly.
+Requests that match no endpoint still answer `404` rather than `401`.
 
 The `type` and `key` route values are the only caller-controlled strings
 anywhere near a path join. `type` is resolved against a closed, compile-time
