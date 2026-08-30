@@ -12,7 +12,7 @@ using Sw5e.Infrastructure.Persistence.Content;
 namespace Sw5e.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(Sw5eContentDbContext))]
-    [Migration("20260830181351_InitialContentSchema")]
+    [Migration("20260830185359_InitialContentSchema")]
     partial class InitialContentSchema
     {
         /// <inheritdoc />
@@ -201,7 +201,8 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
-                        .HasColumnName("target_kind");
+                        .HasColumnName("target_kind")
+                        .UseCollation("C");
 
                     b.Property<string>("TargetType")
                         .IsRequired()

@@ -83,7 +83,7 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                     relation = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, collation: "C"),
                     json_path = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false, collation: "C"),
                     target_type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, collation: "C"),
-                    target_kind = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    target_kind = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false, collation: "C"),
                     target_identifier = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false, collation: "C"),
                     resolved_item_id = table.Column<long>(type: "bigint", nullable: true),
                     ordinal = table.Column<int>(type: "integer", nullable: false)

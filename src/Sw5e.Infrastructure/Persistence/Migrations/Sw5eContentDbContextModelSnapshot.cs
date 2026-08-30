@@ -198,7 +198,8 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
-                        .HasColumnName("target_kind");
+                        .HasColumnName("target_kind")
+                        .UseCollation("C");
 
                     b.Property<string>("TargetType")
                         .IsRequired()

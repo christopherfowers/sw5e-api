@@ -96,8 +96,15 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
     /// looking like it had been prevented.
     /// </para>
     /// <para>
+    /// What decides is the type the column is <em>stored</em> as, not the type
+    /// the property has. <c>target_kind</c> is an enum in C# and text in
+    /// PostgreSQL because of a value converter, and a check on the CLR type
+    /// alone skips it — leaving one column ordered by the host's locale in a
+    /// schema where everything else is not.
+    /// </para>
+    /// <para>
     /// jsonb columns are skipped because jsonb is not a collatable type;
-    /// asking for a collation on one is a syntax error at migration time.
+    /// asking for a collation on one is an error at migration time.
     /// </para>
     /// </remarks>
     private static void ApplyByteOrderCollation(ModelBuilder modelBuilder)
@@ -106,7 +113,12 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
                      .GetEntityTypes()
                      .SelectMany(entityType => entityType.GetProperties()))
         {
-            if (property.ClrType == typeof(string) &&
+            var storedAs =
+                property.GetValueConverter()?.ProviderClrType
+                ?? property.GetProviderClrType()
+                ?? property.ClrType;
+
+            if (storedAs == typeof(string) &&
                 !string.Equals(property.GetColumnType(), "jsonb", StringComparison.Ordinal))
             {
                 property.SetCollation("C");
