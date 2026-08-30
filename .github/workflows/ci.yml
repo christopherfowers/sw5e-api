@@ -95,11 +95,20 @@ jobs:
           # that gate without credentials and delivers nothing, which is what a
           # smoke test wants. A container that fails to start because these are
           # missing is the gate working, not the image being broken.
+          #
+          # The identity connection string is there for the same reason: an
+          # image that boots happily with no account system is an image serving
+          # an unauthenticated site without saying so. Nothing here connects to
+          # it — the endpoints exercised below are the anonymous content ones —
+          # so a syntactically valid string pointing at nothing is enough to
+          # prove the image starts with the configuration a deployment supplies.
           docker run --detach --name sw5e-api-smoke \
             --publish 127.0.0.1:8080:8080 \
             --env Email__Provider=Capture \
             --env Email__FromAddress=noreply@sw5e.test \
             --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            --env 'ConnectionStrings__Sw5eIdentity=Host=127.0.0.1;Port=5432;Database=sw5e_identity;Username=sw5e' \
+            --env 'Identity__PublicSiteUrl=https://sw5e.example' \
             --health-interval=2s \
             --health-start-period=1s \
             --health-retries=15 \
