@@ -186,11 +186,16 @@ key ring they would be lost on every restart, silently logging every user out
 and invalidating every outstanding verification link, and two replicas would
 reject each other's cookies.
 
-Account email goes through `IAccountEmailSender`, which this project defines and
-does not implement. With no provider registered, the first attempt to send
-throws rather than pretending to have delivered: registration that reports
-success while sending nothing is indistinguishable, to the user, from an
-attacker's request being quietly dropped.
+Account email goes through `IAccountEmailSender`, which `Sw5e.Identity` defines
+and `ProviderAccountEmailSender` bridges onto the email library — so the
+identity code never learns which provider is configured, and the mail code never
+learns what a passkey is. Verification is delegated to `IAccountEmailService`,
+whose message is exactly right for it; the passkey recovery and security-notice
+messages are composed alongside, because a passwordless site must not send a
+"choose a new password" email. Every path turns an undelivered message into a
+failure rather than reporting success, since registration that claims to have
+sent nothing is indistinguishable, to the user, from an attacker's request being
+quietly dropped.
 
 ## Security
 

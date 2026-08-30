@@ -7,6 +7,7 @@ using Sw5e.Api.Security;
 using Sw5e.Domain.Content;
 using Sw5e.Email.Configuration;
 using Sw5e.Identity;
+using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Content;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -132,6 +133,12 @@ builder.Services.AddSingleton<IContentRepository>(services =>
 builder.Services.AddSw5eIdentity(builder.Configuration);
 builder.Services.AddScoped<AccountStateCookies>();
 builder.Services.AddSw5eAuthRateLimiting(builder.Configuration);
+
+// Bridges the identity system's IAccountEmailSender onto the email library
+// registered above. Registered after AddSw5eIdentity so it replaces the
+// fail-closed stub that only exists to stop a deployment quietly pretending it
+// sent anything.
+builder.Services.AddScoped<IAccountEmailSender, ProviderAccountEmailSender>();
 
 var app = builder.Build();
 
