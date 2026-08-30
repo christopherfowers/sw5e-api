@@ -1,0 +1,17 @@
+{
+  "key": "battle-meditation",
+  "name": "Battle Meditation",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "powerType": "force",
+  "level": 3,
+  "forceAlignment": "light",
+  "castingTime": {
+    "period": "action",
+    "text": "1 action"
+  },
+  "range": "60 feet",
+  "duration": "Up to 1 minute",
+  "concentration": true,
+  "description": "You bolster the resolve of your allies, and their courage shields them from fear."
+}

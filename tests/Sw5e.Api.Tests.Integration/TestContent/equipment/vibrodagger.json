@@ -1,0 +1,22 @@
+{
+  "key": "vibrodagger",
+  "name": "Vibrodagger",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "category": "weapon",
+  "costInCredits": 40,
+  "weight": 1,
+  "stealthDisadvantage": false,
+  "weaponClassification": "simpleVibroweapon",
+  "damage": {
+    "numberOfDice": 1,
+    "dieFaces": 4,
+    "type": "kinetic"
+  },
+  "properties": [
+    "finesse",
+    "light",
+    "thrown (range 20/60)"
+  ],
+  "description": "An ultrasonic blade that shears through armour plate as readily as flesh."
+}
