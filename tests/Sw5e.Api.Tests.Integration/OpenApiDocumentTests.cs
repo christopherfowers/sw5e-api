@@ -68,6 +68,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
         ids.ShouldBe(
             [
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
+                "HealthThroughProxy",
                 "register", "verifyEmail",
                 "beginPasskeyRegistration", "completePasskeyRegistration",
                 "beginPasskeyLogin", "completePasskeyLogin",

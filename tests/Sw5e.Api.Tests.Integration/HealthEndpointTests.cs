@@ -9,10 +9,15 @@ namespace Sw5e.Api.Tests.Integration;
 public sealed class HealthEndpointTests(ContentApiFactory factory)
     : IClassFixture<ContentApiFactory>
 {
-    [Fact]
-    public async Task Health_ReturnsOk()
+    [Theory]
+    // The container image probes the first directly. The second is where the
+    // probe lands from outside, because the QA reverse proxy routes /api/* here
+    // without stripping the prefix — it used to answer 404.
+    [InlineData("/health")]
+    [InlineData("/api/health")]
+    public async Task Health_ReturnsOk(string path)
     {
-        var response = await factory.CreateClient().GetAsync("/health");
+        var response = await factory.CreateClient().GetAsync(path);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
