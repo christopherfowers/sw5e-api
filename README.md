@@ -301,6 +301,14 @@ Leave `HTTPS_PORT` unset and configure the HTTP-to-HTTPS redirect on Traefik's
 `web` entrypoint instead. Once the trust list is right, requests arrive already
 marked as HTTPS and the app's own redirection never fires.
 
+With `HTTPS_PORT` unset the app logs `Failed to determine the https port for
+redirect` once at startup. That warning is expected and is the safe state: the
+redirection middleware has no port to send clients to, so it forwards the
+request instead of redirecting, which is one fewer way to build a loop. Set
+`HTTPS_PORT` only if you deliberately want the app rather than the proxy to
+issue the redirect — and only with the trust list already correct, or you will
+build exactly the loop described above.
+
 Verify with the check below, and confirm in the same pass that Traefik's access
 log shows `200` on `/health` rather than a chain of `307`s.
 
