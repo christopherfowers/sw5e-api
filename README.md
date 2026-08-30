@@ -5,7 +5,7 @@ Backend API for the SW5e community platform.
 ## Requirements
 
 - .NET SDK 10.0.302 or later
-- Docker (for PostgreSQL 17 during integration tests)
+- Docker (for PostgreSQL 17; not required for the current test suite)
 
 ## Getting started
 
@@ -30,11 +30,65 @@ probe. In development, the OpenAPI document is served at `/openapi/v1.json`.
 Endpoints are organized as vertical feature slices under `Features/`. Each
 feature folder owns its endpoint, request and response types, and handler.
 
+## Content API
+
+Four anonymous, read-only endpoints serve the game content:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/content-types` | The type registry with live item counts. The site builds its navigation from this. |
+| `GET /api/content/{type}` | A paginated, filterable, sortable list of one type. |
+| `GET /api/content/{type}/{key}` | One item in full, exactly as it validates against its JSON Schema. |
+| `GET /api/search?q=` | Free-text search across every type, grouped by type. |
+
+List parameters: `page` (default 1), `pageSize` (default 25, maximum 100),
+`name` (substring filter, maximum 100 characters), `source`, `contentSet`,
+`sort` (`name`, `key`, `sourceKey` or `contentSet`) and `direction` (`asc` or
+`desc`). Search parameters: `q` (2–100 characters, required), `types` (a
+comma-separated subset) and `limit` (results per type, default 5, maximum 25).
+Anything outside those bounds is refused with Problem Details rather than
+silently clamped, so a client cannot paginate against limits it was never told
+about.
+
+Content responses carry an `ETag` and `Cache-Control: public, max-age=300`, and
+honour `If-None-Match`.
+
+### Where the content comes from
+
+The endpoints depend on `IContentRepository` in `Sw5e.Domain`, not on any
+particular store. The implementation in use is `FileContentRepository`, which
+builds an in-memory index at startup from the JSON content files maintained in
+the `sw5e-database` repository. A PostgreSQL implementation of the same
+interface replaces it later; the interface takes filtering, ordering and paging
+as query parameters precisely so that swap is a registration change rather than
+a rewrite.
+
+Point the API at a content directory with `Content:RootPath`. A relative path
+resolves against the application's content root:
+
+```
+Content__RootPath=/srv/sw5e/content
+```
+
+The default in `appsettings.Development.json` is the sibling `sw5e-database`
+checkout. A missing, empty or partially populated directory is not an error: the
+API starts, logs what it skipped, and serves an empty or partial catalogue. The
+integration tests use a fixture committed under
+`tests/Sw5e.Api.Tests.Integration/TestContent`, so they never depend on that
+sibling checkout.
+
 ## Security
 
 Every response carries a restrictive baseline of security headers, applied by
 `SecurityHeadersMiddleware` before any other middleware so that error responses
 are covered. See [SECURITY.md](SECURITY.md) for reporting instructions.
+
+The `type` and `key` route values are the only caller-controlled strings
+anywhere near a path join. `type` is resolved against a closed, compile-time
+registry and `key` must match the slug pattern the schemas define; both are
+checked before any store is asked anything, and what is carried forward is the
+registry entry rather than the caller's own string. Error responses never
+disclose a filesystem path, a stack trace or an internal identifier.
 
 ## Deployment
 
