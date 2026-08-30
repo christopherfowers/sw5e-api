@@ -32,6 +32,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 {
     private PostgreSqlContainer? _container;
 
+    /// <summary>Makes every database name unique within this container's life.</summary>
+    private int _databaseCount;
+
     /// <summary>Connection string for the server's default database.</summary>
     public string AdminConnectionString =>
         _container?.GetConnectionString()
@@ -71,34 +74,49 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// Creates an empty database on the shared server and returns a handle to
     /// it, with nothing applied.
     /// </summary>
-    /// <param name="name">
-    /// Database name. Must be a plain lowercase identifier: it is interpolated
-    /// into a CREATE DATABASE statement, which takes no parameters.
+    /// <remarks>
+    /// <para>
+    /// The name is a prefix, not the name: a counter is appended so no two
+    /// calls ever land on the same database. xUnit constructs a test class once
+    /// per test method, so a class asking for "schema_tests" asks for it once
+    /// per test, and reusing the name would mean each test had to remove the
+    /// previous one's database.
+    /// </para>
+    /// <para>
+    /// Removing it is what this deliberately does not do. Dropping a database
+    /// that another connection still holds needs <c>WITH (FORCE)</c>, which
+    /// terminates those backends — and the connections it terminates belong to
+    /// a pool the previous test handed back rather than closed, so the next
+    /// query on one fails with "terminating connection due to administrator
+    /// command" somewhere unrelated to the drop. Never reusing a name removes
+    /// the problem rather than racing it. The databases are thrown away with
+    /// the container.
+    /// </para>
+    /// </remarks>
+    /// <param name="prefix">
+    /// Identifies the test class in the name. Must be lowercase letters and
+    /// underscores: it is interpolated into a CREATE DATABASE statement, which
+    /// takes no parameters.
     /// </param>
     /// <param name="contentRoot">
     /// Directory the services should treat as the content corpus. Defaults to
     /// the committed fixture; the migrator tests override it to exercise a path
     /// that holds nothing.
     /// </param>
-    public async Task<ContentDatabase> CreateDatabaseAsync(string name, string? contentRoot = null)
+    public async Task<ContentDatabase> CreateDatabaseAsync(string prefix, string? contentRoot = null)
     {
-        if (!name.All(character => char.IsAsciiLetterLower(character) || character == '_'))
+        if (prefix.Length == 0 ||
+            !prefix.All(character => char.IsAsciiLetterLower(character) || character == '_'))
         {
             throw new ArgumentException(
-                "Database names in these tests must be lowercase letters and underscores.",
-                nameof(name));
+                "Database name prefixes in these tests must be lowercase letters and underscores.",
+                nameof(prefix));
         }
+
+        var name = $"{prefix}_{Interlocked.Increment(ref _databaseCount)}";
 
         await using var connection = new NpgsqlConnection(AdminConnectionString);
         await connection.OpenAsync();
-
-        // Dropped first so a rerun after a crashed test session starts clean
-        // rather than inheriting whatever the last one left behind.
-        await using (var drop = connection.CreateCommand())
-        {
-            drop.CommandText = $"DROP DATABASE IF EXISTS {name} WITH (FORCE)";
-            await drop.ExecuteNonQueryAsync();
-        }
 
         await using (var create = connection.CreateCommand())
         {
