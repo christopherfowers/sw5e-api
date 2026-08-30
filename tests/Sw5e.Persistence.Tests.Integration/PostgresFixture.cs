@@ -265,6 +265,16 @@ public static class ContentFixture
             ["power"] = 3,
             ["equipment"] = 2,
             ["monster"] = 1,
+
+            // Three of the six combat-option types, chosen for the shapes they
+            // exercise rather than for coverage of the list: a maneuver chain
+            // (Riposte and the tier that improves it) for a type whose
+            // documents reference each other, a lightsaber form for one whose
+            // prose lives inside an array rather than in a field, and a weapon
+            // focus for one that carries a benefit list.
+            ["maneuver"] = 3,
+            ["lightsaber-form"] = 1,
+            ["weapon-focus"] = 1,
         };
 
     /// <summary>Total valid documents in the fixture.</summary>

@@ -27,6 +27,26 @@ public static class ContentTypeRegistry
         new("feature", "Feature", "Features", "features"),
         new("feat", "Feat", "Feats", "feats"),
         new("power", "Power", "Powers", "powers"),
+
+        // The combat options. Six types rather than one, because a character
+        // chooses from six separate lists and nothing lets an entry on one
+        // stand in for an entry on another.
+        //
+        // `maneuver` is the entry to be careful with. Its canonical directory,
+        // its schema and its key are singular like every other type here, but
+        // the site has been serving /maneuvers since before any of this content
+        // existed — the type is in the navigation and renders an empty index.
+        // The route segment therefore has to be the plural the site already
+        // publishes, or the day the content lands the API answers on an address
+        // nothing links to and the page stays empty for a different reason than
+        // before. TryResolve accepts both spellings, so this costs nothing.
+        new("maneuver", "Maneuver", "Maneuvers", "maneuvers"),
+        new("fighting-style", "Fighting Style", "Fighting Styles", "fighting-styles"),
+        new("fighting-mastery", "Fighting Mastery", "Fighting Masteries", "fighting-masteries"),
+        new("lightsaber-form", "Lightsaber Form", "Lightsaber Forms", "lightsaber-forms"),
+        new("weapon-focus", "Weapon Focus", "Weapon Focuses", "weapon-focuses"),
+        new("weapon-supremacy", "Weapon Supremacy", "Weapon Supremacies", "weapon-supremacies"),
+
         new("equipment", "Equipment", "Equipment", "equipment"),
         new("monster", "Monster", "Monsters", "monsters"),
     ];
