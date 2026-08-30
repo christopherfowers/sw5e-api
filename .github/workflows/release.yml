@@ -76,3 +76,40 @@ jobs:
           # "does it contain CVE-x" without the build logs.
           provenance: mode=max
           sbom: true
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  # The QA host runs a self-hosted runner that polls GitHub outbound, so no
+  # inbound port is opened. The runner holds no secrets and has no broad Docker
+  # access: its only privilege is a sudoers rule permitting this one script
+  # path. Everything host-side — image pull, the content-publish gate, the
+  # controlled restart, the health check — lives in deploy.sh on the host.
+  #
+  # Gated on the DEPLOY_ENABLED repository variable. A job targeting a runner
+  # label that is not registered yet does not fail, it queues indefinitely, so
+  # without this gate every merge would leave a run pending forever. Set the
+  # variable once the runner is up.
+  deploy:
+    name: Deploy to QA
+    needs: publish
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, marvel, sw5e]
+    permissions:
+      contents: read
+    environment:
+      name: qa
+      url: https://sw5e.cfowers.io
+    concurrency:
+      # Serialises deploys originating from THIS repository. GitHub scopes
+      # concurrency to one repository, so it cannot serialise against the other
+      # two — and all three drive a single compose stack sharing one .env.
+      # deploy.sh therefore takes a lock of its own; this group only stops a
+      # repository from racing itself.
+      group: deploy-sw5e-qa
+      cancel-in-progress: false
+    steps:
+      # The immutable long SHA is the only thing ever deployed; deploy.sh
+      # rejects `latest` and anything that is not a 40-character SHA tag. Naming
+      # the service means only this component's tag moves, so a merge here
+      # cannot roll the other two back or forward.
+      - name: Deploy this commit
+        run: sudo -u jannet /srv/homelab/apps/sw5e/deploy.sh api "sha-${{ github.sha }}"
