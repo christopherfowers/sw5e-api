@@ -24,7 +24,8 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
                 "source", "species", "background", "archetype", "feature", "feat", "power",
                 "maneuver", "fighting-style", "fighting-mastery", "lightsaber-form",
                 "weapon-focus", "weapon-supremacy",
-                "equipment", "monster"
+                "equipment", "monster",
+                "credit-category", "credit", "asset-credit"
             ],
             ignoreOrder: false);
     }

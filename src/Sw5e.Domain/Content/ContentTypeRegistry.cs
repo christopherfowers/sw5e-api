@@ -49,6 +49,15 @@ public static class ContentTypeRegistry
 
         new("equipment", "Equipment", "Equipment", "equipment"),
         new("monster", "Monster", "Monsters", "monsters"),
+
+        // Attribution. These are not game content and the site does not put
+        // them in its navigation, but they are edited, reviewed and served by
+        // exactly the same machinery, which is the whole reason they are
+        // content types rather than a hand-maintained page: a credit is a
+        // record somebody has to be able to correct.
+        new("credit-category", "Credit category", "Credit categories", "credit-categories"),
+        new("credit", "Credit", "Credits", "credits"),
+        new("asset-credit", "Asset credit", "Asset credits", "asset-credits"),
     ];
 
     private static readonly Dictionary<string, ContentTypeDefinition> ByName =
