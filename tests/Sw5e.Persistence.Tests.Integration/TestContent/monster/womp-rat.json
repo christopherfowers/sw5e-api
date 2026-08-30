@@ -1,0 +1,69 @@
+{
+  "key": "womp-rat",
+  "name": "Womp rat",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "size": "small",
+  "types": [
+    "beast"
+  ],
+  "alignment": "unaligned",
+  "armor": {
+    "class": 12,
+    "type": "natural armor"
+  },
+  "hitPoints": {
+    "average": 7,
+    "roll": "2d6"
+  },
+  "speed": {
+    "walk": 30,
+    "text": "30 ft."
+  },
+  "abilities": {
+    "strength": {
+      "score": 8,
+      "modifier": -1
+    },
+    "dexterity": {
+      "score": 14,
+      "modifier": 2
+    },
+    "constitution": {
+      "score": 11,
+      "modifier": 0
+    },
+    "intelligence": {
+      "score": 2,
+      "modifier": -4
+    },
+    "wisdom": {
+      "score": 10,
+      "modifier": 0
+    },
+    "charisma": {
+      "score": 4,
+      "modifier": -3
+    }
+  },
+  "senses": [
+    "darkvision 60 ft."
+  ],
+  "languages": [],
+  "challengeRating": "1/8",
+  "experiencePoints": 25,
+  "behaviors": [
+    {
+      "name": "Bite",
+      "behaviorType": "action",
+      "attackType": "meleeWeapon",
+      "attackBonus": 4,
+      "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target.",
+      "damageRoll": "1d4+2",
+      "averageDamage": 4,
+      "damageType": "kinetic"
+    }
+  ],
+  "flavorText": "Scavengers of the Tatooine wastes, hunted for sport by bored moisture farmers.",
+  "sectionText": "Womp rats travel in packs and will not press an attack against an armed group."
+}

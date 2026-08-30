@@ -20,7 +20,9 @@ COPY src/Sw5e.Domain/Sw5e.Domain.csproj src/Sw5e.Domain/
 COPY src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj src/Sw5e.Infrastructure/
 COPY src/Sw5e.Email/Sw5e.Email.csproj src/Sw5e.Email/
 COPY src/Sw5e.Identity/Sw5e.Identity.csproj src/Sw5e.Identity/
-RUN dotnet restore src/Sw5e.Api/Sw5e.Api.csproj
+COPY src/Sw5e.Migrator/Sw5e.Migrator.csproj src/Sw5e.Migrator/
+RUN dotnet restore src/Sw5e.Api/Sw5e.Api.csproj \
+ && dotnet restore src/Sw5e.Migrator/Sw5e.Migrator.csproj
 
 COPY src/ src/
 
@@ -39,6 +41,27 @@ COPY src/ src/
 # UseAppHost=false drops the native launcher; the entrypoint runs the framework
 # `dotnet` host from the runtime image instead, which keeps the output portable.
 RUN dotnet publish src/Sw5e.Api/Sw5e.Api.csproj \
+        --configuration Release \
+        --no-restore \
+        --output /app \
+        -p:UseAppHost=false
+
+# The deploy-time database job ships inside the API's image rather than in one
+# of its own.
+#
+# One image makes it structurally impossible for the migrator and the API to be
+# built from different commits, and that is the property that matters here: a
+# schema and the code that reads it disagreeing is the exact failure this whole
+# arrangement exists to prevent. Two images can be deployed at two versions; two
+# entry points in one image cannot. It also halves what the release workflow
+# builds and pushes and what a deploy has to pull.
+#
+# The migrator shares the API's dependency graph, so this adds a handful of
+# small assemblies rather than a second runtime. Run it by overriding the entry
+# point:
+#
+#   docker run --rm --entrypoint dotnet <image> Sw5e.Migrator.dll all
+RUN dotnet publish src/Sw5e.Migrator/Sw5e.Migrator.csproj \
         --configuration Release \
         --no-restore \
         --output /app \

@@ -1,0 +1,18 @@
+{
+  "key": "mind-shatter",
+  "name": "Mind Shatter",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "powerType": "force",
+  "level": 3,
+  "forceAlignment": "dark",
+  "castingTime": {
+    "period": "action",
+    "text": "1 action"
+  },
+  "range": "30 feet",
+  "duration": "Instantaneous",
+  "concentration": false,
+  "prerequisite": "Mind Trap",
+  "description": "You assault a mind with a wave of pain and disorientation."
+}

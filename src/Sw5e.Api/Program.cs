@@ -9,6 +9,7 @@ using Sw5e.Email.Configuration;
 using Sw5e.Identity;
 using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Content;
+using Sw5e.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,36 +97,74 @@ builder.Services.AddProblemDetails();
 // application runs with no credentials at all.
 builder.Services.AddSw5eEmail(builder.Configuration, builder.Environment);
 
+// Health checks are registered unconditionally so /health/ready exists in every
+// configuration. With no store-specific checks added it reports healthy, which
+// is the honest answer for a deployment whose only dependency is its own
+// filesystem.
+builder.Services.AddHealthChecks();
+
 // The content store is registered behind IContentRepository so the endpoints
-// never learn where the catalogue actually lives. The intended home is
-// PostgreSQL; until that exists, the same contract is satisfied by an index
-// built from the JSON content files. Swapping the two is this one registration.
-builder.Services.AddSingleton<IContentRepository>(services =>
+// never learn where the catalogue actually lives. Both implementations satisfy
+// the same contract, and which one is in use is this one setting:
+//
+//   Content__Store=database   PostgreSQL, populated by the migrator
+//   Content__Store=file       an index built at startup from the JSON files
+//
+// The file-backed store stays the default. It has no dependencies, it is what
+// the site is live against today, and defaulting to the database would mean a
+// deployment that had not yet been given a connection string would fail to
+// start rather than carry on working.
+//
+// Anything other than these two values is refused rather than treated as the
+// default. Silently falling back would let a typo in a deploy variable put
+// production on the wrong store, serving stale content from a volume with
+// nothing to say it had happened.
+var contentStore = builder.Configuration["Content:Store"] ?? "file";
+
+if (string.Equals(contentStore, "database", StringComparison.OrdinalIgnoreCase))
 {
-    // Relative paths resolve against the content root rather than the current
-    // directory, which differs between `dotnet run`, a published deployment and
-    // a test host.
-    var configured = builder.Configuration["Content:RootPath"] ?? "content";
-    var rootPath = Path.IsPathRooted(configured)
-        ? configured
-        : Path.Combine(builder.Environment.ContentRootPath, configured);
-
-    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Api.Content");
-    var result = FileContentRepository.Load(rootPath);
-
-    // Warnings name files on disk, so they are logged and never returned. A
-    // missing or half-populated content directory is a degraded catalogue, not
-    // a failure to start: the content lives in a separate repository that is
-    // still being filled in.
-    foreach (var warning in result.Warnings)
+    // Owns the content connection: ConnectionStrings:Sw5e, a data source keyed
+    // to this store, the content context and the database health check.
+    // Identity is registered separately and resolves its own connection string,
+    // so a deployment can give account data a least-privileged role without
+    // touching any of this.
+    builder.Services.AddSw5ePersistence(builder.Configuration);
+    builder.Services.AddDatabaseContentStore();
+}
+else if (string.Equals(contentStore, "file", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IContentRepository>(services =>
     {
-        logger.LogWarning("Content load: {Warning}", warning);
-    }
+        // Relative paths resolve against the content root rather than the
+        // current directory, which differs between `dotnet run`, a published
+        // deployment and a test host.
+        var configured = builder.Configuration["Content:RootPath"] ?? "content";
+        var rootPath = Path.IsPathRooted(configured)
+            ? configured
+            : Path.Combine(builder.Environment.ContentRootPath, configured);
 
-    logger.LogInformation("Content index built with {ItemCount} items.", result.ItemCount);
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Api.Content");
+        var result = FileContentRepository.Load(rootPath);
 
-    return result.Repository;
-});
+        // Warnings name files on disk, so they are logged and never returned. A
+        // missing or half-populated content directory is a degraded catalogue,
+        // not a failure to start: the content lives in a separate repository
+        // that is still being filled in.
+        foreach (var warning in result.Warnings)
+        {
+            logger.LogWarning("Content load: {Warning}", warning);
+        }
+
+        logger.LogInformation("Content index built with {ItemCount} items.", result.ItemCount);
+
+        return result.Repository;
+    });
+}
+else
+{
+    throw new InvalidOperationException(
+        $"Content:Store is '{contentStore}'. It must be 'file' or 'database'.");
+}
 
 // Accounts: the identity store, the cookie policy, passkey configuration and
 // the authorization policies. Everything security-relevant about them lives in
@@ -142,9 +181,12 @@ builder.Services.AddScoped<IAccountEmailSender, ProviderAccountEmailSender>();
 
 var app = builder.Build();
 
-// Force the index to be built now rather than on the first request, so a
-// content problem shows up in the startup log and the first visitor does not
-// pay for the scan.
+// Resolve the store now rather than on the first request. For the file-backed
+// store that forces the scan, so a content problem shows up in the startup log
+// and the first visitor does not pay for it. For the database-backed store it
+// only builds the object graph — no query is issued and no connection is
+// opened, because an API that refused to start while its database was briefly
+// unavailable would turn a short outage into a manual recovery.
 app.Services.GetRequiredService<IContentRepository>();
 
 // Must run before anything that reads the scheme or the client address,

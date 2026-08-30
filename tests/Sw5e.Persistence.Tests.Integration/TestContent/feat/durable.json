@@ -1,0 +1,10 @@
+{
+  "key": "durable",
+  "name": "Durable",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "abilityScoreIncreases": [
+    "constitution"
+  ],
+  "description": "You are hardy enough to shrug off wounds that would fell others."
+}

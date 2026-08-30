@@ -1,0 +1,18 @@
+{
+  "key": "force-throw",
+  "name": "Force Throw",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "powerType": "force",
+  "level": 2,
+  "forceAlignment": "universal",
+  "castingTime": {
+    "period": "action",
+    "text": "1 action"
+  },
+  "range": "60 feet",
+  "duration": "Instantaneous",
+  "concentration": false,
+  "prerequisite": "Force Push",
+  "description": "You hurl a creature or object with telekinetic force."
+}

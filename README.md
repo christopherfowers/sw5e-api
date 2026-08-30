@@ -6,7 +6,11 @@ Backend API for the SW5e community platform.
 
 - .NET SDK 10.0.302 or later
 - Docker, for PostgreSQL 17. The account tests start one through Testcontainers
-  and will fail without a running daemon; the content tests need nothing.
+  and fail without a running daemon. The content persistence tests also need
+  one, but skip themselves when none is reachable so the rest of the suite still
+  runs; CI fails the build if that skip happens on a runner that has a daemon.
+  Neither is needed to build, or to run the API against the file-backed content
+  store.
 
 ## Getting started
 
@@ -27,6 +31,7 @@ probe. In development, the OpenAPI document is served at `/openapi/v1.json`.
 | `Sw5e.Domain` | Content graph model and rules |
 | `Sw5e.Infrastructure` | Content persistence and search |
 | `Sw5e.Identity` | Accounts, roles, passkeys, and their own DbContext and schema |
+| `Sw5e.Migrator` | Deploy-time job: applies content migrations, then imports content |
 | `Sw5e.Email` | Email abstraction and provider adapters |
 
 Endpoints are organized as vertical feature slices under `Features/`. Each
@@ -58,24 +63,34 @@ honour `If-None-Match`.
 ### Where the content comes from
 
 The endpoints depend on `IContentRepository` in `Sw5e.Domain`, not on any
-particular store. The implementation in use is `FileContentRepository`, which
-builds an in-memory index at startup from the JSON content files maintained in
-the `sw5e-database` repository. A PostgreSQL implementation of the same
-interface replaces it later; the interface takes filtering, ordering and paging
-as query parameters precisely so that swap is a registration change rather than
-a rewrite.
+particular store. Two implementations satisfy it, and which one is in use is a
+single setting:
 
-Point the API at a content directory with `Content:RootPath`. A relative path
-resolves against the application's content root:
+| `Content:Store` | Implementation | What it needs |
+|---|---|---|
+| `file` (default) | `FileContentRepository` — an in-memory index built at startup by scanning the JSON content files | A content directory |
+| `database` | `DbContentRepository` — PostgreSQL | A connection string, a migrated schema, and an import |
+
+Anything else is refused at startup rather than treated as the default, so a
+typo in a deploy variable cannot silently leave production on the wrong store.
+
+The two are meant to be interchangeable, and
+`tests/Sw5e.Persistence.Tests.Integration/StoreParityTests.cs` holds them to it:
+every case there runs both stores over the same corpus and compares them to each
+other, rather than to two sets of hand-written expectations that could drift
+apart.
+
+Point either store at a content directory with `Content:RootPath`. A relative
+path resolves against the application's content root:
 
 ```
 Content__RootPath=/srv/sw5e/content
 ```
 
 The default in `appsettings.Development.json` is the sibling `sw5e-database`
-checkout. A missing, empty or partially populated directory is not an error: the
-API starts, logs what it skipped, and serves an empty or partial catalogue. The
-integration tests use a fixture committed under
+checkout. In `file` mode a missing, empty or partially populated directory is
+not an error: the API starts, logs what it skipped, and serves an empty or
+partial catalogue. The integration tests use a fixture committed under
 `tests/Sw5e.Api.Tests.Integration/TestContent`, so they never depend on that
 sibling checkout.
 
@@ -197,6 +212,156 @@ failure rather than reporting success, since registration that claims to have
 sent nothing is indistinguishable, to the user, from an attacker's request being
 quietly dropped.
 
+## Persistence
+
+PostgreSQL 17. The content schema lives in `Sw5e.Infrastructure/Persistence`,
+behind one registration:
+
+```csharp
+builder.Services.AddSw5ePersistence(builder.Configuration);
+builder.Services.AddDatabaseContentStore();
+```
+
+`AddSw5ePersistence` owns the content connection: `ConnectionStrings:Sw5e`, an
+`NpgsqlDataSource`, the pooled context factory and the database health check.
+
+The data source is registered under a service key rather than as a plain
+`NpgsqlDataSource` singleton, so nothing can resolve it by accident. Identity
+reads its own connection string — `Identity:ConnectionString`, then
+`ConnectionStrings:Sw5eIdentity`, falling back to `ConnectionStrings:Sw5e` —
+precisely so a deployment can give account data a least-privileged role, or a
+database of its own. An unkeyed singleton would sit in the container waiting for
+someone to resolve it "to share the pool", and would then route account data
+down the content connection with nothing to say it had happened. A context that
+genuinely wants this connection can still ask for it by key, which makes sharing
+a decision somebody wrote down.
+
+### The schema, and why it looks like this
+
+Three tables in a `content` schema.
+
+| Table | Holds |
+|---|---|
+| `content_item` | One row per document: its identity, the columns queries filter and order on, and the document itself as `jsonb` |
+| `content_reference` | One row per cross-reference found in a document, resolved where the target exists and recorded as intent where it does not |
+| `content_type` | The type registry, seeded by migration so the type column can carry a foreign key |
+
+**The document is stored whole, not shredded into a table per type.** The nine
+SW5e content types have very little in common below the surface — a species has
+`traits[]` and markdown lore, a monster has a nested stat block, equipment
+changes shape depending on whether it is a weapon or armour — and normalising
+all of it is roughly forty tables that no endpoint queries. It would also cost
+something specific: the published contract for `GET /api/content/{type}/{key}`
+is that the response body *is* the type's JSON Schema, passed through unaltered.
+A shredded model has to reassemble that on the way out, which means the schema
+is written down twice with nothing keeping the two equal, and a field added in
+the content repository disappears from the API until somebody notices. Storing
+the document as `jsonb` keeps the JSON Schema the single definition of what a
+content item is.
+
+**What a document store cannot do is bought back with projected columns.** Name,
+source, content set, the folded copies used for case-insensitive matching, and
+the display fields a list row needs are lifted out of the document into real,
+indexed columns. They are derived on every write by the same projection code the
+file-backed store uses, so they cannot drift from the document — re-running the
+importer rebuilds them.
+
+**Cross-references are lifted into rows.** That is the part that justifies a
+database rather than a directory of files. The eventual goal includes generating
+print-ready documents from arbitrary collections, and every question that
+implies — "everything published in this book", "the archetype this feature
+belongs to", "the feats this background offers" — is a graph traversal.
+Answering it from documents means one round trip per edge with every type's link
+fields hard-coded into the walker; answering it from `content_reference` is a
+join.
+
+An edge whose target is missing is still a row. Exactly one field in the whole
+corpus points at another item by slug (`sourceKey`); everything else names its
+target by display name, because the documents were transcribed from print. Some
+of those targets have not been written yet, and three of the target types —
+`class`, and the weapon and armour property types — do not exist as content
+types at all. So `content_reference` records what the document said and fills in
+`resolved_item_id` only when the target is actually there, which turns "what is
+this corpus still missing" from a grep into a query. Resolution is recomputed
+across the whole graph on every import, so authoring the missing item reconnects
+the edges that were waiting for it without those documents changing.
+
+Every text column is declared `COLLATE "C"`. Under a locale collation,
+PostgreSQL weights punctuation differently from `StringComparer.Ordinal`, so the
+same page of species comes back in a different order depending on which store
+answered and on the locale the database was created with. Byte order is the only
+collation the two stores can agree on.
+
+### Migrations and the migrator
+
+Migrations are **never applied on startup**. Every replica runs startup, so N
+replicas would race to apply the same migration; a rolling deploy would run old
+and new code against whichever schema won; and the schema would end up changed
+by whoever happened to restart a container. Instead `Sw5e.Migrator` is a job with
+an exit code:
+
+```bash
+dotnet run --project src/Sw5e.Migrator -- migrate   # apply migrations only
+dotnet run --project src/Sw5e.Migrator -- import    # load content only
+dotnet run --project src/Sw5e.Migrator -- all       # both, in that order
+```
+
+It ships inside the API image, so the two are always built from the same commit:
+
+```bash
+docker run --rm --entrypoint dotnet \
+  -e "ConnectionStrings__Sw5e=Host=db;Database=sw5e;Username=sw5e;Password=..." \
+  -e Content__RootPath=/srv/content \
+  -v /srv/sw5e/content:/srv/content:ro \
+  ghcr.io/christopherfowers/sw5e-api:latest Sw5e.Migrator.dll all
+```
+
+Exit codes: `0` success, `1` a command failed, `2` the command was not
+recognised.
+
+Because nothing migrates on startup, a deploy that ships new code and forgets
+the migrator would otherwise be discovered by a user. `GET /health/ready`
+reports that state as `degraded` with the number of missing migrations.
+
+To scaffold a migration:
+
+```bash
+dotnet ef migrations add <Name> \
+  --project src/Sw5e.Infrastructure \
+  --startup-project src/Sw5e.Migrator \
+  --output-dir Persistence/Migrations \
+  --context Sw5eContentDbContext
+```
+
+No database is needed for that: a design-time factory supplies a deliberately
+unusable connection string, so a command that genuinely needs a database fails
+to connect rather than quietly reaching a real one.
+
+### The importer
+
+`ContentImporter` loads the canonical JSON into PostgreSQL and can be run again
+over the same corpus without changing anything — each document's content hash is
+compared with the stored one and a row is written only when it differs. That
+matters because deploys get retried: an importer that deleted and re-inserted
+would churn every row and invalidate every cached response in front of the API
+for a corpus that did not change.
+
+It refuses to interpret a failed read as a deletion. An import that finds no
+content deletes nothing, and an import that finds no content *for a type* leaves
+that type alone — an unmounted volume and an emptied corpus are
+indistinguishable from inside the importer, and the first is far more likely.
+The migrator turns "found nothing at all" into a non-zero exit so the deploy
+stops rather than publishing an empty catalogue.
+
+### Health
+
+| Endpoint | Answers |
+|---|---|
+| `GET /health`, `GET /api/health` | Liveness. Never consults a dependency, so a database outage does not make an orchestrator restart every API container. `/health` is the probe the image's `HEALTHCHECK` uses; `/api/health` is where it lands through the reverse proxy. |
+| `GET /health/ready`, `GET /api/health/ready` | Readiness. `healthy`, `degraded` (reachable, schema behind this build) or `unhealthy` (unreachable), with one entry per check. |
+
+Neither ever returns a connection string, a host name or a stack trace.
+
 ## Security
 
 Every response carries a restrictive baseline of security headers, applied by
@@ -309,7 +474,12 @@ below is supplied at run time.
 | Variable | Default in the image | Notes |
 |---|---|---|
 | `ASPNETCORE_URLS` | `http://+:8080` | Set by the image. Overriding it is how you move the listener; `EXPOSE` and the healthcheck both assume 8080. |
-| `Content__RootPath` | `/srv/content` | Where the content volume is mounted. A relative value resolves against the app's content root (`/app`). |
+| `Content__Store` | `file` | `file` or `database`. Anything else fails startup. |
+| `Content__RootPath` | `/srv/content` | Where the content volume is mounted. A relative value resolves against the app's content root (`/app`). Read by the `file` store and by the migrator's import step. |
+| `ConnectionStrings__Sw5e` | unset | The one connection string for the whole database. **Required when `Content__Store=database`**, and by the migrator always. It carries the password, so it comes from the environment and never from a committed file. |
+| `Sw5e__Database__CommandTimeoutSeconds` | `15` | Per-command timeout. Every query the API issues is a single-page read; one that has not answered in fifteen seconds is stuck, not slow. |
+| `Sw5e__Database__MaxRetryCount` | `3` | Retries for transient failures only — a dropped connection, a failover. A constraint violation or a syntax error is never retried. |
+| `Sw5e__Database__ReportPendingMigrations` | `true` | Whether readiness reports a schema behind this build as degraded. |
 | `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document. Do not set it in a deployed stack. |
 | `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development** — the app refuses to start without it. See [Email](#email). |
 | `Email__FromAddress` | unset | The sending mailbox. Required whenever `Email__Provider` is set. |

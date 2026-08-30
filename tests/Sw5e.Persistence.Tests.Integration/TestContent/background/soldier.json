@@ -1,0 +1,53 @@
+{
+  "key": "soldier",
+  "name": "Soldier",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "lore": "You served in an army, a militia, or a private security force.",
+  "skillProficiencies": "Athletics and Intimidation",
+  "startingEquipment": "a set of common clothes, a vibrodagger and a rank insignia",
+  "feature": {
+    "name": "Military Rank",
+    "description": "Soldiers loyal to your former organisation still recognise your authority."
+  },
+  "suggestedCharacteristics": "Soldiers are shaped by the discipline of service.",
+  "personalityTraitOptions": [
+    {
+      "roll": 1,
+      "description": "I face problems head-on."
+    }
+  ],
+  "idealOptions": [
+    {
+      "roll": 1,
+      "name": "Greater Good",
+      "description": "Our lot is to lay down our lives for others."
+    }
+  ],
+  "bondOptions": [
+    {
+      "roll": 1,
+      "description": "I would still lay down my life for the people I served with."
+    }
+  ],
+  "flawOptions": [
+    {
+      "roll": 1,
+      "description": "I obey the law even when it causes harm."
+    }
+  ],
+  "featOptions": [
+    {
+      "roll": 1,
+      "name": "Sharpshooter"
+    },
+    {
+      "roll": 2,
+      "name": "Durable"
+    },
+    {
+      "roll": 3,
+      "name": "Ace Pilot"
+    }
+  ]
+}

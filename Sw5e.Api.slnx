@@ -5,9 +5,11 @@
     <Project Path="src/Sw5e.Email/Sw5e.Email.csproj" />
     <Project Path="src/Sw5e.Identity/Sw5e.Identity.csproj" />
     <Project Path="src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj" />
+    <Project Path="src/Sw5e.Migrator/Sw5e.Migrator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Sw5e.Api.Tests.Integration/Sw5e.Api.Tests.Integration.csproj" />
     <Project Path="tests/Sw5e.Email.Tests/Sw5e.Email.Tests.csproj" />
+    <Project Path="tests/Sw5e.Persistence.Tests.Integration/Sw5e.Persistence.Tests.Integration.csproj" />
   </Folder>
 </Solution>

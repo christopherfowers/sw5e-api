@@ -1,0 +1,13 @@
+{
+  "key": "combat-suit",
+  "name": "Combat suit",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "category": "armor",
+  "costInCredits": 500,
+  "weight": 20.0,
+  "stealthDisadvantage": true,
+  "armorClassification": "medium",
+  "armorClass": "14 + Dex modifier (max 2)",
+  "description": "Layered plating worn by frontline troopers."
+}
