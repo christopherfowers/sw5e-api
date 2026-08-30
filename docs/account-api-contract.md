@@ -126,7 +126,7 @@ No envelope — the account object is the whole body:
   "id": "0198e0...",
   "email": "reader@example.com",
   "displayName": "Jen Ordo",
-  "roles": ["community"],
+  "roles": ["Community"],
   "twoFactorEnabled": false,
   "passkeys": [
     { "id": "base64url", "name": "Work laptop", "createdAt": "2026-...Z" }
@@ -142,7 +142,11 @@ No envelope — the account object is the whole body:
   `Administrator`, not `admin`. These are the names seeded into the database
   and used by the authorization policies.
 
-401 with a problem document when there is no session.
+401 when there is no session. It carries a problem document, but a client must
+not depend on that: the refusal is raised by the authentication handler rather
+than by the endpoint, and a reverse proxy in front of the service can answer
+with no body at all. Decide the outcome from the status code and use the body
+only to improve the message.
 
 ## `DELETE /api/auth/passkey/{credentialId}` — 200
 
