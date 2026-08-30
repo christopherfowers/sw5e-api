@@ -50,3 +50,92 @@ jobs:
             echo "::error::Vulnerable packages detected"
             exit 1
           fi
+
+  # The Dockerfile is not exercised anywhere else: the developer machine has no
+  # Docker daemon, so this job is the only thing standing between a broken
+  # image and the deployment. It builds and then actually runs the image —
+  # a build that succeeds and a container that cannot start are different
+  # outcomes, and only the second one matters in production.
+  container-image:
+    name: Build and smoke-test the container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          # Load into the daemon so the container can be started below. This
+          # restricts the build to the runner's own architecture; the release
+          # workflow is where the multi-architecture manifest is produced.
+          load: true
+          tags: sw5e-api:ci
+
+      - name: Run the image and verify it serves content
+        run: |
+          set -euo pipefail
+
+          # The image's own HEALTHCHECK interval is tuned for production, which
+          # would make this job wait 30s for the first probe. The overrides
+          # below only change how often the probe runs, not what it does, so
+          # what is being verified is still the healthcheck baked into the
+          # image.
+          #
+          # The content directory is mounted read-only at the path the image
+          # defaults Content__RootPath to, mirroring the compose stack's shared
+          # volume. The test fixture stands in for the sw5e-database content.
+          docker run --detach --name sw5e-api-smoke \
+            --publish 127.0.0.1:8080:8080 \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            --health-interval=2s \
+            --health-start-period=1s \
+            --health-retries=15 \
+            sw5e-api:ci
+
+          for _ in $(seq 1 45); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' sw5e-api-smoke)
+            if [ "$status" = "healthy" ] || [ "$status" = "unhealthy" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Container health: $status"
+          if [ "$status" != "healthy" ]; then
+            echo "::error::Container never reported healthy"
+            exit 1
+          fi
+
+          # The healthcheck runs inside the container; confirm the port is
+          # also reachable from outside it.
+          curl --fail --silent --show-error http://127.0.0.1:8080/health
+          echo
+
+          # A non-zero item count proves the read-only volume is genuinely
+          # readable by the non-root user the image runs as. The type registry
+          # is static, so the endpoint answers 200 with every type listed even
+          # when nothing loaded at all — the count is what distinguishes a
+          # mounted volume from an unreadable one.
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/content-types > content-types.json
+          species=$(jq '.types[] | select(.key == "species") | .itemCount' content-types.json)
+          echo "Species items served: $species"
+          if [ "$species" -lt 1 ]; then
+            echo "::error::Mounted content was not readable inside the container"
+            exit 1
+          fi
+
+          # A root-run container would defeat the point of the USER line.
+          uid=$(docker exec sw5e-api-smoke id -u)
+          echo "Container UID: $uid"
+          if [ "$uid" = "0" ]; then
+            echo "::error::Container is running as root"
+            exit 1
+          fi
+
+      - name: Container logs
+        if: always()
+        run: docker logs sw5e-api-smoke || true

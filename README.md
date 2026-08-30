@@ -90,10 +90,89 @@ checked before any store is asked anything, and what is carried forward is the
 registry entry rather than the caller's own string. Error responses never
 disclose a filesystem path, a stack trace or an internal identifier.
 
+## Container image
+
+`Dockerfile` builds the API into an image published to the GitHub Container
+Registry as:
+
+```
+ghcr.io/christopherfowers/sw5e-api
+```
+
+| Tag | Points at |
+|---|---|
+| `sha-<40-char commit SHA>` | One specific commit. This is what a deploy resolves; `deploy.sh` takes `sha-${GITHUB_SHA}` and refuses anything else. |
+| `latest` | The most recent build of `main`. A convenience fallback for local pulls, never a deploy target. |
+| `1.2.3`, `1.2`, `1` | A pushed `v1.2.3` release tag |
+
+`.github/workflows/release.yml` builds `linux/amd64` and `linux/arm64` and
+pushes on every commit to `main`, attaching build provenance and an SBOM to
+the manifest. Pull requests build the same image without pushing it, start a
+container from it and check the health endpoint, so a Dockerfile change is
+exercised before it merges.
+
+### What the image expects
+
+| | |
+|---|---|
+| Port | `8080`, HTTP only. The image never listens on 80, and nothing in it binds a privileged port. |
+| User | Non-root: UID `1654` (`app`), provided by the .NET base image. Nothing in the image is writable by it. |
+| Content | A read-only mount at `/srv/content`. |
+| Health | `HEALTHCHECK` requests `GET /health` from inside the container every 30s, after a 15s start period. |
+| TLS | None. The image speaks plain HTTP and must sit behind a TLS-terminating proxy — see [Deployment](#deployment), which is **required** reading before the first boot. |
+| Base images | `mcr.microsoft.com/dotnet/sdk:10.0.302-alpine3.23` to build, `mcr.microsoft.com/dotnet/aspnet:10.0.11-alpine3.23` to run. Both are Microsoft's MIT-licensed .NET images on Alpine. |
+
+No secret, connection string or certificate is baked into the image. Everything
+below is supplied at run time.
+
+### Environment variables
+
+| Variable | Default in the image | Notes |
+|---|---|---|
+| `ASPNETCORE_URLS` | `http://+:8080` | Set by the image. Overriding it is how you move the listener; `EXPOSE` and the healthcheck both assume 8080. |
+| `Content__RootPath` | `/srv/content` | Where the content volume is mounted. A relative value resolves against the app's content root (`/app`). |
+| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document. Do not set it in a deployed stack. |
+| `ForwardedHeaders__KnownNetworks__0` | unset | The proxy's network in CIDR notation. **Required behind a containerised proxy** — see below. |
+| `ForwardedHeaders__KnownProxies__0` | unset | An exact proxy IP, as an alternative to the network above. |
+| `HTTPS_PORT` | unset | Port `UseHttpsRedirection` redirects to. Leave it unset and let the proxy handle the HTTP-to-HTTPS redirect at the edge. |
+| `Logging__LogLevel__Default` | `Information` | Standard ASP.NET Core logging configuration; every `Logging__*` key binds. |
+| `AllowedHosts` | `*` | Host filtering, if you want it narrower than the proxy's routing rule. |
+| `DOTNET_EnableDiagnostics` | `0` | Set by the image: the diagnostic IPC socket has no use in this container. |
+| `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT` | `true` | Set by the Alpine base image, which ships no ICU. Safe here — every comparison, sort and case fold in the content index is ordinal or invariant — but culture-sensitive behaviour is unavailable if future code wants it. |
+| `ASPNETCORE_HTTP_PORTS` | `8080` | Set by the base image and ignored while `ASPNETCORE_URLS` is set. |
+
+Configuration keys nest with a double underscore and arrays are indexed, so
+`ForwardedHeaders:KnownNetworks[0]` is `ForwardedHeaders__KnownNetworks__0`.
+
+### The content volume
+
+The image points `Content:RootPath` at `/srv/content`, the path the compose
+stack mounts its shared content volume on. That volume is populated by the
+sw5e-database init container; the API only ever reads it, so mount it `:ro`.
+
+The container runs as UID 1654, so files in the volume must be readable by
+that user — world-readable files are the simplest way to guarantee it. A
+missing, empty or unreadable directory is not fatal: the API starts anyway and
+serves an empty catalogue, logging `Content directory ... does not exist` or
+`Content index built with 0 items.` A healthy container serving an empty
+catalogue is therefore the signature of a content volume that did not mount,
+not of a broken API — check the startup log rather than the health endpoint.
+
+### Running it directly
+
+```bash
+docker run --rm -p 8080:8080 \
+  -v /srv/sw5e/content:/srv/content:ro \
+  ghcr.io/christopherfowers/sw5e-api:latest
+```
+
+`GET /health` answers `{"status":"healthy"}` and is the same endpoint the
+image's own healthcheck probes.
+
 ## Deployment
 
 The API is designed to run behind a TLS-terminating reverse proxy — Azure App
-Service's front end, or nginx in front of the container in a Docker
+Service's front end, or Traefik or nginx in front of the container in a Docker
 deployment. The proxy terminates HTTPS and forwards the request to Kestrel as
 plain HTTP, adding `X-Forwarded-Proto` and `X-Forwarded-For` headers so the
 app can recover the original scheme and client address.
@@ -157,18 +236,84 @@ address space directly, consult your network/App Service configuration
 rather than guessing — an overly broad range defeats the purpose of the
 allow-list.
 
-#### Docker / nginx
+#### Docker Compose behind Traefik
 
-If nginx runs as a sibling container on the same Docker network, Kestrel
-sees nginx's address on that network as the remote IP — typically the
-network's gateway or nginx's own container IP, not `127.0.0.1`. Confirm the
-actual address with `docker network inspect` on the compose network, then
-set `ForwardedHeaders__KnownProxies__0` (a fixed container IP) or
-`ForwardedHeaders__KnownNetworks__0` (the network's CIDR range) as an
-environment variable on the API container — via `docker run -e`, the
-`environment:` block in `docker-compose.yml`, or a mounted
-`appsettings.Production.json` with a nested `ForwardedHeaders` object
-mirroring the table above.
+This is the case the QA stack runs, and the one most likely to break on first
+boot, so it is worth being exact about.
+
+Traefik is not loopback. It reaches the API over a user-defined bridge
+network, so the remote address Kestrel sees is Traefik's container IP on that
+network — something like `172.28.0.3`, never `127.0.0.1`. With the default
+loopback-only trust list, `ForwardedHeadersMiddleware` discards Traefik's
+`X-Forwarded-Proto: https`, `Request.IsHttps` stays `false`, and both
+consequences described above follow: no `Strict-Transport-Security` header is
+ever emitted, and `UseHttpsRedirection` answers the proxy's plain HTTP request
+with a redirect to HTTPS that Traefik forwards straight back as plain HTTP — a
+loop the client sees as `ERR_TOO_MANY_REDIRECTS`.
+
+Fix it by trusting the compose network, and pin that network's subnet so the
+value you trust cannot drift when Docker reassigns pool addresses:
+
+```yaml
+services:
+  api:
+    image: ghcr.io/christopherfowers/sw5e-api:latest
+    environment:
+      # The `edge` network below: the network Traefik connects FROM, in CIDR
+      # notation, with no host bits set.
+      ForwardedHeaders__KnownNetworks__0: "172.28.0.0/16"
+    volumes:
+      - sw5e-content:/srv/content:ro
+    networks: [edge]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.sw5e-api.rule: "Host(`api.example.test`)"
+      traefik.http.routers.sw5e-api.entrypoints: "websecure"
+      traefik.http.routers.sw5e-api.tls.certresolver: "letsencrypt"
+      # Traefik must be told the container port; 8080 is what the image binds.
+      traefik.http.services.sw5e-api.loadbalancer.server.port: "8080"
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+```
+
+If you would rather not pin the subnet, read the actual value back from the
+running stack instead of guessing:
+
+```bash
+docker network inspect <stack>_edge \
+  --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+```
+
+`ForwardedHeaders__KnownProxies__0` set to Traefik's container IP works too,
+but a container IP changes when the container is recreated, so the network
+form is the one to prefer. The default Docker bridge (`172.17.0.0/16`) is not
+the right value for a compose stack — compose creates its own network.
+
+Trust only the network the proxy actually connects from. Trusting `0.0.0.0/0`,
+or emptying both keys, lets any caller that can reach port 8080 directly claim
+its own scheme and client address.
+
+Leave `HTTPS_PORT` unset and configure the HTTP-to-HTTPS redirect on Traefik's
+`web` entrypoint instead. Once the trust list is right, requests arrive already
+marked as HTTPS and the app's own redirection never fires.
+
+Verify with the check below, and confirm in the same pass that Traefik's access
+log shows `200` on `/health` rather than a chain of `307`s.
+
+#### Docker Compose behind nginx
+
+The same rule applies unchanged: nginx in a sibling container is not loopback
+either, and its address on the compose network — or the gateway address, if
+nginx routes through it — must be in the trust list. Confirm the address with
+`docker network inspect` as above, then set
+`ForwardedHeaders__KnownNetworks__0`. Check that nginx is actually sending the
+headers (`proxy_set_header X-Forwarded-Proto $scheme;` and
+`X-Forwarded-For $proxy_add_x_forwarded_for;`); Traefik sends them by default,
+nginx does not.
 
 #### Verifying it after deploying
 

@@ -12,3 +12,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  # The Dockerfile pins both base images to an exact patch tag so a rebuild is
+  # reproducible; that only stays safe if something bumps them when the
+  # upstream images are rebuilt for a CVE.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
