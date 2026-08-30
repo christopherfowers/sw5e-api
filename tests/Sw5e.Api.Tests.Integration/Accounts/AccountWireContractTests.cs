@@ -369,6 +369,52 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
             .ShouldNotBeNullOrWhiteSpace();
     }
 
+    /// <summary>
+    /// The emailed link points at a route the site actually serves.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the assertion that would have caught the worst defect of the
+    /// set. The link used to be built against <c>/account/verify</c>, which the
+    /// browser application does not serve — it prerenders a fixed list of paths
+    /// and answers anything else with its not-found page — so every
+    /// verification and recovery message this service sent led nowhere and no
+    /// account created through the front door could ever be finished.
+    /// </para>
+    /// <para>
+    /// Nor could it have lived under <c>/account</c>: everything below that path
+    /// is behind the site's session guard, and this link exists precisely for
+    /// somebody who has no session yet.
+    /// </para>
+    /// <para>
+    /// The path is spelled out rather than read from configuration, because the
+    /// thing under test is agreement with another repository's route table, and
+    /// a test that read the value from the same constant the code reads would
+    /// agree with itself no matter what either side said.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task TheEmailedLinkAddressesTheSitesVerificationRoute()
+    {
+        var client = _factory.CreateBrowserClient();
+        var account = AccountFlow.For(client, "wire-link");
+
+        await account.RegisterAsync();
+
+        var message = _factory.Email.For(account.EmailAddress)
+            .Single(candidate => candidate.Kind == AccountMessageKind.Verification);
+
+        var link = new Uri(message.Body);
+
+        link.AbsolutePath.ShouldBe("/verify-email");
+
+        // Both parameters, because the verify endpoint pairs the token with the
+        // address it was issued for and refuses a link that lost either.
+        var query = System.Web.HttpUtility.ParseQueryString(link.Query);
+        query["email"].ShouldBe(account.EmailAddress);
+        query["token"].ShouldNotBeNullOrWhiteSpace();
+    }
+
     private static string[] PropertyNamesOf(JsonElement element) =>
         [.. element.EnumerateObject().Select(property => property.Name)];
 }
