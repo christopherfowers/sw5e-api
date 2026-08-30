@@ -206,8 +206,12 @@ Two things matter at the deployment level:
   Supply them as environment variables from the deployment's secret store.
 
 In Development, with nothing configured at all, the app runs on the capture
-provider: messages go to the log, links included, and no credentials are needed
-to work on the account flows locally.
+provider: it logs the recipient and subject of each message and delivers
+nothing, so no credentials are needed to work on the account flows locally. It
+does not log message bodies — a verification or reset link is a bearer
+credential and does not belong in a log. To open one, run a local catcher such
+as Mailpit and point the SMTP provider at it; `src/Sw5e.Email/README.md` has the
+four settings.
 
 ## Deployment
 

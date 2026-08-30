@@ -167,10 +167,36 @@ the morning.
 
 ### Development
 
-With no `Email:Provider` set, a Development host uses the capture provider:
-messages are written to the log, complete with the link, and nothing is
-delivered. The application runs with no credentials of any kind, and no
-developer machine ever holds a real sending token.
+With no `Email:Provider` set — and no `Email:FromAddress` either — a Development
+host uses the capture provider with a placeholder sending identity. It logs the
+recipient and subject of each message and delivers nothing. The application runs
+with no credentials of any kind, and no developer machine ever holds a real
+sending token.
+
+The body is deliberately **not** logged. A verification or reset link is a
+bearer credential, and anyone who can read the log can take over the account —
+true of terminal scrollback and much more so of anywhere those logs get
+shipped. To open a link, or to see how a message actually renders, run a local
+catcher and point the SMTP provider at it:
+
+```bash
+docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+```
+Email__Provider=Smtp
+Email__FromAddress=noreply@sw5e.localhost
+Email__Smtp__Host=127.0.0.1
+Email__Smtp__Port=1025
+Email__Smtp__UseStartTls=false
+```
+
+Mailpit's web UI on port 8025 shows both body parts. Disabling STARTTLS is
+permitted here only because the host is loopback; configuration refuses the same
+combination against a remote relay.
+
+In tests, assert against `CapturingEmailSender.Sent`, which holds the whole
+composed message.
 
 ## Known limitations
 

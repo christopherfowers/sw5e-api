@@ -16,13 +16,18 @@ public sealed record CapturedEmail(EmailMessage Message, DateTimeOffset Captured
 /// Two jobs, and they are the same job.
 /// </para>
 /// <para>
-/// <b>Development.</b> The application starts and every account flow works
-/// end to end with no MailerSend account, no API token and no relay. The
-/// verification link is written to the console, which is where a developer
-/// wanting to click it will look. The alternative — real credentials on
-/// developer machines — means a shared token in a chat log within a fortnight,
-/// and real mail to real strangers whenever someone types a plausible address
-/// into a test form.
+/// <b>Development.</b> The application starts and every account flow runs end
+/// to end with no MailerSend account, no API token and no relay. The
+/// alternative — real credentials on developer machines — means a shared token
+/// in a chat log within a fortnight, and real mail to real strangers whenever
+/// someone types a plausible address into a test form.
+/// </para>
+/// <para>
+/// It logs the recipient and subject of each message and deliberately not the
+/// body; see the note in <see cref="SendAsync"/>. To actually open a
+/// verification link locally, point <c>Email:Provider</c> at <c>Smtp</c> and run
+/// a catcher such as Mailpit on loopback — the SMTP adapter's cleartext
+/// allowance for loopback hosts exists for exactly that.
 /// </para>
 /// <para>
 /// <b>Tests.</b> <see cref="Sent"/> is what a test asserts against. Note what
@@ -107,16 +112,21 @@ public sealed class CapturingEmailSender : IEmailSender
             // enqueues may have pushed it several over.
         }
 
-        // The full plain-text body, which is the point: it contains the
-        // verification or reset link, and a developer needs to click it. This
-        // would be an unacceptable thing to log from a real provider — those
-        // links are bearer credentials — which is exactly why the real
-        // providers log the recipient and the outcome and never the body.
+        // Recipient and subject only. The body is deliberately not logged, even
+        // here: it contains the verification or reset link, and those links are
+        // bearer credentials — anyone who can read the log can take over the
+        // account. That is true of a developer's terminal scrollback and far
+        // more true of an aggregated log store, which is where this ends up if
+        // anyone ever selects this provider outside Development.
+        //
+        // A developer who needs to open the link has two better routes than a
+        // log line: read Sent, or point Email:Provider at Smtp and run a local
+        // catcher such as Mailpit, which renders both parts properly and is
+        // what the SMTP adapter's loopback allowance exists for.
         _logger.LogInformation(
-            "Email NOT SENT (capture provider active). To: {Recipient}. Subject: {Subject}\n{Body}",
-            message.To,
-            message.Subject,
-            message.PlainTextBody);
+            "Email NOT SENT (capture provider active). To: {Recipient}. Subject: {Subject}",
+            message.To.Address,
+            message.Subject);
 
         return Task.FromResult(EmailDeliveryResult.Success());
     }
