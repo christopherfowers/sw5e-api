@@ -348,3 +348,21 @@ connects from.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## QA deployment
+
+Merging to `main` publishes the image and then deploys it to the internal QA
+environment at <https://sw5e.cfowers.io>, which runs the database, API and site
+as one Compose stack behind the reverse proxy.
+
+The deploy step runs on a self-hosted runner on the QA host. That runner polls
+GitHub outbound — no inbound port is opened — holds no secrets, and is
+permitted to run exactly one script via a narrow sudoers rule. Only the
+immutable `sha-<full commit SHA>` tag is ever deployed; `latest` is refused.
+This repository deploys only the `api` service, so a merge here cannot move
+the other two.
+
+The step is gated on the `DEPLOY_ENABLED` repository variable. A job targeting
+an unregistered runner label queues indefinitely rather than failing, so until
+the runner is registered the gate keeps merges clean. Set `DEPLOY_ENABLED` to
+`true` under Settings → Secrets and variables → Actions to turn it on.
