@@ -11,10 +11,18 @@ namespace Sw5e.Infrastructure.Content;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the stand-in for the PostgreSQL store, not a permanent home for the
-/// content. It is written so the swap is a registration change: every filter,
-/// order and cut arrives as part of the query, so each method here has a direct
-/// SQL counterpart rather than a shape a database would have to emulate.
+/// The PostgreSQL store in <c>Persistence/Content</c> is the other
+/// implementation of this interface, and <c>Content:Store</c> chooses between
+/// them. This one is not obsolete: it needs no database at all, which is what
+/// makes the repository runnable from a fresh clone and what keeps the content
+/// repository usable on its own schedule.
+/// </para>
+/// <para>
+/// The two are meant to be indistinguishable from outside, and the parity tests
+/// compare them against each other to keep them so. That is possible because
+/// every filter, order and cut arrives as part of the query, so each method
+/// here has a direct SQL counterpart rather than a shape a database would have
+/// to emulate.
 /// </para>
 /// <para>
 /// The index is immutable once built, so the instance is safe to share as a

@@ -32,9 +32,11 @@ public static class PersistenceServiceCollectionExtensions
     /// own beyond its migrations history table.
     /// </para>
     /// <para>
-    /// It is safe to call more than once; everything it adds is registered with
-    /// try-add semantics, so two features that each depend on persistence can
-    /// both ask for it.
+    /// It is safe to call more than once: a second call returns immediately.
+    /// Content and identity both depend on persistence, and both will ask for
+    /// it; without the guard the second call would register a second health
+    /// check under the same name, which throws at the first probe rather than
+    /// at startup.
     /// </para>
     /// </remarks>
     /// <param name="services">The application's service collection.</param>
