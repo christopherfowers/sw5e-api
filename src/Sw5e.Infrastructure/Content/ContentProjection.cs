@@ -106,6 +106,27 @@ internal static class ContentProjection
                 "name",
                 ["flavorText", "sectionText"],
                 ["size", "types", "alignment", "challengeRating", "experiencePoints"]),
+            ["credit-category"] = new(
+                "title",
+                ["description"],
+                ["order"]),
+            // A credit's contribution is its summary line because it is the
+            // part worth reading: "for the epic cover and SW5e logo" says what
+            // somebody did, whereas their category alone says only that they
+            // were involved. Category is a facet so credits can be filtered
+            // into their groups without the caller knowing the key format.
+            ["credit"] = new(
+                "name",
+                ["contribution"],
+                ["categoryKey", "order"]),
+            // Asset credits are keyed by the picture, so the facets are what
+            // identify the picture and how it may be shown. Artist is a facet
+            // rather than only a display field so that "everything by this
+            // artist" is answerable once the citations start being filled in.
+            ["asset-credit"] = new(
+                "assetKey",
+                ["provenance", "basisNote"],
+                ["assetGroup", "assetKey", "status", "artist", "workTitle", "basis"]),
         };
 
     /// <summary>

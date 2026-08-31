@@ -278,6 +278,10 @@ public static class ContentFixture
             ["maneuver"] = 3,
             ["lightsaber-form"] = 1,
             ["weapon-focus"] = 1,
+
+            ["credit-category"] = 2,
+            ["credit"] = 3,
+            ["asset-credit"] = 2,
         };
 
     /// <summary>Total valid documents in the fixture.</summary>
