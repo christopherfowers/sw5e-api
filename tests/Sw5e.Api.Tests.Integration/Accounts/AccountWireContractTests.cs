@@ -75,8 +75,22 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
         body.ValueKind.ShouldBe(JsonValueKind.Object);
 
         PropertyNamesOf(body).ShouldBe(
-            ["id", "email", "displayName", "roles", "twoFactorEnabled", "passkeys"],
+            [
+                "id", "email", "displayName", "roles", "twoFactorEnabled", "passkeys",
+                "authenticationMethod", "strongAuthentication", "secondFactorRequired",
+            ],
             ignoreOrder: true);
+
+        // The last three describe the session rather than the account, and the
+        // front end needs all of them: how this reader got in, whether that
+        // counts as a second factor, and whether their roles oblige them to
+        // have one. Without them a 403 on a contributor action is
+        // indistinguishable from any other refusal, and the page cannot say
+        // which of "sign in with your passkey" and "enrol a passkey" is the
+        // advice.
+        body.GetProperty("authenticationMethod").GetString().ShouldBe("passkey");
+        body.GetProperty("strongAuthentication").ValueKind.ShouldBe(JsonValueKind.True);
+        body.GetProperty("secondFactorRequired").ValueKind.ShouldBe(JsonValueKind.False);
 
         // Spelled out rather than derived: the flag is a flat boolean called
         // twoFactorEnabled, not a nested { mfa: { totp } } object.
@@ -94,6 +108,112 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
         // There is no lastUsedAt and there must not be one: nothing records it,
         // so a client that renders it would be rendering a fiction.
         passkey.TryGetProperty("lastUsedAt", out _).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// Asking for a sign-in code answers one shape, always.
+    /// </summary>
+    /// <remarks>
+    /// The two numbers are the front end's whole model of the flow: how long to
+    /// disable the resend control, and how long to tell the reader their code
+    /// lasts. They are constants read from configuration rather than facts
+    /// about the code that was just issued — a countdown that varied with what
+    /// this address had recently been sent would answer, from an
+    /// unauthenticated endpoint, a question about somebody else's sign-in.
+    /// </remarks>
+    [Fact]
+    public async Task TheSignInCodeRequestCarriesExactlyTheAgreedProperties()
+    {
+        var client = _factory.CreateBrowserClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/email/code",
+            new { email = AccountFlow.NewAddress("wire-code") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+
+        var body = await response.ReadJsonAsync();
+
+        PropertyNamesOf(body).ShouldBe(
+            ["status", "message", "resendAfterSeconds", "expiresInSeconds"],
+            ignoreOrder: true);
+
+        body.GetProperty("status").GetString().ShouldBe("pending");
+        body.GetProperty("resendAfterSeconds").GetInt32().ShouldBe(60);
+        body.GetProperty("expiresInSeconds").GetInt32().ShouldBe(600);
+
+        // Nothing that names the address, confirms it, or hints at what
+        // happened to it.
+        body.GetProperty("message").GetString()!.ShouldNotContain("@");
+    }
+
+    /// <summary>
+    /// Redeeming a code answers the same union a passkey sign-in does.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately the same two literals — <c>authenticated</c> and
+    /// <c>mfaRequired</c>, camel case, no hyphen — so the browser application
+    /// has one branch for "the sign-in finished" and one for "now do the second
+    /// factor", rather than one per route in.
+    /// </remarks>
+    [Fact]
+    public async Task TheSignInCodeVerificationAnswersTheSameUnionAsAPasskey()
+    {
+        var client = _factory.CreateBrowserClient();
+        var account = AccountFlow.For(client, "wire-code-verify");
+
+        await account.EstablishAsync(_factory.Email);
+        await client.PostAsync("/api/auth/logout", content: null);
+
+        var fresh = _factory.CreateBrowserClient();
+
+        await fresh.PostAsJsonAsync("/api/auth/email/code", new { email = account.EmailAddress });
+
+        var response = await fresh.PostAsJsonAsync(
+            "/api/auth/email/code/verify",
+            new
+            {
+                email = account.EmailAddress,
+                code = _factory.Email.LatestSignInCode(account.EmailAddress),
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.ReadJsonAsync();
+
+        PropertyNamesOf(body).ShouldBe(["status", "user"], ignoreOrder: true);
+        body.GetProperty("status").GetString().ShouldBe("authenticated");
+        body.GetProperty("user").ValueKind.ShouldBe(JsonValueKind.Object);
+    }
+
+    /// <summary>
+    /// A refused code is a problem document with a detail, like every other
+    /// refusal here.
+    /// </summary>
+    [Fact]
+    public async Task ARefusedSignInCodeIsAProblemDocument()
+    {
+        var client = _factory.CreateBrowserClient();
+        var address = AccountFlow.NewAddress("wire-code-refused");
+
+        await client.PostAsJsonAsync("/api/auth/email/code", new { email = address });
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/email/code/verify",
+            new { email = address, code = "000000" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+
+        var body = await response.ReadJsonAsync();
+        body.GetProperty("detail").GetString().ShouldNotBeNullOrWhiteSpace();
+
+        // And it says nothing about which of the several possible failures it
+        // was. A caller that could tell "no such address" from "wrong digits"
+        // would have an account-existence oracle.
+        var detail = body.GetProperty("detail").GetString()!;
+        detail.ShouldNotContain("expired");
+        detail.ShouldNotContain("exist");
     }
 
     /// <summary>

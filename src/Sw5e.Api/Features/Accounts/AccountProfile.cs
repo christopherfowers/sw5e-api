@@ -1,4 +1,5 @@
 using System.Buffers.Text;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
 
@@ -31,15 +32,41 @@ namespace Sw5e.Api.Features.Accounts;
 /// account holder — whereas the public key and the signature counter stay out,
 /// because nothing in this contract needs them.
 /// </para>
+/// <para>
+/// Two fields describe the session rather than the account:
+/// <c>authenticationMethod</c> and <c>strongAuthentication</c>. They are here
+/// because the browser application has to be able to explain a 403 that a
+/// different sign-in would have avoided, and guessing at the reason from the
+/// account's enrolments would get it wrong for exactly the case that matters —
+/// somebody who has a passkey but did not use it this time.
+/// </para>
 /// </remarks>
 internal static class AccountProfile
 {
+    /// <summary>
+    /// Describes an account to itself, in the context of one session.
+    /// </summary>
+    /// <param name="method">
+    /// How the caller signed in, or null when that is not known — which happens
+    /// only for a session established before this field existed.
+    /// </param>
     public static async Task<CurrentUserResponse> DescribeAsync(
         UserManager<Sw5eUser> users,
-        Sw5eUser user)
+        Sw5eUser user,
+        string? method)
     {
         var roles = await users.GetRolesAsync(user);
         var passkeys = await users.GetPasskeysAsync(user);
+
+        var strong = method is Sw5eClaims.PasskeyMethod or Sw5eClaims.AuthenticatorMethod;
+
+        // Whether this account's roles oblige it to hold a second factor. Not
+        // whether it holds one — the front end can see the passkey list and the
+        // two-factor flag and work that out — but whether the obligation
+        // applies at all, so that a Community account is never shown a warning
+        // about a rule that does not govern it.
+        var elevated = roles.Any(role =>
+            role is Sw5eRoles.Contributor or Sw5eRoles.Administrator);
 
         return new CurrentUserResponse(
             user.Id,
@@ -55,6 +82,35 @@ internal static class AccountProfile
                 .Select(passkey => new PasskeySummary(
                     Base64Url.EncodeToString(passkey.CredentialId),
                     passkey.Name,
-                    passkey.CreatedAt))]);
+                    passkey.CreatedAt))],
+            method,
+            strong,
+            elevated);
     }
+
+    /// <summary>
+    /// Describes an account to a caller whose session already exists, reading
+    /// the sign-in method off the principal that request arrived with.
+    /// </summary>
+    public static Task<CurrentUserResponse> DescribeAsync(
+        UserManager<Sw5eUser> users,
+        Sw5eUser user,
+        ClaimsPrincipal principal) =>
+        DescribeAsync(users, user, principal.FindFirstValue(Sw5eClaims.AuthenticationMethod));
+
+    /// <summary>
+    /// The body of a successful sign-in response.
+    /// </summary>
+    /// <remarks>
+    /// Takes the method as an argument rather than reading it off
+    /// <c>HttpContext.User</c>, because at the moment a sign-in completes the
+    /// cookie has been written to the response and the request's own principal
+    /// is still the anonymous one it arrived as. Reading it there would report
+    /// every fresh sign-in as unknown.
+    /// </remarks>
+    public static async Task<SignInResponse> DescribeSignInAsync(
+        UserManager<Sw5eUser> users,
+        Sw5eUser user,
+        string method) =>
+        SignInResponse.Authenticated(await DescribeAsync(users, user, method));
 }

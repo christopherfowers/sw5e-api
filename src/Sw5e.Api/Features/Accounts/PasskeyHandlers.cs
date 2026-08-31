@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
 using Sw5e.Identity.Email;
+using Sw5e.Identity.EmailSignIn;
 
 namespace Sw5e.Api.Features.Accounts;
 
@@ -301,7 +302,9 @@ internal static class PasskeyHandlers
         SignInManager<Sw5eUser> signIn,
         IPasskeyHandler<Sw5eUser> passkeys,
         AccountStateCookies state,
-        ILoggerFactory loggerFactory)
+        EmailSignInCodeService codes,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
 
@@ -360,16 +363,23 @@ internal static class PasskeyHandlers
 
         if (await users.GetTwoFactorEnabledAsync(user))
         {
-            await StorePendingTwoFactorAsync(context, users, user);
+            await AccountSessions.StorePendingTwoFactorAsync(context, users, user);
             logger.LogInformation("Account {UserId} passed a passkey assertion and is awaiting a second factor.", user.Id);
             return TypedResults.Ok(SignInResponse.MfaRequired);
         }
 
-        // isPersistent is false, always. A session that outlives the browser is
-        // a session that outlives the person walking away from the machine, and
-        // this platform has nothing so tedious to sign into that it is worth
-        // it. The sliding eight-hour window covers a working day.
-        await signIn.SignInAsync(user, isPersistent: false);
+        // Stamped as a passkey sign-in, which is what lets an elevated role
+        // actually be used. See Sw5eClaims and AccountSessions.
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod);
+
+        // Any sign-in code still sitting in this account's mailbox is now a
+        // live credential nobody is waiting on. Somebody who asked for one,
+        // gave up, and reached for their passkey instead should not leave a
+        // working way in behind them.
+        if (users.NormalizeEmail(user.Email) is { } normalized)
+        {
+            await codes.DiscardAsync(normalized, cancellationToken);
+        }
 
         // A successful sign-in clears the counter, so a locked-out account that
         // recovers does not stay one failure away from being locked again.
@@ -377,33 +387,8 @@ internal static class PasskeyHandlers
 
         logger.LogInformation("Account {UserId} signed in with a passkey.", user.Id);
 
-        return TypedResults.Ok(SignInResponse.Authenticated(await AccountProfile.DescribeAsync(users, user)));
-    }
-
-    /// <summary>
-    /// Records that an account has passed its first factor and is waiting on
-    /// its second.
-    /// </summary>
-    /// <remarks>
-    /// The shape of this principal is not arbitrary: it is what
-    /// <c>SignInManager.TwoFactorAuthenticatorSignInAsync</c> reads back, so
-    /// the scheme and the claim type have to match the framework's exactly for
-    /// the second half of the sign-in to find it. It carries the account
-    /// identifier and nothing else — no roles, no name — because it is not an
-    /// identity yet, and anything authorization could act on has no business
-    /// being in it.
-    /// </remarks>
-    private static async Task StorePendingTwoFactorAsync(
-        HttpContext context,
-        UserManager<Sw5eUser> users,
-        Sw5eUser user)
-    {
-        var identity = new ClaimsIdentity(IdentityConstants.TwoFactorUserIdScheme);
-        identity.AddClaim(new Claim(ClaimTypes.Name, await users.GetUserIdAsync(user)));
-
-        await context.SignInAsync(
-            IdentityConstants.TwoFactorUserIdScheme,
-            new ClaimsPrincipal(identity));
+        return TypedResults.Ok(
+            await AccountProfile.DescribeSignInAsync(users, user, Sw5eClaims.PasskeyMethod));
     }
 
     /// <summary>

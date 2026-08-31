@@ -43,6 +43,26 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
     /// </remarks>
     protected virtual int SensitiveAttempts => 1000;
 
+    /// <summary>Requests allowed per window to have a sign-in code emailed.</summary>
+    /// <remarks>
+    /// Same reasoning as above, and separate because the production value is a
+    /// tenth of the sensitive one — a suite that shared the number would be
+    /// throttled by the tests that are not about throttling.
+    /// </remarks>
+    protected virtual int EmailCodeRequests => 1000;
+
+    /// <summary>
+    /// The clock every part of the identity stack reads.
+    /// </summary>
+    /// <remarks>
+    /// Substituted so that a test about a code expiring can move the clock
+    /// forward instead of sleeping. Sleeping for eleven real minutes is not a
+    /// test anybody will keep, which in practice means expiry goes untested,
+    /// which means the one property that bounds how long a stolen code is worth
+    /// stealing is the one nothing checks.
+    /// </remarks>
+    public AdjustableTimeProvider Clock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:RootPath", ContentApiFactory.FixturePath);
@@ -63,10 +83,17 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
             "Auth:RateLimits:SensitiveAttempts",
             SensitiveAttempts.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
+        builder.UseSetting(
+            "Auth:RateLimits:EmailCodeRequests",
+            EmailCodeRequests.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IAccountEmailSender>();
             services.AddSingleton<IAccountEmailSender>(Email);
+
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
         });
     }
 
@@ -140,6 +167,49 @@ public sealed class RecordingEmailSender : IAccountEmailSender
         return Task.CompletedTask;
     }
 
+    public Task SendSignInCodeAsync(
+        AccountEmailRecipient recipient,
+        string code,
+        TimeSpan validFor,
+        CancellationToken cancellationToken = default)
+    {
+        _messages.Enqueue(new AccountMessage(AccountMessageKind.SignInCode, recipient.EmailAddress, code));
+        return Task.CompletedTask;
+    }
+
+    public Task SendUnknownAddressSignInNoticeAsync(
+        string emailAddress, CancellationToken cancellationToken = default)
+    {
+        _messages.Enqueue(new AccountMessage(
+            AccountMessageKind.UnknownAddressNotice, emailAddress, string.Empty));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The most recent sign-in code emailed to an address.
+    /// </summary>
+    /// <remarks>
+    /// The tests read the code out of the captured message for the same reason
+    /// they read verification tokens out of captured links: a test that
+    /// generated its own code would be asserting that the server accepts codes
+    /// the test made up, which is a property no correct server has.
+    /// </remarks>
+    public string LatestSignInCode(string emailAddress) =>
+        _messages
+            .Where(message =>
+                message.Kind == AccountMessageKind.SignInCode &&
+                message.EmailAddress.Equals(emailAddress, StringComparison.OrdinalIgnoreCase))
+            .Select(message => message.Body)
+            .LastOrDefault()
+        ?? throw new InvalidOperationException($"No sign-in code was emailed to {emailAddress}.");
+
+    /// <summary>How many messages of one kind an address has been sent.</summary>
+    public int CountOf(AccountMessageKind kind, string emailAddress) =>
+        _messages.Count(message =>
+            message.Kind == kind &&
+            message.EmailAddress.Equals(emailAddress, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>
     /// The most recent verification or recovery link sent to an address, with
     /// its token pulled out of the query string exactly as the browser
@@ -170,6 +240,40 @@ public enum AccountMessageKind
     Verification,
     Recovery,
     SecurityNotice,
+
+    /// <summary>Carries a live credential in its body, and nothing else does.</summary>
+    SignInCode,
+
+    /// <summary>
+    /// Sent to an address that asked for a sign-in code and has no account.
+    /// </summary>
+    /// <remarks>
+    /// Its existence is the mechanism, not a nicety: sending on both branches
+    /// is what keeps the request endpoint from answering an unregistered
+    /// address measurably faster than a registered one.
+    /// </remarks>
+    UnknownAddressNotice,
 }
 
 public sealed record AccountMessage(AccountMessageKind Kind, string EmailAddress, string Body);
+
+/// <summary>
+/// A clock the tests move by hand.
+/// </summary>
+/// <remarks>
+/// Starts at the real current time rather than at an epoch, because the
+/// identity stack's own cookies and data protection payloads are stamped
+/// against the real clock and a fixture that started in 1970 would produce a
+/// session that had expired before it was issued. Only the offset is under the
+/// test's control.
+/// </remarks>
+public sealed class AdjustableTimeProvider : TimeProvider
+{
+    private long _offsetTicks;
+
+    public override DateTimeOffset GetUtcNow() =>
+        System.GetUtcNow().AddTicks(Interlocked.Read(ref _offsetTicks));
+
+    /// <summary>Moves the clock forward. Nothing here ever moves it back.</summary>
+    public void Advance(TimeSpan by) => Interlocked.Add(ref _offsetTicks, by.Ticks);
+}

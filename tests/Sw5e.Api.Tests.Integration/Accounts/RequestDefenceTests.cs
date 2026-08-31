@@ -54,6 +54,28 @@ public sealed class RequestDefenceTests(PostgresFixture postgres) : IAsyncLifeti
     }
 
     [Fact]
+    public async Task AskingForASignInCodeFromAnotherSiteIsRefused()
+    {
+        // Worth its own case rather than being left to the group filter's
+        // reputation. This is the only anonymous endpoint on the platform that
+        // causes a message to be delivered to an address the caller chose, so a
+        // cross-site page that could reach it would be a mail cannon anybody
+        // could host.
+        var client = _factory.CreateOriginlessClient();
+        client.DefaultRequestHeaders.Add("Origin", "https://sw5e-phishing.example");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/email/code",
+            new { email = AccountFlow.NewAddress("evil-origin-code") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        // Refused before the handler ran, not after. A 403 issued once the
+        // message was already on its way would be theatre.
+        _factory.Email.Messages.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task SigningOutFromAnotherSiteIsRefused()
     {
         var client = _factory.CreateBrowserClient();

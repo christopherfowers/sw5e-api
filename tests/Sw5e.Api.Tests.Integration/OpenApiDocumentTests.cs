@@ -29,6 +29,8 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/search")]
     [InlineData("/api/auth/register")]
     [InlineData("/api/auth/email/verify")]
+    [InlineData("/api/auth/email/code")]
+    [InlineData("/api/auth/email/code/verify")]
     [InlineData("/api/auth/passkey/register/begin")]
     [InlineData("/api/auth/passkey/register/complete")]
     [InlineData("/api/auth/passkey/{credentialId}")]
