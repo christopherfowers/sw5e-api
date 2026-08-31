@@ -274,14 +274,22 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
 
         source.Name.ShouldBe("Player's Handbook");
 
-        // Features carry neither field in their schema. Both must be null
-        // rather than empty, because the sort orders nulls last and an empty
-        // string orders first.
+        // A source carries neither field: a book is the provenance rather than
+        // having one. Both must land as null rather than as an empty string,
+        // because the sort orders nulls last and an empty string first. This
+        // used to be checked on a feature, which carried neither field until
+        // the feature schema gained a source of its own.
+        source.SourceKey.ShouldBeNull();
+        source.ContentSet.ShouldBeNull();
+
+        // And a feature does carry both now, derived from whatever grants it,
+        // because the site refuses to publish an item it cannot attribute to a
+        // book.
         var feature = await database.ContentItems.SingleAsync(
             item => item.ItemKey == "species-wookiee-powerful-build");
 
-        feature.SourceKey.ShouldBeNull();
-        feature.ContentSet.ShouldBeNull();
+        feature.SourceKey.ShouldBe("phb");
+        feature.ContentSet.ShouldBe("core");
     }
 
     /// <summary>

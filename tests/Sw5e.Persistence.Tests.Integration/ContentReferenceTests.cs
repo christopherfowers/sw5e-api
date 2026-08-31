@@ -43,24 +43,24 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
             .Include(reference => reference.FromItem)
             .ToListAsync();
 
-        // Twenty of the twenty-five fixture documents declare a sourceKey. The
-        // three sources do not have one of their own, and neither feature
-        // does: the feature schema has no sourceKey field at all.
-        sourceEdges.Count.ShouldBe(20);
+        // Twenty-four of the twenty-eight fixture documents declare a
+        // sourceKey. Four do not: the three sources, which are the provenance
+        // rather than carrying one, and the deliberately nameless background
+        // that never gets imported at all. Features used to be a fifth
+        // exception — the schema had no field for it — and are not any more: a
+        // feature is printed inside whatever grants it, so it is in the same
+        // book, and it now says so.
+        sourceEdges.Count.ShouldBe(24);
         sourceEdges.ShouldAllBe(edge => edge.ResolvedItemId != null);
         sourceEdges.ShouldAllBe(edge => edge.TargetKind == ContentReferenceTargetKind.Key);
 
         sourceEdges.Select(edge => edge.FromItem!.ContentType).Distinct()
                    .OrderBy(type => type, StringComparer.Ordinal)
                    .ShouldBe([
-                       "archetype", "background", "equipment", "feat", "lightsaber-form",
-                       "maneuver", "monster", "power", "species", "weapon-focus"
+                       "archetype", "background", "class", "class-improvement", "equipment",
+                       "feat", "feature", "lightsaber-form", "maneuver", "monster", "power",
+                       "species", "weapon-focus"
                    ]);
-
-        (await database.ContentReferences.CountAsync(
-            reference => reference.Relation == "source" &&
-                         reference.FromItem!.ContentType == "feature"))
-            .ShouldBe(0);
     }
 
     /// <summary>
@@ -100,31 +100,45 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     }
 
     /// <summary>
-    /// An archetype names its class, and there is no class content type. The
-    /// edge is still recorded.
+    /// Two different types name their class the same way, and both edges land
+    /// on the same class row.
     /// </summary>
     /// <remarks>
-    /// This is the case a foreign key to <c>content_item</c> would have made
-    /// unimportable. The set of classes the corpus refers to is currently
-    /// knowable only from these edges, and it is what tells whoever authors the
-    /// class type what has to be in it. An importer that dropped unresolvable
-    /// references would import this archetype without complaint and lose that
-    /// information silently.
+    /// This edge used to be the corpus's only record that classes existed at
+    /// all: it was recorded and left dangling, because nothing had authored the
+    /// class type yet. Now that a class is a real item, the same rule has to
+    /// resolve rather than merely record — and it has to do so from an
+    /// archetype and from a class improvement alike, since the class page is
+    /// the only route to either of them.
     /// </remarks>
     [DockerFact]
-    public async Task Import_RecordsAnArchetypesClassEvenThoughNoClassTypeExists()
+    public async Task Import_ResolvesAnArchetypeAndAnImprovementToTheSameClass()
     {
         await Database.ImportAsync();
 
         await using var database = Database.CreateContext();
 
-        var edge = await database.ContentReferences.SingleAsync(
-            reference => reference.Relation == "class");
+        var edges = await database.ContentReferences
+            .Include(reference => reference.ResolvedItem)
+            .Where(reference => reference.Relation == "class")
+            .OrderBy(reference => reference.Id)
+            .ToListAsync();
 
-        edge.TargetType.ShouldBe("class");
-        edge.TargetIdentifier.ShouldBe("Guardian");
-        edge.ResolvedItemId.ShouldBeNull();
-        edge.JsonPath.ShouldBe("$.className");
+        edges.Count.ShouldBe(2);
+
+        foreach (var edge in edges)
+        {
+            edge.TargetType.ShouldBe("class");
+            edge.TargetIdentifier.ShouldBe("Guardian");
+            edge.JsonPath.ShouldBe("$.className");
+            edge.ResolvedItem.ShouldNotBeNull();
+            edge.ResolvedItem!.ItemKey.ShouldBe("guardian");
+            edge.ResolvedItem.ContentType.ShouldBe("class");
+        }
+
+        // Both edges resolve to one row, which is what makes "everything that
+        // belongs to the guardian" a single query rather than a name match.
+        edges.Select(edge => edge.ResolvedItemId).Distinct().Count().ShouldBe(1);
     }
 
     /// <summary>
@@ -171,9 +185,10 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     {
         var result = await Database.ImportAsync();
 
-        // Three in the fixture: the archetype's class, the power that requires
-        // a power nobody has written, and the background's third feat option.
-        result.ReferencesUnresolved.ShouldBe(3);
+        // Two in the fixture: the power that requires a power nobody has
+        // written, and the background's third feat option. The archetype's
+        // class used to be a third, and resolves now that classes are content.
+        result.ReferencesUnresolved.ShouldBe(2);
 
         result.Warnings.ShouldContain(
             warning => warning.Contains("Mind Trap") && warning.Contains("$.prerequisite"));
@@ -323,7 +338,12 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
             .OrderBy(identity => identity)
             .ToListAsync();
 
-        printedThere.ShouldBe(["monster/womp-rat", "power/mind-shatter", "species/zabrak"]);
+        printedThere.ShouldBe([
+            "class-improvement/guardian-multiclass-improvement",
+            "monster/womp-rat",
+            "power/mind-shatter",
+            "species/zabrak",
+        ]);
     }
 
     /// <summary>

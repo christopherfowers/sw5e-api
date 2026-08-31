@@ -3,5 +3,7 @@
   "name": "Powerful Build",
   "grantedBy": "species",
   "grantedByName": "Wookiee",
-  "description": "You count as one size larger when determining your carrying capacity."
+  "description": "You count as one size larger when determining your carrying capacity.",
+  "sourceKey": "phb",
+  "contentSet": "core"
 }
