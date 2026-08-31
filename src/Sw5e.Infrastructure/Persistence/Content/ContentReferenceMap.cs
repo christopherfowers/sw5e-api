@@ -171,11 +171,8 @@ internal static class ContentReferenceMap
     {
         var references = new List<ExtractedReference>();
 
-        // Universal: every type but two records the book it came from. Source
-        // has no provenance of its own, and feature is missing the field
-        // entirely — a gap in the feature schema rather than in the data, and
-        // the reason a feature currently cannot be attributed in printed
-        // output.
+        // Universal: every type but source records the book it came from, and
+        // source has no provenance of its own because it is the provenance.
         if (TryReadString(body, "sourceKey", out var sourceKey))
         {
             Add(references, Relations.Source, "$.sourceKey", "source",
@@ -188,11 +185,12 @@ internal static class ContentReferenceMap
                 ExtractGrantor(body, references);
                 break;
 
+            // Both name their class the same way and for the same reason: an
+            // archetype is a branch of exactly one class, and an improvement
+            // describes exactly one class. Neither is reachable from anywhere
+            // else, so this edge is the only route to them.
             case "archetype":
-                // Points at a content type that does not exist yet. Recorded
-                // anyway: the set of classes the corpus refers to is currently
-                // knowable only from these edges, and it is what tells anyone
-                // authoring the class type what has to be in it.
+            case "class-improvement":
                 if (TryReadString(body, "className", out var className))
                 {
                     Add(references, Relations.Class, "$.className", "class",

@@ -45,6 +45,18 @@ internal static class ContentProjection
                 "name",
                 ["lore"],
                 ["feature.name", "skillProficiencies"]),
+            // A class is scanned by what it plays like and what it costs to
+            // multiclass into, so the primary ability, the hit die and the
+            // casting ratio are the facets; the level table is not one, because
+            // nothing filters on a whole table.
+            ["class"] = new(
+                "name",
+                ["summary", "lore"],
+                ["primaryAbility", "hitPoints.dieFaces", "casterType", "casterRatio"]),
+            ["class-improvement"] = new(
+                "name",
+                ["description"],
+                ["className", "improvementType", "prerequisite"]),
             ["archetype"] = new(
                 "name",
                 ["description"],

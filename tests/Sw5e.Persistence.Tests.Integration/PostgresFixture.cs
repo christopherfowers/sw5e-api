@@ -262,6 +262,8 @@ public static class ContentFixture
             ["source"] = 3,
             ["species"] = 4,
             ["background"] = 1,
+            ["class"] = 1,
+            ["class-improvement"] = 1,
             ["archetype"] = 1,
             ["feature"] = 2,
             ["feat"] = 3,

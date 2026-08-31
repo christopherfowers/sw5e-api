@@ -21,7 +21,8 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
 
         keys.ShouldBe(
             [
-                "source", "species", "background", "archetype", "feature", "feat", "power",
+                "source", "species", "background", "class", "class-improvement",
+                "archetype", "feature", "feat", "power",
                 "maneuver", "fighting-style", "fighting-mastery", "lightsaber-form",
                 "weapon-focus", "weapon-supremacy",
                 "equipment", "monster",

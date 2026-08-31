@@ -23,6 +23,8 @@ public static class ContentTypeRegistry
         new("source", "Source", "Sources", "sources"),
         new("species", "Species", "Species", "species"),
         new("background", "Background", "Backgrounds", "backgrounds"),
+        new("class", "Class", "Classes", "classes"),
+        new("class-improvement", "Class improvement", "Class improvements", "class-improvements"),
         new("archetype", "Archetype", "Archetypes", "archetypes"),
         new("feature", "Feature", "Features", "features"),
         new("feat", "Feat", "Feats", "feats"),
