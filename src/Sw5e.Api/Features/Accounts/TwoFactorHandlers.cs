@@ -1,9 +1,8 @@
-using System.Text;
-using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
 using Sw5e.Identity.Email;
+using Sw5e.Identity.TwoFactor;
 
 namespace Sw5e.Api.Features.Accounts;
 
@@ -69,9 +68,14 @@ internal static class TwoFactorHandlers
         // secret has actually been produced. Enabling it here would let a
         // mis-scanned QR code lock the account holder out of their own account
         // with no way back.
+        // Both forms of the same secret, because scanning is not universally
+        // available: a desktop authenticator has no camera, a screen reader user
+        // has no picture to point one at, and somebody enrolling on the phone
+        // that is displaying the QR code cannot photograph it with itself. The
+        // manual string and the URI encode exactly the same bytes.
         return TypedResults.Ok(new TotpEnrollmentResponse(
-            FormatForManualEntry(key),
-            BuildAuthenticatorUri(user.Email!, key)));
+            AuthenticatorUri.ForManualEntry(key),
+            AuthenticatorUri.Build(user.Email!, key)));
     }
 
     public static async Task<IResult> VerifyAsync(
@@ -84,7 +88,7 @@ internal static class TwoFactorHandlers
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
-        var code = NormaliseCode(request.Code);
+        var code = AccountInput.NormaliseDigits(request.Code, Rfc6238TimeBasedOneTimePassword.Digits);
 
         if (code is null)
         {
@@ -144,9 +148,21 @@ internal static class TwoFactorHandlers
 
         await users.ResetAccessFailedCountAsync(user);
 
+        // Re-issued immediately, carrying the claim that says an authenticator
+        // code was produced during this sign-in. The framework's two-factor
+        // method writes the session cookie itself and offers no way to add a
+        // claim to it, so the choice is between reimplementing its lockout
+        // handling — which is the part of it worth keeping — and writing the
+        // cookie a second time. The second cookie replaces the first in the
+        // same response; the cost is a few hundred bytes on one response, and
+        // what it buys is that no sign-in route can produce an unstamped
+        // session.
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.AuthenticatorMethod);
+
         logger.LogInformation("Account {UserId} completed a two-factor sign-in.", user.Id);
 
-        return TypedResults.Ok(SignInResponse.Authenticated(await AccountProfile.DescribeAsync(users, user)));
+        return TypedResults.Ok(
+            await AccountProfile.DescribeSignInAsync(users, user, Sw5eClaims.AuthenticatorMethod));
     }
 
     private static async Task<IResult> CompleteEnrollmentAsync(
@@ -199,81 +215,4 @@ internal static class TwoFactorHandlers
         return TypedResults.Ok(new TotpEnabledResponse("enabled", [.. recoveryCodes ?? []]));
     }
 
-    /// <summary>
-    /// Accepts the code as people actually type it and rejects anything else.
-    /// </summary>
-    /// <remarks>
-    /// Authenticator apps display six digits in two groups, and users paste the
-    /// space along with them. Stripping separators is a courtesy; the length
-    /// and digit check that follows is not, because it keeps anything that is
-    /// not a code out of the verification path entirely.
-    /// </remarks>
-    private static string? NormaliseCode(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return null;
-        }
-
-        Span<char> digits = stackalloc char[6];
-        var length = 0;
-
-        foreach (var character in code)
-        {
-            if (character is ' ' or '-')
-            {
-                continue;
-            }
-
-            if (!char.IsAsciiDigit(character) || length == digits.Length)
-            {
-                return null;
-            }
-
-            digits[length++] = character;
-        }
-
-        return length == digits.Length ? new string(digits) : null;
-    }
-
-    /// <summary>Groups the secret in fours so it can be read aloud or typed.</summary>
-    private static string FormatForManualEntry(string key)
-    {
-        var formatted = new StringBuilder(key.Length + (key.Length / 4));
-
-        for (var index = 0; index < key.Length; index += 4)
-        {
-            if (index > 0)
-            {
-                formatted.Append(' ');
-            }
-
-            formatted.Append(key.AsSpan(index, Math.Min(4, key.Length - index)));
-        }
-
-        return formatted.ToString().ToLowerInvariant();
-    }
-
-    /// <summary>
-    /// Builds the <c>otpauth://</c> URI the QR code encodes.
-    /// </summary>
-    /// <remarks>
-    /// Every component is URL-encoded, including the account label, which is an
-    /// email address and can legitimately contain characters that would
-    /// otherwise terminate the query. The parameters are stated explicitly
-    /// rather than left to the app's defaults so that an authenticator with
-    /// different defaults cannot silently generate codes this server will never
-    /// accept.
-    /// </remarks>
-    private static string BuildAuthenticatorUri(string emailAddress, string key)
-    {
-        const string issuer = "SW5e";
-
-        return string.Format(
-            System.Globalization.CultureInfo.InvariantCulture,
-            "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6&period=30&algorithm=SHA1",
-            UrlEncoder.Default.Encode(issuer),
-            UrlEncoder.Default.Encode(emailAddress),
-            key);
-    }
 }

@@ -113,6 +113,83 @@ public sealed class Sw5eIdentityOptions
     public TimeSpan EmailTokenLifetime { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
+    /// How long an emailed sign-in code stays usable.
+    /// </summary>
+    /// <remarks>
+    /// Long enough to find the message, read six digits and type them —
+    /// including on a phone that fetches mail on a schedule — and short enough
+    /// that a code left in an open inbox on a shared machine is worthless by
+    /// the time anybody walks past. Ten minutes is the value nearly every
+    /// service that sends these settles on, and readers have learned to expect
+    /// it.
+    /// </remarks>
+    public TimeSpan EmailSignInCodeLifetime { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// How many codes one address may be sent inside
+    /// <see cref="EmailSignInCodeBudgetWindow"/>.
+    /// </summary>
+    /// <remarks>
+    /// This is the limit that stops the sign-in form being a mail cannon
+    /// pointed at a stranger's inbox. It is counted against the address rather
+    /// than the caller, because the caller is the attacker and the address is
+    /// the victim: an attacker with a thousand IP addresses still gets three
+    /// messages into any one mailbox per window.
+    /// </remarks>
+    public int EmailSignInCodesPerAddress { get; set; } = 3;
+
+    /// <summary>The window <see cref="EmailSignInCodesPerAddress"/> is counted over.</summary>
+    public TimeSpan EmailSignInCodeBudgetWindow { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// The shortest gap between two codes for the same address.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the budget because it answers a different abuse. The
+    /// budget bounds the total; this bounds the rate, so a held-down "resend"
+    /// button delivers one message rather than a burst, and it is what the
+    /// front end counts down from before it re-enables the control.
+    /// </remarks>
+    public TimeSpan EmailSignInCodeResendCooldown { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// How many wrong codes may be tried against one issued code before it dies.
+    /// </summary>
+    /// <remarks>
+    /// Five guesses against a million possibilities is a one-in-two-hundred-
+    /// thousand chance per code. Combined with the per-address budget above,
+    /// an attacker who controls the request side gets fifteen guesses per
+    /// fifteen minutes against any one address, which is a chance of about one
+    /// in seventy thousand per day of sustained effort. It also means a reader
+    /// who fat-fingers the code twice is not sent back to the start.
+    /// </remarks>
+    public int EmailSignInCodeAttempts { get; set; } = 5;
+
+    /// <summary>
+    /// How many thirty-second steps either side of the current one an
+    /// authenticator code is accepted from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The single most common cause of "my authenticator app does not work" is
+    /// a phone whose clock has drifted by a few seconds across a step boundary.
+    /// A server that accepts only the current step rejects that person's
+    /// perfectly correct code, and no message it could show them would explain
+    /// why. One step either side — a ninety-second acceptance band — absorbs
+    /// ordinary drift and the time it takes to read and type six digits.
+    /// </para>
+    /// <para>
+    /// Widening it is not free: every extra step is another code that stays
+    /// valid after it has left the screen, which lengthens the window in which
+    /// a code read over somebody's shoulder or captured by a phishing page can
+    /// still be replayed. One is the value the large providers use, and it is
+    /// the value this platform should keep unless a deployment has a specific
+    /// reason not to.
+    /// </para>
+    /// </remarks>
+    public int AuthenticatorStepWindow { get; set; } = 1;
+
+    /// <summary>
     /// Applies pending migrations and seeds the role table during startup.
     /// </summary>
     /// <remarks>
@@ -195,6 +272,34 @@ public sealed class Sw5eIdentityOptions
         {
             throw new Sw5eIdentityConfigurationException(
                 "'Identity:SessionLifetime' and 'Identity:EmailTokenLifetime' must be positive.");
+        }
+
+        if (EmailSignInCodeLifetime <= TimeSpan.Zero ||
+            EmailSignInCodeBudgetWindow <= TimeSpan.Zero ||
+            EmailSignInCodeResendCooldown < TimeSpan.Zero)
+        {
+            throw new Sw5eIdentityConfigurationException(
+                "'Identity:EmailSignInCodeLifetime' and 'Identity:EmailSignInCodeBudgetWindow' " +
+                "must be positive, and 'Identity:EmailSignInCodeResendCooldown' cannot be negative.");
+        }
+
+        if (EmailSignInCodesPerAddress < 1 || EmailSignInCodeAttempts < 1)
+        {
+            throw new Sw5eIdentityConfigurationException(
+                "'Identity:EmailSignInCodesPerAddress' and 'Identity:EmailSignInCodeAttempts' " +
+                "must be at least one. Setting either to zero would not harden the flow, it " +
+                "would switch it off while leaving the endpoint answering as though it worked.");
+        }
+
+        // Zero is a legal value and a bad one, so it is allowed and the cost of
+        // choosing it is stated in the option's own documentation rather than
+        // being refused here. What is refused is a window so wide that a code
+        // outlives the screen it was read from by minutes.
+        if (AuthenticatorStepWindow is < 0 or > 4)
+        {
+            throw new Sw5eIdentityConfigurationException(
+                "'Identity:AuthenticatorStepWindow' must be between 0 and 4 thirty-second steps. " +
+                $"It is currently {AuthenticatorStepWindow}.");
         }
     }
 }
