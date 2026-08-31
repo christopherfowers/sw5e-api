@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Shouldly;
+using Sw5e.Domain.Content;
 using Xunit;
 
 namespace Sw5e.Api.Tests.Integration;
@@ -141,7 +142,11 @@ public sealed class EmptyCatalogueTests(EmptyContentApiFactory factory)
         var body = await JsonResponse.ReadAsync(response);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        body.Array("types").Count().ShouldBe(9);
+        // Against the registry rather than a literal: the exact list, in
+        // order, is already pinned by ContentTypes_ListsEveryType, and what
+        // this test is about is that an absent content directory costs no
+        // types rather than how many there are.
+        body.Array("types").Count().ShouldBe(ContentTypeRegistry.All.Count);
         body.Array("types").ShouldAllBe(type => type.GetProperty("itemCount").GetInt32() == 0);
     }
 

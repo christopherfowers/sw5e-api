@@ -256,7 +256,10 @@ public static class ContentFixture
     public static IReadOnlyDictionary<string, int> ExpectedCounts { get; } =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
-            ["source"] = 2,
+            // Three books, because a weapon focus is published in Wretched
+            // Hives and an item whose source is missing from the fixture would
+            // make every source edge in the graph tests resolve except one.
+            ["source"] = 3,
             ["species"] = 4,
             ["background"] = 1,
             ["archetype"] = 1,

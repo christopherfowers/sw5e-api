@@ -24,7 +24,7 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
 
     /// <summary>
     /// Every item that declares a source gets an edge to it, and every one of
-    /// those resolves, because both sources are in the fixture.
+    /// those resolves, because all three sources are in the fixture.
     /// </summary>
     /// <remarks>
     /// The count is asserted exactly. "At least one source edge" would pass
@@ -43,16 +43,19 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
             .Include(reference => reference.FromItem)
             .ToListAsync();
 
-        // Fifteen of the nineteen fixture documents declare a sourceKey. The
-        // two sources do not have one of their own, and neither feature does:
-        // the feature schema has no sourceKey field at all.
-        sourceEdges.Count.ShouldBe(15);
+        // Twenty of the twenty-five fixture documents declare a sourceKey. The
+        // three sources do not have one of their own, and neither feature
+        // does: the feature schema has no sourceKey field at all.
+        sourceEdges.Count.ShouldBe(20);
         sourceEdges.ShouldAllBe(edge => edge.ResolvedItemId != null);
         sourceEdges.ShouldAllBe(edge => edge.TargetKind == ContentReferenceTargetKind.Key);
 
         sourceEdges.Select(edge => edge.FromItem!.ContentType).Distinct()
                    .OrderBy(type => type, StringComparer.Ordinal)
-                   .ShouldBe(["archetype", "background", "equipment", "feat", "monster", "power", "species"]);
+                   .ShouldBe([
+                       "archetype", "background", "equipment", "feat", "lightsaber-form",
+                       "maneuver", "monster", "power", "species", "weapon-focus"
+                   ]);
 
         (await database.ContentReferences.CountAsync(
             reference => reference.Relation == "source" &&
@@ -177,6 +180,51 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
 
         result.Warnings.ShouldContain(
             warning => warning.Contains("Ace Pilot") && warning.Contains("$.featOptions[2].name"));
+    }
+
+    /// <summary>
+    /// A maneuver declares two different edges to other maneuvers, and they are
+    /// not the same edge written twice.
+    /// </summary>
+    /// <remarks>
+    /// The prerequisite is the gate and names the tier immediately below;
+    /// <c>improves</c> names the base maneuver the chain hangs off. For a third
+    /// tier those are different documents — Administer Aid (Greater) requires
+    /// Administer Aid (Improved) and improves Administer Aid — so an extractor
+    /// that treated one as a synonym for the other would publish a chain that
+    /// skips a tier. The fixture holds Riposte and Riposte (Improved), where
+    /// the two edges happen to agree, which is why the assertions check the
+    /// relations separately rather than counting edges.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_RecordsBothAManeuversGateAndTheManeuverItUpgrades()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        var edges = await database.ContentReferences
+            .Include(reference => reference.FromItem)
+            .Include(reference => reference.ResolvedItem)
+            .Where(reference => reference.FromItem!.ItemKey == "riposte-improved")
+            .ToListAsync();
+
+        var gate = edges.Single(edge => edge.Relation == "prerequisiteManeuver");
+        gate.TargetType.ShouldBe("maneuver");
+        gate.TargetIdentifier.ShouldBe("Riposte");
+        gate.ResolvedItem!.ItemKey.ShouldBe("riposte");
+
+        var upgrade = edges.Single(edge => edge.Relation == "improvesManeuver");
+        upgrade.JsonPath.ShouldBe("$.improves");
+        upgrade.TargetIdentifier.ShouldBe("Riposte");
+        upgrade.ResolvedItem!.ItemKey.ShouldBe("riposte");
+
+        // The base maneuver has neither, and a maneuver with no prerequisite
+        // must not produce an edge to a maneuver called "" or to itself.
+        (await database.ContentReferences.CountAsync(
+            reference => reference.FromItem!.ItemKey == "riposte" &&
+                         reference.Relation != "source"))
+            .ShouldBe(0);
     }
 
     /// <summary>
