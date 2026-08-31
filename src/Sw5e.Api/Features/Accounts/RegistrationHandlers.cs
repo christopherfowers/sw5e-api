@@ -28,16 +28,6 @@ namespace Sw5e.Api.Features.Accounts;
 /// </remarks>
 internal static class RegistrationHandlers
 {
-    /// <summary>
-    /// Longest address accepted. Comfortably above the practical maximum for a
-    /// deliverable address and well below anything that would make normalising
-    /// or indexing it expensive.
-    /// </summary>
-    private const int MaxEmailLength = 254;
-
-    private const int MaxDisplayNameLength = 64;
-    private const int MinDisplayNameLength = 2;
-
     public static async Task<Results<Accepted<RegisterResponse>, ProblemHttpResult>> RegisterAsync(
         RegisterRequest request,
         UserManager<Sw5eUser> users,
@@ -51,8 +41,8 @@ internal static class RegistrationHandlers
         // Input shape is validated and rejected loudly, because a malformed
         // address is not a fact about whether an account exists. The moment the
         // input is well formed, every path below converges on one response.
-        if (!TryReadEmail(request.Email, out var emailAddress, out var problem) ||
-            !TryReadDisplayName(request.DisplayName, out var displayName, out problem))
+        if (!AccountInput.TryReadEmail(request.Email, out var emailAddress, out var problem) ||
+            !AccountInput.TryReadDisplayName(request.DisplayName, out var displayName, out problem))
         {
             return problem!;
         }
@@ -171,7 +161,7 @@ internal static class RegistrationHandlers
     {
         var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
 
-        if (!TryReadEmail(request.Email, out var emailAddress, out var problem))
+        if (!AccountInput.TryReadEmail(request.Email, out var emailAddress, out var problem))
         {
             return problem!;
         }
@@ -219,72 +209,5 @@ internal static class RegistrationHandlers
         return TypedResults.Ok(new VerifyEmailResponse(
             "verified",
             DateTimeOffset.UtcNow.Add(AccountStateCookies.EnrollmentLifetime)));
-    }
-
-    private static bool TryReadEmail(
-        string? value,
-        out string emailAddress,
-        out ProblemHttpResult? problem)
-    {
-        emailAddress = value?.Trim() ?? string.Empty;
-        problem = null;
-
-        if (emailAddress.Length is 0 or > MaxEmailLength)
-        {
-            problem = AccountProblems.Invalid(
-                $"An email address of 1 to {MaxEmailLength} characters is required.");
-            return false;
-        }
-
-        // Deliberately shallow. The only address validation that means anything
-        // is whether a message sent to it arrives, and that check happens
-        // anyway two lines later. A stricter regular expression here would
-        // reject deliverable addresses and stop nothing.
-        var at = emailAddress.IndexOf('@', StringComparison.Ordinal);
-
-        if (at <= 0 ||
-            at == emailAddress.Length - 1 ||
-            emailAddress.IndexOf('@', at + 1) >= 0 ||
-            emailAddress.Any(char.IsWhiteSpace) ||
-            emailAddress.Any(char.IsControl))
-        {
-            problem = AccountProblems.Invalid("That is not a valid email address.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool TryReadDisplayName(
-        string? value,
-        out string displayName,
-        out ProblemHttpResult? problem)
-    {
-        displayName = value?.Trim() ?? string.Empty;
-        problem = null;
-
-        if (displayName.Length is < MinDisplayNameLength or > MaxDisplayNameLength)
-        {
-            problem = AccountProblems.Invalid(
-                $"A display name of {MinDisplayNameLength} to {MaxDisplayNameLength} characters is required.");
-            return false;
-        }
-
-        // Control characters are stripped at the door rather than at every
-        // point of display. A newline or a bidirectional override in a name is
-        // never legitimate and is a standard way to make one account's name
-        // impersonate another's in a list.
-        foreach (var character in displayName)
-        {
-            if (char.IsControl(character) ||
-                char.GetUnicodeCategory(character) is System.Globalization.UnicodeCategory.Format)
-            {
-                problem = AccountProblems.Invalid(
-                    "A display name cannot contain control or formatting characters.");
-                return false;
-            }
-        }
-
-        return true;
     }
 }

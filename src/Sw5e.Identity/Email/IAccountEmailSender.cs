@@ -74,6 +74,59 @@ public interface IAccountEmailSender
         AccountEmailRecipient recipient,
         string summary,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends the short numeric code that signs somebody in without a passkey.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The only message on this interface that carries a credential in its
+    /// body rather than a link. Implementations must treat it as one: the code
+    /// goes into the message and nowhere else, and in particular it never
+    /// reaches a log. The capture provider logs recipients and subjects and
+    /// deliberately not bodies, which is what makes that rule hold for
+    /// development and for the tests as well as for production.
+    /// </para>
+    /// <para>
+    /// It is also the only message here that is worth phrasing for a reader who
+    /// did not ask for it. A code arriving unrequested means somebody typed
+    /// this address into the sign-in form, so the message has to say plainly
+    /// that ignoring it costs nothing.
+    /// </para>
+    /// </remarks>
+    /// <param name="code">
+    /// The digits, exactly as the reader will type them back.
+    /// </param>
+    /// <param name="validFor">How long the code works.</param>
+    Task SendSignInCodeAsync(
+        AccountEmailRecipient recipient,
+        string code,
+        TimeSpan validFor,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tells an address with no account here that somebody tried to sign in
+    /// with it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This exists because of what the sign-in endpoint must not do. It cannot
+    /// answer differently for an address that has an account and one that does
+    /// not, or it becomes a way to test whether a given person has an account
+    /// here. It cannot even take a measurably different amount of time. So both
+    /// branches send exactly one message, and this is the one the unknown
+    /// branch sends.
+    /// </para>
+    /// <para>
+    /// The result is that a probe turns into a note to the actual owner of the
+    /// address, which is the same trade the registration endpoint already
+    /// makes. It carries no code and no link that changes anything, because
+    /// there is no account for it to change.
+    /// </para>
+    /// </remarks>
+    Task SendUnknownAddressSignInNoticeAsync(
+        string emailAddress,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Who a message is going to.</summary>

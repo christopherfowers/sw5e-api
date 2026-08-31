@@ -128,6 +128,86 @@ internal sealed class ProviderAccountEmailSender(
         await SendAsync(recipient, subject, body, cancellationToken);
     }
 
+    public async Task SendSignInCodeAsync(
+        AccountEmailRecipient recipient,
+        string code,
+        TimeSpan validFor,
+        CancellationToken cancellationToken = default)
+    {
+        // The subject carries no code. Subjects are the one part of a message
+        // that shows up on a lock screen, in a notification banner, and in this
+        // platform's own delivery logs, and a credential visible without
+        // unlocking the phone is a credential the mailbox no longer protects.
+        const string subject = "Your SW5e sign-in code";
+
+        var greeting = string.IsNullOrWhiteSpace(recipient.DisplayName)
+            ? "Hello,"
+            : $"Hello {recipient.DisplayName},";
+
+        var body =
+            $"""
+             {greeting}
+
+             Your sign-in code is {code}
+
+             Type it into the sign-in page within {Describe(validFor)}. It works
+             once, and only for this address.
+
+             If you did not ask to sign in, you can ignore this message and
+             nothing will happen. Nobody can use the code without it, and it
+             stops working shortly regardless. Nobody from SW5e will ever ask
+             you to read this code out or forward it.
+             """;
+
+        await SendAsync(recipient, subject, body, cancellationToken);
+    }
+
+    public async Task SendUnknownAddressSignInNoticeAsync(
+        string emailAddress,
+        CancellationToken cancellationToken = default)
+    {
+        const string subject = "Sign-in attempt for an SW5e account that does not exist";
+
+        // No display name is available and none is invented: there is no
+        // account, so there is nobody to greet by name.
+        var body =
+            $"""
+             Hello,
+
+             Somebody entered this address on the SW5e sign-in page, but there is
+             no account here registered to it. No code has been sent and nothing
+             has been created.
+
+             If that was you, you can register at {SiteUrl()} and you will be
+             asked to confirm this address first.
+
+             If it was not you, there is nothing to do. Somebody typed an
+             address; that is all that happened.
+             """;
+
+        await SendAsync(
+            new AccountEmailRecipient(emailAddress, string.Empty),
+            subject,
+            body,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// The public site, for the one message that has to point somebody at
+    /// registration rather than at a token.
+    /// </summary>
+    /// <remarks>
+    /// Read from configuration for exactly the reason AccountLinks does: a URL
+    /// assembled from the incoming request is a URL an attacker with a Host
+    /// header gets to choose.
+    /// </remarks>
+    private string SiteUrl() =>
+        string.IsNullOrWhiteSpace(_identity.PublicSiteUrl)
+            ? throw new InvalidOperationException(
+                "'Identity:PublicSiteUrl' is not configured, so account email cannot be " +
+                "addressed. Set it to the public base URL of the site.")
+            : _identity.PublicSiteUrl;
+
     private async Task SendAsync(
         AccountEmailRecipient recipient,
         string subject,
@@ -173,7 +253,8 @@ internal sealed class ProviderAccountEmailSender(
     {
         { TotalHours: >= 2 } => $"{(int)lifetime.TotalHours} hours",
         { TotalHours: >= 1 } => "an hour",
-        _ => $"{(int)lifetime.TotalMinutes} minutes",
+        { TotalMinutes: >= 2 } => $"{(int)lifetime.TotalMinutes} minutes",
+        _ => "a minute",
     };
 
     private static void Ensure(EmailDeliveryResult result, string operation)
