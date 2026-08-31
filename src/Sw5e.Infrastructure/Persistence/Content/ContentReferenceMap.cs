@@ -44,18 +44,60 @@ internal sealed record ExtractedReference(
 /// a name only when exactly one candidate matches.
 /// </para>
 /// <para>
+/// <b>Reading a property clause.</b> <c>equipment.properties[]</c> waited for
+/// the weapon-property and armor-property types to exist, and the obstacle
+/// recorded here was that the schema's "leading word names the property" rule
+/// is wrong about the data: "power cell (range 105/420)" names a two-word
+/// property, and taking the first token yields "power", which is the name of
+/// nothing. Matching against the 76 published property names would resolve it,
+/// and this class cannot: it is a pure function of one document and holds no
+/// catalogue. Handing it one was considered and rejected — the edges a document
+/// produced would then depend on what else happened to be imported beside it,
+/// which is the coupling the separate resolution pass exists to remove.
+/// </para>
+/// <para>
+/// It does not need one. A printed clause is a name, then at most one numeric
+/// argument, then at most one parenthesised argument, so dropping everything
+/// from the parenthesis onwards and then a trailing run of digits leaves the
+/// name — "two-handed", "burst", "power cell", "versatile" — without knowing
+/// what any of the names are. Which glossary that name is in comes from the
+/// item's own <c>category</c>, because interlocking, silent, strength and
+/// versatile are published in both: "strength 13" on a suit of armour is a
+/// different rule from "strength 13" on a bowcaster. An item that is neither a
+/// weapon nor armour produces no edge at all, since nothing on the document
+/// says which glossary to read, and choosing between two real properties by
+/// coin toss is exactly the wrong edge this file refuses to write. A clause
+/// the printed tables turn out to shape differently yields an identifier that
+/// resolves to nothing, which the importer reports; that is the failure this
+/// rule is allowed to have.
+/// </para>
+/// <para>
 /// <b>What is deliberately not extracted, and why.</b>
 /// </para>
 /// <list type="bullet">
 /// <item>
 /// <description>
-/// <c>equipment.properties[]</c>. The schema says the leading word of each
-/// clause names a weapon or armour property, but the data disagrees with the
-/// schema: "power cell (range 105/420)" names a two-word property, so splitting
-/// on the first token yields "power", which is not the name of anything. A rule
-/// that produces a wrong edge is worse than no rule, because a wrong edge
-/// resolves and is therefore invisible. This waits for the property content
-/// types to be authored.
+/// <c>enhanced-item.subtype</c>. It reads like a pointer at equipment and is
+/// not one. Its meaning follows from <c>itemType</c>, and across the corpus it
+/// is variously a specific item ("bo-rifle"), a family ("any blaster",
+/// "vibroweapon"), a body slot ("hands", "waist") and a bare noun
+/// ("ammunition") — with nothing on the document to say which of those is
+/// meant. Some of those strings do match an equipment name, so a rule here
+/// would produce edges that resolve for a minority of rows and dangle for the
+/// rest, and the resolved ones would be indistinguishable from correct. It
+/// becomes extractable when the field is split into the two things it is
+/// currently doing, not before.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// <c>enhanced-item.prerequisite</c>. Printed conditions of several kinds in
+/// one string — an ability score ("Constitution 13"), a class level ("At least
+/// 3 levels in berserker"), a droid class, or a property the host equipment
+/// must have or lack. Two of those name content types that do not exist and one
+/// is not a reference at all, so there is nothing to point at yet. The feat
+/// equivalent is extractable only because its clauses end in the literal word
+/// "feat"; these carry no such marker.
 /// </description>
 /// </item>
 /// <item>
@@ -133,6 +175,14 @@ internal static class ContentReferenceMap
 
         /// <summary>A launcher that fires a piece of starship ammunition.</summary>
         public const string AmmunitionLauncher = "ammunitionLauncher";
+        /// <summary>
+        /// A weapon or armour property an equipment row names. One relation
+        /// rather than two, because the question a reader asks — "what rules
+        /// does this weapon obey" — is the same either way; which glossary the
+        /// answer is in is carried by the edge's target type.
+        /// </summary>
+        public const string Property = "property";
+
     }
 
     /// <summary>
@@ -157,6 +207,19 @@ internal static class ContentReferenceMap
             ("deploymentName", "starship-deployment", Relations.PrerequisiteStarshipDeployment),
         ];
 
+
+    /// <summary>
+    /// Which property glossary an item's clauses are read from, by the item's
+    /// own category. Only these two categories carry properties, and the schema
+    /// gives no other field that could distinguish them.
+    /// </summary>
+    private static readonly Dictionary<string, string> PropertyGlossaryByCategory =
+        new(StringComparer.Ordinal)
+        {
+            ["weapon"] = "weapon-property",
+            ["armor"] = "armor-property",
+        };
+
     /// <summary>
     /// The types a feature can name as its grantor. Closed, because
     /// <c>grantedBy</c> is an enum in the schema and an unrecognised value is a
@@ -173,6 +236,15 @@ internal static class ContentReferenceMap
 
         // Universal: every type but source records the book it came from, and
         // source has no provenance of its own because it is the provenance.
+
+        // Universal: every type but five records the book it came from. Source
+        // has no provenance of its own; feature is missing the field
+        // entirely — a gap in the feature schema rather than in the data, and
+        // the reason a feature currently cannot be attributed in printed
+        // output; and the two property glossaries and the reference tables
+        // record none because the archive records none, and naming a book that
+        // was never cited would be a fabricated citation rather than a missing
+        // one.
         if (TryReadString(body, "sourceKey", out var sourceKey))
         {
             Add(references, Relations.Source, "$.sourceKey", "source",
@@ -247,6 +319,10 @@ internal static class ContentReferenceMap
 
             case "starship-equipment":
                 ExtractAmmunitionLaunchers(body, references);
+                break;
+
+            case "equipment":
+                ExtractProperties(body, references);
                 break;
         }
 
@@ -441,6 +517,115 @@ internal static class ContentReferenceMap
 
             index++;
         }
+    }
+
+    /// <summary>
+    /// Turns an equipment row's printed property clauses into edges into the
+    /// glossary its category belongs to.
+    /// </summary>
+    private static void ExtractProperties(JsonElement body, List<ExtractedReference> references)
+    {
+        if (!TryReadString(body, "category", out var category) ||
+            !PropertyGlossaryByCategory.TryGetValue(category, out var glossary) ||
+            !body.TryGetProperty("properties", out var properties) ||
+            properties.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var index = 0;
+
+        foreach (var clause in properties.EnumerateArray())
+        {
+            if (clause.ValueKind == JsonValueKind.String &&
+                TryReadPropertyName(clause.GetString(), out var name))
+            {
+                Add(references, Relations.Property, Path("$.properties", index, null), glossary,
+                    ContentReferenceTargetKind.Name, name, index);
+            }
+
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// Strips a printed property clause back to the property's name.
+    /// </summary>
+    /// <remarks>
+    /// The clause grammar is a name, then optionally a numeric argument, then
+    /// optionally a parenthesised one: "two-handed", "burst 2", "strength 13",
+    /// "versatile (2d4)", "power cell (range 105/420)". Both arguments are
+    /// removed positionally, so no list of property names is needed and a name
+    /// of any length survives. The name must contain a letter, because a clause
+    /// that is all punctuation and digits names nothing and an edge built from
+    /// one would be noise in the unresolved report. Anything else the printed
+    /// tables turn out to contain produces an identifier that resolves to
+    /// nothing, which is a visible gap rather than a silent mistake.
+    /// </remarks>
+    private static bool TryReadPropertyName(string? clause, out string name)
+    {
+        name = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(clause))
+        {
+            return false;
+        }
+
+        var span = clause.AsSpan();
+        var parenthesis = span.IndexOf('(');
+
+        if (parenthesis >= 0)
+        {
+            span = span[..parenthesis];
+        }
+
+        span = span.TrimEnd();
+
+        var lastSpace = span.LastIndexOf(' ');
+
+        if (lastSpace >= 0 && IsAllDigits(span[(lastSpace + 1)..]))
+        {
+            span = span[..lastSpace].TrimEnd();
+        }
+
+        if (!ContainsLetter(span))
+        {
+            return false;
+        }
+
+        name = span.ToString();
+        return true;
+    }
+
+    private static bool IsAllDigits(ReadOnlySpan<char> value)
+    {
+        if (value.IsEmpty)
+        {
+            return false;
+        }
+
+        foreach (var character in value)
+        {
+            if (!char.IsAsciiDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ContainsLetter(ReadOnlySpan<char> value)
+    {
+        foreach (var character in value)
+        {
+            if (char.IsLetter(character))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-namespace Sw5e.Domain.Content;
+﻿namespace Sw5e.Domain.Content;
 
 /// <summary>
 /// The read side of the content store.
@@ -32,7 +32,7 @@ public interface IContentRepository
     /// <remarks>
     /// Counts come from the store rather than from a caller looping over
     /// <c>List</c>, so a database implementation answers with one grouped count
-    /// query instead of nine paged reads.
+    /// query instead of fourteen paged reads.
     /// </remarks>
     Task<IReadOnlyList<ContentTypeDescriptor>> GetContentTypesAsync(
         CancellationToken cancellationToken = default);

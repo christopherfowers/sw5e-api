@@ -1,0 +1,11 @@
+{
+  "key": "armor-chassis-advanced",
+  "name": "Armor Chassis (Advanced)",
+  "sourceKey": "wh",
+  "contentSet": "core",
+  "itemType": "armor",
+  "rarity": "advanced",
+  "requiresAttunement": true,
+  "subtype": "any",
+  "description": "_**Requires attunement**_\nThis modifiable armor chassis comes with vacant modification slots for armor modifications, as well as one augment slot. It can house modifications of advanced rarity or lower."
+}

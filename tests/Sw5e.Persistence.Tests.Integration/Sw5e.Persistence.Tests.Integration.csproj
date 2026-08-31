@@ -22,8 +22,9 @@
   <ItemGroup>
     <!-- A fixture of this project's own rather than a share of the API test
          project's. It is shaped for what these tests are about: cross-content
-         references that resolve, references that dangle, and references whose
-         target type does not exist yet. The API fixture is shaped for endpoint
+         references that resolve, references that dangle, references whose
+         target type does not exist yet, and printed property clauses of every
+         shape the equipment tables use. The API fixture is shaped for endpoint
          behaviour and asserting on both from one directory would make each set
          of tests fragile to edits made for the other. -->
     <Content Include="TestContent\**\*.json" CopyToOutputDirectory="PreserveNewest" />

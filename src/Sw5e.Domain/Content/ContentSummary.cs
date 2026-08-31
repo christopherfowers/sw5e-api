@@ -1,4 +1,4 @@
-namespace Sw5e.Domain.Content;
+﻿namespace Sw5e.Domain.Content;
 
 /// <summary>
 /// The projection a list row or a search result row is rendered from: enough
@@ -20,7 +20,7 @@ namespace Sw5e.Domain.Content;
 /// <param name="Facets">
 /// The handful of type-specific display fields a row needs, such as a power's
 /// level or a monster's challenge rating. Kept as a string map so one row shape
-/// serves all nine types.
+/// serves all fourteen types.
 /// </param>
 public sealed record ContentSummary(
     string Type,
