@@ -1,0 +1,202 @@
+{
+  "key": "small",
+  "name": "Small",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "lore": "Small ships have a tiny crew, often only a pilot and perhaps an astromech, but often strike above their weight class, a threat to small and large ships alike.",
+  "abilityScoreAdjustments": [
+    {
+      "ability": "dexterity",
+      "modifier": 2
+    },
+    {
+      "ability": "constitution",
+      "modifier": -2
+    }
+  ],
+  "hull": {
+    "diceAtTier0": {
+      "number": 3,
+      "faces": 6
+    },
+    "firstDiePoints": "6 + your ship's Constitution modifier",
+    "subsequentDiePoints": "1d6 (or 4) + your ship's Constitution modifier per Hull Die after 1st"
+  },
+  "shields": {
+    "diceAtTier0": {
+      "number": 3,
+      "faces": 6
+    },
+    "firstDiePoints": "6 + your ship's Strength modifier",
+    "subsequentDiePoints": "1d6 (or 4) + your ship's Strength modifier per Shield Die after 1st"
+  },
+  "modifications": {
+    "maximumSuiteSystems": "-1 + your ship's Constitution modifier",
+    "baseModificationSlots": 20,
+    "stockModifications": "Your choice of two non-suite modifications."
+  },
+  "savingThrows": "Strength, Dexterity",
+  "tierProgression": {
+    "dieName": "Pinpoint Strike Die",
+    "tiers": [
+      {
+        "tier": 0,
+        "features": [
+          "Role"
+        ],
+        "hullAndShieldDice": "3d6",
+        "armorClassBonus": 0
+      },
+      {
+        "tier": 1,
+        "features": [
+          "Pinpoint Strike",
+          "Ability Score Increase"
+        ],
+        "die": "d4",
+        "hullAndShieldDice": "4d6",
+        "armorClassBonus": 0
+      },
+      {
+        "tier": 2,
+        "features": [
+          "Role Specialization",
+          "Retro Thrusters",
+          "Ability Score Increase"
+        ],
+        "die": "d6",
+        "hullAndShieldDice": "5d6",
+        "armorClassBonus": 1
+      },
+      {
+        "tier": 3,
+        "features": [
+          "Versatile Snubfighter",
+          "Auto-Thrusters",
+          "Ability Score Increase"
+        ],
+        "die": "d8",
+        "hullAndShieldDice": "6d6",
+        "armorClassBonus": 2
+      },
+      {
+        "tier": 4,
+        "features": [
+          "Role Mastery",
+          "Standing By",
+          "Ability Score Increase"
+        ],
+        "die": "d10",
+        "hullAndShieldDice": "7d6",
+        "armorClassBonus": 3
+      },
+      {
+        "tier": 5,
+        "features": [
+          "Paragon Snubfighter",
+          "A Leaf on the Wind",
+          "Ability Score Increase"
+        ],
+        "die": "d12",
+        "hullAndShieldDice": "8d6",
+        "armorClassBonus": 4
+      }
+    ]
+  },
+  "roles": [
+    {
+      "name": "Attack Fighter",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "strength",
+          "modifier": 1
+        }
+      ],
+      "armor": "Reinforced",
+      "reactor": "Power Core",
+      "powerCoupling": "Direct",
+      "speed": 350,
+      "turning": 100
+    },
+    {
+      "name": "Bomber",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "wisdom",
+          "modifier": 1
+        }
+      ],
+      "armor": "Deflection",
+      "reactor": "Fuel Cell",
+      "powerCoupling": "Hub & Spoke",
+      "speed": 450,
+      "turning": 200
+    },
+    {
+      "name": "Scout",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "intelligence",
+          "modifier": 1
+        }
+      ],
+      "armor": "Lightweight",
+      "reactor": "Ionization",
+      "powerCoupling": "Distributed",
+      "speed": 450,
+      "turning": 200
+    },
+    {
+      "name": "Scrambler",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "charisma",
+          "modifier": 1
+        }
+      ],
+      "armor": "Deflection",
+      "reactor": "Power Core",
+      "powerCoupling": "Direct",
+      "speed": 400,
+      "turning": 150
+    },
+    {
+      "name": "Shuttle",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "constitution",
+          "modifier": 1
+        }
+      ],
+      "armor": "Deflection",
+      "reactor": "Fuel Cell",
+      "powerCoupling": "Direct",
+      "speed": 350,
+      "turning": 100
+    },
+    {
+      "name": "Superiority Fighter",
+      "abilityScoreAdjustments": [
+        {
+          "ability": "dexterity",
+          "modifier": 1
+        }
+      ],
+      "armor": "Lightweight",
+      "reactor": "Ionization",
+      "powerCoupling": "Hub & Spoke",
+      "speed": 400,
+      "turning": 150
+    }
+  ],
+  "features": [
+    {
+      "name": "Starship Improvements",
+      "description": "Beginning when your ship reaches 1st tier, it gains the following benefits:\n\n#### Ability Score Improvement\nAt first tier, and again at 2nd, 3rd, 4th, and 5th tier, you can increase one of your ship's ability scores by 2, or you can increase two of these ability scores by 1. You can't increase your ability scores other than Dexterity above 20, or your Dexterity above 22, with this feature.\n\n#### Additional Hull and Shield Dice\nYour ship gains 1 additional Hull Die and one additional Shield Die. It gains 1 additional Hull Die and one additional Shield Die at 2nd tier (2, each), 3rd tier (3, each), 4th tier (4, each), and 5th tier (5, each).\n\n#### ARMOR CLASS IMPROVEMENT\nBeginning at second Tier, your ship's armor class improves, giving your ship a +1 to its AC. It gains an additional +1 bonus to AC at 3rd Tier (+2 total), 4th Tier (+3 total), and 5th Tier (+4 total)."
+    },
+    {
+      "name": "Pinpoint Strike",
+      "description": "Also at 1st tier, your starship gains the ability to slip underneath the shields of an enemy ship.\n\nWhen your ship occupies the same square occupied by a target ship and the crewmember at the helm makes an attack roll, as a reaction, they can, before rolling the attack, roll a Pinpoint Strike die, which is a d4, and add it to the attack roll.  If the attack requires a saving throw instead, you may subtract the Pinpoint Strike die from the target's save result.  On a hit or a failed save, the attack deals normal damage that bypasses any shields and directly hits the hull of the target ship. This feature can only be used once per round.\n\nYour ship's Pinpoint Strike die changes when it reaches certain tiers. The die becomes a d6 at 2nd tier, a d8 at 3rd tier, a d10 at 4th tier, and a d12 at 5th tier.\n\nThis feature can be used a number of times equal to your ship's tier. All expended uses are regained when the ship recharges."
+    }
+  ]
+}

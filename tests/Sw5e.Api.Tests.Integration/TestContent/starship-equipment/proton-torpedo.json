@@ -1,0 +1,31 @@
+{
+  "key": "proton-torpedo",
+  "name": "Proton torpedo",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "category": "ammunition",
+  "costInCredits": 650,
+  "damage": {
+    "numberOfDice": 2,
+    "dieFaces": 10,
+    "type": "energy"
+  },
+  "damageForLargerShips": {
+    "numberOfDice": 4,
+    "dieFaces": 10,
+    "type": "energy"
+  },
+  "weightInPounds": 65,
+  "weightInPoundsForLargerShips": 130,
+  "range": {
+    "normal": 1200,
+    "long": 4800
+  },
+  "properties": [
+    "explosive",
+    "keen 1"
+  ],
+  "firedBy": [
+    "Torpedo launcher"
+  ]
+}

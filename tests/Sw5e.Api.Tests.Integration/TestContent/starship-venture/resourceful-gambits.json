@@ -1,0 +1,15 @@
+{
+  "key": "resourceful-gambits",
+  "name": "Resourceful Gambits",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "prerequisites": [
+    {
+      "kind": "deploymentRank",
+      "text": "at least 1 rank in gunner",
+      "deploymentName": "Gunner",
+      "rank": 1
+    }
+  ],
+  "description": "Once per round, when you roll a power die used for a gunner's gambit, you can roll the die twice and take either result."
+}

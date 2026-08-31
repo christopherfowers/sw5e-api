@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using Shouldly;
 using Sw5e.Domain.Content;
@@ -25,6 +25,8 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
                 "maneuver", "fighting-style", "fighting-mastery", "lightsaber-form",
                 "weapon-focus", "weapon-supremacy",
                 "equipment", "monster",
+                "starship-base-size", "starship-deployment", "starship-equipment",
+                "starship-modification", "starship-venture", "starship-rule",
                 "credit-category", "credit", "asset-credit"
             ],
             ignoreOrder: false);

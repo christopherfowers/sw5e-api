@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Sw5e.Domain.Content;
 
@@ -49,6 +49,18 @@ public static class ContentTypeRegistry
 
         new("equipment", "Equipment", "Equipment", "equipment"),
         new("monster", "Monster", "Monsters", "monsters"),
+
+        // Starship play. These sit after the character types because that is
+        // the order a table reaches them: a group builds characters first and
+        // acquires a ship later. `starship-equipment` and `starship-rule` are
+        // the two whose plural is not the singular plus an "s", which is why
+        // every entry spells its plural out rather than deriving one.
+        new("starship-base-size", "Starship Base Size", "Starship Base Sizes", "starship-base-sizes"),
+        new("starship-deployment", "Starship Deployment", "Starship Deployments", "starship-deployments"),
+        new("starship-equipment", "Starship Equipment", "Starship Equipment", "starship-equipment"),
+        new("starship-modification", "Starship Modification", "Starship Modifications", "starship-modifications"),
+        new("starship-venture", "Starship Venture", "Starship Ventures", "starship-ventures"),
+        new("starship-rule", "Starship Rule", "Starship Rules", "starship-rules"),
 
         // Attribution. These are not game content and the site does not put
         // them in its navigation, but they are edited, reviewed and served by
