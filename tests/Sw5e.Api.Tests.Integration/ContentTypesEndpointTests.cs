@@ -25,9 +25,10 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
                 "archetype", "feature", "feat", "power",
                 "maneuver", "fighting-style", "fighting-mastery", "lightsaber-form",
                 "weapon-focus", "weapon-supremacy",
-                "equipment", "monster",
+                "equipment", "enhanced-item", "weapon-property", "armor-property", "monster",
                 "starship-base-size", "starship-deployment", "starship-equipment",
                 "starship-modification", "starship-venture", "starship-rule",
+                "rule", "reference-table",
                 "credit-category", "credit", "asset-credit"
             ],
             ignoreOrder: false);
@@ -62,6 +63,59 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
 
             type.Text("routeSegment").ShouldBe(routeSegment);
         }
+    }
+
+    /// <summary>
+    /// The counts are per type, and the types added alongside equipment are
+    /// counted from their own directories rather than folded into it.
+    /// </summary>
+    /// <remarks>
+    /// Enhanced items are emphatically not equipment — no price, no weight, no
+    /// armour class — and the reason they are a separate type is that a list of
+    /// 507 shoppable rows and a list of 1,918 rows with no price are different
+    /// pages. A regression that merged them would leave every other assertion
+    /// in this file passing.
+    /// </remarks>
+    [Fact]
+    public async Task ContentTypes_CountEachOfTheNewTypesSeparately()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/content-types"));
+
+        var counts = body.Array("types")
+            .ToDictionary(type => type.Text("key"), type => type.GetProperty("itemCount").GetInt32());
+
+        counts["equipment"].ShouldBe(2);
+        counts["enhanced-item"].ShouldBe(4);
+        counts["weapon-property"].ShouldBe(3);
+        counts["armor-property"].ShouldBe(2);
+        counts["rule"].ShouldBe(3);
+        counts["reference-table"].ShouldBe(2);
+    }
+
+    /// <summary>
+    /// The registry's labels are what the site's navigation renders, and the
+    /// three hyphenated types are the ones a naive "capitalise the key"
+    /// implementation would get wrong.
+    /// </summary>
+    [Theory]
+    [InlineData("enhanced-item", "Enhanced item", "Enhanced items", "enhanced-items")]
+    [InlineData("weapon-property", "Weapon property", "Weapon properties", "weapon-properties")]
+    [InlineData("reference-table", "Reference table", "Reference tables", "reference-tables")]
+    public async Task ContentTypes_CarryTheLabelsAndRouteSegmentsForTheNewTypes(
+        string key,
+        string name,
+        string pluralName,
+        string routeSegment)
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/content-types"));
+
+        var type = body.Array("types").Single(candidate => candidate.Text("key") == key);
+
+        type.Text("name").ShouldBe(name);
+        type.Text("pluralName").ShouldBe(pluralName);
+        type.Text("routeSegment").ShouldBe(routeSegment);
     }
 
     [Fact]

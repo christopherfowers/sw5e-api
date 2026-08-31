@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -268,8 +268,13 @@ public static class ContentFixture
             ["feature"] = 2,
             ["feat"] = 3,
             ["power"] = 3,
-            ["equipment"] = 2,
+            ["equipment"] = 4,
+            ["enhanced-item"] = 2,
+            ["weapon-property"] = 6,
+            ["armor-property"] = 2,
             ["monster"] = 1,
+            ["rule"] = 2,
+            ["reference-table"] = 2,
 
             // Three of the six combat-option types, chosen for the shapes they
             // exercise rather than for coverage of the list: a maneuver chain

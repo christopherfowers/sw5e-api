@@ -1,0 +1,10 @@
+{
+  "key": "atmospheric-decanting-vessel",
+  "name": "Atmospheric Decanting Vessel",
+  "sourceKey": "wh",
+  "contentSet": "core",
+  "itemType": "adventuringGear",
+  "rarity": "premium",
+  "requiresAttunement": false,
+  "description": "This metal jug appears to be able to hold a gallon of liquid and weighs 12 pounds whether full or empty.\n\nYou can use an action and name one liquid from the table below to cause the jug to produce the chosen liquid. Afterward, you can open the jug as an action and pour that liquid out, up to 2 gallons per minute. The maximum amount of liquid the jug can produce depends on the liquid you named.\n\nOnce the jug starts producing a liquid, it can't produce a different one, or more of one that has reached its maximum, until the next dawn.\n\n| Liquid | Quantity |\n|:----:|:-------------|\n| Acid  | 8 ounces |\n| Alcohol, strong  | 1 gallon |\n| Alcohol, weak  | 4 gallons |\n| Basic poison  | 1/2 ounce |\n\n| Liquid | Quantity |\n|:---:|:------------|\n| Condiment | 2 gallons |\n| Lubricant | 1 quart |\n| Water, potable | 8 gallons |\n| Water, stagnant | 12 gallons |\n\n_Most liquids one might desire curiously only involve a handful of elements. This device collects a reservoir of them to recreate a selection of such liquids on demand._"
+}

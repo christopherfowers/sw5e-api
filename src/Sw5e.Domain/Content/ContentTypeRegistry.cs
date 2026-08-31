@@ -50,6 +50,18 @@ public static class ContentTypeRegistry
         new("weapon-supremacy", "Weapon Supremacy", "Weapon Supremacies", "weapon-supremacies"),
 
         new("equipment", "Equipment", "Equipment", "equipment"),
+
+        // Grouped with equipment rather than appended, because that is where a
+        // reader looks for them: an enhanced item is gear, and the two property
+        // glossaries are the definitions an equipment or enhanced-item row
+        // refers to. Weapon and armour properties are two types rather than one
+        // because four names — interlocking, silent, strength and versatile —
+        // are published in both glossaries with different rules, so a merged
+        // type could answer a lookup with the wrong rule.
+        new("enhanced-item", "Enhanced item", "Enhanced items", "enhanced-items"),
+        new("weapon-property", "Weapon property", "Weapon properties", "weapon-properties"),
+        new("armor-property", "Armor property", "Armor properties", "armor-properties"),
+
         new("monster", "Monster", "Monsters", "monsters"),
 
         // Starship play. These sit after the character types because that is
@@ -63,6 +75,13 @@ public static class ContentTypeRegistry
         new("starship-modification", "Starship Modification", "Starship Modifications", "starship-modifications"),
         new("starship-venture", "Starship Venture", "Starship Ventures", "starship-ventures"),
         new("starship-rule", "Starship Rule", "Starship Rules", "starship-rules"),
+
+        // Last, because neither is a catalogue of things a character can have.
+        // A rule is a passage to read and a reference table is a lookup to jump
+        // to, so they belong at the end of the navigation rather than among the
+        // types a player browses while building a character.
+        new("rule", "Rule", "Rules", "rules"),
+        new("reference-table", "Reference table", "Reference tables", "reference-tables"),
 
         // Attribution. These are not game content and the site does not put
         // them in its navigation, but they are edited, reviewed and served by

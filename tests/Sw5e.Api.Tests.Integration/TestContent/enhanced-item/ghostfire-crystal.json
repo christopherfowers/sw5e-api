@@ -1,0 +1,11 @@
+{
+  "key": "ghostfire-crystal",
+  "name": "Ghostfire Crystal",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "itemType": "itemModification",
+  "rarity": "legendary",
+  "requiresAttunement": false,
+  "subtype": "lightweapon",
+  "description": "This weapon loses the luminous property, if it has it. Additionally, you gain a +2 bonus to damage rolls made with this weapon, when you attack a creature with it, the creature can't take reactions until the end of the current turn.\n\n*These crystals are so transparent that they are nigh invisible. The blade formed by this form of kyber makes no noise, is dim and may form illusory images as it is used.*"
+}
