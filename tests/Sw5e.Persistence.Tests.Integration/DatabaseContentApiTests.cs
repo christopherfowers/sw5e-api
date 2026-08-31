@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
+using Sw5e.Domain.Content;
 
 namespace Sw5e.Persistence.Tests.Integration;
 
@@ -43,7 +44,7 @@ public sealed class DatabaseContentApiTests(PostgresFixture fixture) : DatabaseT
 
         var types = body.GetProperty("types").EnumerateArray().ToArray();
 
-        types.Length.ShouldBe(9);
+        types.Length.ShouldBe(ContentTypeRegistry.All.Count);
 
         foreach (var (key, expected) in ContentFixture.ExpectedCounts)
         {

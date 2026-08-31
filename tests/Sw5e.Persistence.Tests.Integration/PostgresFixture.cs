@@ -256,7 +256,10 @@ public static class ContentFixture
     public static IReadOnlyDictionary<string, int> ExpectedCounts { get; } =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
-            ["source"] = 2,
+            // Three books, because a weapon focus is published in Wretched
+            // Hives and an item whose source is missing from the fixture would
+            // make every source edge in the graph tests resolve except one.
+            ["source"] = 3,
             ["species"] = 4,
             ["background"] = 1,
             ["archetype"] = 1,
@@ -265,6 +268,16 @@ public static class ContentFixture
             ["power"] = 3,
             ["equipment"] = 2,
             ["monster"] = 1,
+
+            // Three of the six combat-option types, chosen for the shapes they
+            // exercise rather than for coverage of the list: a maneuver chain
+            // (Riposte and the tier that improves it) for a type whose
+            // documents reference each other, a lightsaber form for one whose
+            // prose lives inside an array rather than in a field, and a weapon
+            // focus for one that carries a benefit list.
+            ["maneuver"] = 3,
+            ["lightsaber-form"] = 1,
+            ["weapon-focus"] = 1,
         };
 
     /// <summary>Total valid documents in the fixture.</summary>

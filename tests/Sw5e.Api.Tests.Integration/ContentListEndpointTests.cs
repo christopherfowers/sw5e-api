@@ -239,6 +239,65 @@ public sealed class ContentListEndpointTests(ContentApiFactory factory)
         body.Text("type").ShouldBe("power");
     }
 
+    /// <summary>
+    /// Maneuvers reach the store through the plural the site links to, and the
+    /// row a list page renders carries the two things a reader scans a maneuver
+    /// list for: which list it is on, and what it costs.
+    /// </summary>
+    [Fact]
+    public async Task List_ServesManeuversThroughThePluralTheSiteLinksTo()
+    {
+        var response = await factory.CreateClient().GetAsync("/api/content/maneuvers");
+        var body = await JsonResponse.ReadAsync(response);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.Text("type").ShouldBe("maneuver");
+        body.Array("items").Count().ShouldBe(3);
+
+        var riposte = body.Array("items").Single(item => item.Text("key") == "riposte-improved");
+
+        riposte.Text("name").ShouldBe("Riposte (Improved)");
+        riposte.Text("summary").ShouldContain("superiority die");
+        riposte.GetProperty("facets").Text("maneuverType").ShouldBe("physical");
+        riposte.GetProperty("facets").Text("superiorityDice").ShouldBe("1");
+        riposte.GetProperty("facets").Text("improves").ShouldBe("Riposte");
+    }
+
+    /// <summary>
+    /// A lightsaber form has no top-level prose at all — its rules text is
+    /// split into the effect that fires on adoption and the one that holds
+    /// while the form is worn — so its summary has to be read out of that
+    /// array. A row with no summary is what a broken projection looks like.
+    /// </summary>
+    [Fact]
+    public async Task List_SummarisesALightsaberFormFromItsFirstEffect()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/content/lightsaber-forms"));
+
+        var form = body.Array("items").Single(item => item.Text("key") == "shii-cho-form");
+
+        form.Text("name").ShouldBe("Shii-Cho Form");
+        form.Text("summary").ShouldContain("bonus action to adopt this form");
+    }
+
+    /// <summary>
+    /// A weapon focus is filtered by the group of weapons it applies to, which
+    /// is the only thing separating one of the eight from another once the
+    /// prose is stripped.
+    /// </summary>
+    [Fact]
+    public async Task List_FacetsAWeaponFocusByItsWeaponGroup()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/content/weapon-focuses"));
+
+        var focus = body.Array("items").Single(item => item.Text("key") == "blade-focus");
+
+        focus.GetProperty("facets").Text("weaponGroup").ShouldBe("blade");
+        focus.Text("sourceKey").ShouldBe("wh");
+    }
+
     [Fact]
     public async Task List_IsCacheableAndValidated()
     {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Shouldly;
+using Sw5e.Domain.Content;
 using Xunit;
 
 namespace Sw5e.Api.Tests.Integration;
@@ -19,8 +20,44 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
         var keys = body.Array("types").Select(type => type.Text("key")).ToArray();
 
         keys.ShouldBe(
-            ["source", "species", "background", "archetype", "feature", "feat", "power", "equipment", "monster"],
+            [
+                "source", "species", "background", "archetype", "feature", "feat", "power",
+                "maneuver", "fighting-style", "fighting-mastery", "lightsaber-form",
+                "weapon-focus", "weapon-supremacy",
+                "equipment", "monster"
+            ],
             ignoreOrder: false);
+    }
+
+    /// <summary>
+    /// The site has published /maneuvers since before any maneuver content
+    /// existed: the type is in its navigation and its index rendered empty.
+    /// The registry's key is singular like every other one, so the plural has
+    /// to come back as the route segment or the link the header already offers
+    /// would point at an address the API does not answer on.
+    /// </summary>
+    [Fact]
+    public async Task ContentTypes_GiveTheCombatOptionsTheRouteSegmentsTheSiteAlreadyPublishes()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/content-types"));
+
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["maneuver"] = "maneuvers",
+            ["fighting-style"] = "fighting-styles",
+            ["fighting-mastery"] = "fighting-masteries",
+            ["lightsaber-form"] = "lightsaber-forms",
+            ["weapon-focus"] = "weapon-focuses",
+            ["weapon-supremacy"] = "weapon-supremacies",
+        };
+
+        foreach (var (key, routeSegment) in expected)
+        {
+            var type = body.Array("types").Single(entry => entry.Text("key") == key);
+
+            type.Text("routeSegment").ShouldBe(routeSegment);
+        }
     }
 
     [Fact]
@@ -105,7 +142,11 @@ public sealed class EmptyCatalogueTests(EmptyContentApiFactory factory)
         var body = await JsonResponse.ReadAsync(response);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        body.Array("types").Count().ShouldBe(9);
+        // Against the registry rather than a literal: the exact list, in
+        // order, is already pinned by ContentTypes_ListsEveryType, and what
+        // this test is about is that an absent content directory costs no
+        // types rather than how many there are.
+        body.Array("types").Count().ShouldBe(ContentTypeRegistry.All.Count);
         body.Array("types").ShouldAllBe(type => type.GetProperty("itemCount").GetInt32() == 0);
     }
 

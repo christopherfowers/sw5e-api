@@ -61,6 +61,43 @@ internal static class ContentProjection
                 "name",
                 ["description"],
                 ["powerType", "level", "forceAlignment", "range", "duration", "concentration"]),
+
+            // The combat options. What a reader filters each of these lists on
+            // is different, which is the whole reason they are six types: a
+            // maneuver list is scanned for its list and its die cost, a weapon
+            // focus list for the weapon group it applies to, and the two
+            // Formfighting entries are the only styles anyone filters for a
+            // prerequisite at all.
+            ["maneuver"] = new(
+                "name",
+                ["description"],
+                ["maneuverType", "superiorityDice", "prerequisite", "improves"]),
+            ["fighting-style"] = new(
+                "name",
+                ["description"],
+                ["prerequisite"]),
+            ["fighting-mastery"] = new(
+                "name",
+                ["description"],
+                ["prerequisite"]),
+
+            // A form has no top-level prose: its rules text is split into the
+            // effect that fires as the form is adopted and the one that holds
+            // while it is worn. The first of those is what a one-line summary
+            // should show, which is why the path runs through the array.
+            ["lightsaber-form"] = new(
+                "name",
+                ["effects.description"],
+                ["prerequisite"]),
+
+            ["weapon-focus"] = new(
+                "name",
+                ["description"],
+                ["weaponGroup"]),
+            ["weapon-supremacy"] = new(
+                "name",
+                ["description"],
+                ["weaponGroup"]),
             ["equipment"] = new(
                 "name",
                 ["description"],
@@ -202,12 +239,38 @@ internal static class ContentProjection
         }
     }
 
+    /// <summary>
+    /// Walks a dotted path into a document.
+    /// </summary>
+    /// <remarks>
+    /// A segment applied to an array resolves against that array's first
+    /// element. This exists for the types whose prose is a list rather than a
+    /// field — a lightsaber form's <c>effects</c> — and first is the right
+    /// element rather than an arbitrary one: these lists are stored in printed
+    /// order, so the first entry is the one the books lead with and the one a
+    /// single-line summary should show. An empty array resolves to nothing,
+    /// which is the same outcome as a missing field and is handled the same
+    /// way by both callers.
+    /// </remarks>
     private static bool TryResolve(JsonElement body, string path, out JsonElement result)
     {
         result = body;
 
         foreach (var segment in path.Split('.'))
         {
+            if (result.ValueKind == JsonValueKind.Array)
+            {
+                var first = result.EnumerateArray();
+
+                if (!first.MoveNext())
+                {
+                    result = default;
+                    return false;
+                }
+
+                result = first.Current;
+            }
+
             if (result.ValueKind != JsonValueKind.Object ||
                 !result.TryGetProperty(segment, out result))
             {

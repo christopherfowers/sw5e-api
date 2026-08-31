@@ -112,6 +112,12 @@ internal static class ContentReferenceMap
 
         /// <summary>A species a half-human variant draws traits from.</summary>
         public const string HalfHumanSpecies = "halfHumanSpecies";
+
+        /// <summary>A maneuver named in another maneuver's prerequisite.</summary>
+        public const string PrerequisiteManeuver = "prerequisiteManeuver";
+
+        /// <summary>The maneuver a tiered maneuver upgrades.</summary>
+        public const string ImprovesManeuver = "improvesManeuver";
     }
 
     /// <summary>
@@ -128,8 +134,8 @@ internal static class ContentReferenceMap
     {
         var references = new List<ExtractedReference>();
 
-        // Universal: seven of the nine types record the book they came from.
-        // Source has no provenance of its own, and feature is missing the field
+        // Universal: every type but two records the book it came from. Source
+        // has no provenance of its own, and feature is missing the field
         // entirely — a gap in the feature schema rather than in the data, and
         // the reason a feature currently cannot be attributed in printed
         // output.
@@ -180,6 +186,24 @@ internal static class ContentReferenceMap
             case "species":
                 ExtractHalfHumanSpecies(body, references);
                 break;
+
+            case "maneuver":
+                // Two edges, and they are not the same edge written twice. The
+                // prerequisite is the gate and names the tier immediately
+                // below; `improves` names the base maneuver the whole chain
+                // hangs off. For a third tier those are different documents —
+                // Administer Aid (Greater) requires Administer Aid (Improved)
+                // and improves Administer Aid — so collapsing them would lose
+                // either the chain or the gate.
+                ExtractManeuverPrerequisites(body, references);
+
+                if (TryReadString(body, "improves", out var improvedManeuver))
+                {
+                    Add(references, Relations.ImprovesManeuver, "$.improves", "maneuver",
+                        ContentReferenceTargetKind.Name, improvedManeuver);
+                }
+
+                break;
         }
 
         return references;
@@ -229,6 +253,46 @@ internal static class ContentReferenceMap
             }
 
             index++;
+        }
+    }
+
+    /// <summary>
+    /// Pulls the maneuver names out of a maneuver's prerequisite sentence.
+    /// </summary>
+    /// <remarks>
+    /// The same shape of prose as a feat prerequisite, and the same
+    /// conservative rule: a maneuver prerequisite mixes conditions of different
+    /// kinds — "Proficiency in Medicine", "The ability to cast force powers",
+    /// "Administer Aid maneuver" — and only the clauses ending in the word
+    /// "maneuver" name one. The rest are mechanical conditions with no target
+    /// to point at. A missing edge shows up in the unresolved report; a wrong
+    /// one does not.
+    /// </remarks>
+    private static void ExtractManeuverPrerequisites(JsonElement body, List<ExtractedReference> references)
+    {
+        if (!TryReadString(body, "prerequisite", out var prerequisite))
+        {
+            return;
+        }
+
+        var ordinal = 0;
+
+        foreach (var clause in prerequisite.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            const string suffix = " maneuver";
+
+            if (!clause.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Add(references, Relations.PrerequisiteManeuver,
+                Path("$.prerequisite", ordinal, null), "maneuver",
+                ContentReferenceTargetKind.Name,
+                clause[..^suffix.Length],
+                ordinal);
+
+            ordinal++;
         }
     }
 
