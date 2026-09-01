@@ -49,7 +49,9 @@
   "senses": [
     "darkvision 60 ft."
   ],
-  "languages": [],
+  "languages": [
+    "None"
+  ],
   "challengeRating": "1/8",
   "experiencePoints": 25,
   "behaviors": [
