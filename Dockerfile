@@ -6,7 +6,7 @@
 # pinned to the *builder's* architecture: the publish output below is portable
 # IL with no apphost, so one build serves every target architecture and no
 # emulation is needed to produce an arm64 image on an amd64 runner.
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.302-alpine3.23 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23 AS build
 
 WORKDIR /src
 
