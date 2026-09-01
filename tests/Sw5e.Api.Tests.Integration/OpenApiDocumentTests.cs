@@ -40,6 +40,11 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/auth/mfa/totp/verify")]
     [InlineData("/api/auth/logout")]
     [InlineData("/api/auth/me")]
+    [InlineData("/api/flags")]
+    [InlineData("/api/flags/mine")]
+    [InlineData("/api/flags/summary")]
+    [InlineData("/api/flags/{flagId}/status")]
+    [InlineData("/api/site/environment")]
     public async Task Document_DescribesEveryContentRoute(string path)
     {
         var document = await DocumentAsync(factory);
@@ -72,12 +77,15 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
             [
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
+                "getSiteEnvironment",
                 "register", "verifyEmail",
                 "requestSignInCode", "verifySignInCode",
                 "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
                 "logout", "currentUser", "assignRoles",
+                "raiseFlag", "listOwnFlags",
+                "listFlags", "summariseFlags", "updateFlagStatus",
             ],
             ignoreOrder: true);
     }

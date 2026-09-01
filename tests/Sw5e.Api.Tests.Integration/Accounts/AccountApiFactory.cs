@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Sw5e.Identity.Email;
+using Sw5e.Infrastructure.Persistence.Moderation;
 
 namespace Sw5e.Api.Tests.Integration.Accounts;
 
@@ -68,6 +71,13 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
         builder.UseSetting("Content:RootPath", ContentApiFactory.FixturePath);
         builder.UseSetting("ConnectionStrings:Sw5eIdentity", postgres.ConnectionString);
 
+        // The moderation schema shares the test container, in a schema of its
+        // own with a migration history of its own — exactly the arrangement a
+        // single-database deployment gets. Named explicitly rather than left to
+        // the identity fallback so this fixture states which database the flag
+        // endpoints write to instead of inheriting it.
+        builder.UseSetting("ConnectionStrings:Sw5eModeration", postgres.ConnectionString);
+
         // Applies the committed migration and seeds the roles before the first
         // request. In a deployment this is a separate step; here it is what
         // puts the schema under test.
@@ -95,6 +105,45 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });
+    }
+
+    /// <summary>
+    /// Applies the moderation migration before the first request, the way the
+    /// deploy-time job does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Identity brings its own schema up at startup here, behind a setting that
+    /// is off everywhere else. Moderation deliberately has no such setting: the
+    /// rule that a web process must never migrate its own database is one this
+    /// feature had no reason to weaken, and adding a second switch would have
+    /// made it easier for the next feature to weaken it too.
+    /// </para>
+    /// <para>
+    /// So the fixture plays the migrator's part instead, and it does so by
+    /// calling the migrator's own method rather than a reimplementation of it.
+    /// A test that reproduced the migration in its own code would prove those
+    /// steps work; it would prove nothing about the code the deployment runs,
+    /// which is the thing that can be broken.
+    /// </para>
+    /// <para>
+    /// It runs after the host has been built and started and before any request
+    /// is made, which is the same ordering a deployment has — the job finishes,
+    /// then traffic arrives.
+    /// </para>
+    /// </remarks>
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+
+        ModerationServiceCollectionExtensions
+            .MigrateModerationAsync(
+                host.Services,
+                host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Tests"))
+            .GetAwaiter()
+            .GetResult();
+
+        return host;
     }
 
     /// <summary>
