@@ -190,6 +190,23 @@ public static class PersistenceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(schemaRootPath);
 
+        // Checked here, at registration, rather than left to the first write.
+        //
+        // The validator would throw on construction anyway, but its factory is
+        // lazy, so a deployment with a wrong or unmounted schema path would
+        // start cleanly, report healthy, serve reads perfectly, and fail only
+        // when the first contributor tried to save something — as a 500 with no
+        // indication that the problem is configuration rather than their
+        // document. Failing while the process is starting is the difference
+        // between an operator seeing it and a contributor seeing it.
+        if (!Directory.Exists(schemaRootPath))
+        {
+            throw new InvalidOperationException(
+                $"Content authoring is enabled but no schema directory exists at " +
+                $"'{schemaRootPath}'. Set Content__SchemaPath, or disable authoring by " +
+                "serving content from files.");
+        }
+
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IContentSchemaValidator>(
             _ => new ContentSchemaValidator(schemaRootPath));
