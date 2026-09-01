@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 using Sw5e.Email.Providers.Capture;
@@ -10,6 +11,49 @@ namespace Sw5e.Email.Tests;
 /// </summary>
 public sealed class CapturingEmailSenderTests
 {
+    /// <summary>
+    /// The body never reaches the log, and the recipient and subject do.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This provider's log line has always carried a comment promising that the
+    /// body stays out of it, and until now nothing checked. The promise is
+    /// load-bearing in a way it was not when it was written: message bodies
+    /// used to carry verification links, which are bearer credentials, and they
+    /// now also carry sign-in codes, which are credentials somebody can read
+    /// off a screen and type. A log line containing one is a credential store
+    /// with no access control, shipped to wherever logs are shipped.
+    /// </para>
+    /// <para>
+    /// Asserted in both directions. Checking only that the body is absent would
+    /// pass against a provider that logged nothing at all, which would be a
+    /// different bug — a developer running the capture provider needs to see
+    /// that a message was produced and who it was for.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task LogsTheRecipientAndSubjectAndNeverTheBody()
+    {
+        var log = new RecordingLogger<CapturingEmailSender>();
+        var sender = new CapturingEmailSender(log);
+
+        await sender.SendAsync(new EmailMessage(
+            from: TestMessages.Sender,
+            to: TestMessages.Recipient,
+            subject: "Your SW5e sign-in code",
+            plainTextBody: "Your sign-in code is 481625",
+            htmlBody: "<p>Your sign-in code is 481625</p>"));
+
+        var written = string.Join(Environment.NewLine, log.Messages);
+
+        written.ShouldContain(TestMessages.Recipient.Address);
+        written.ShouldContain("Your SW5e sign-in code");
+
+        written.ShouldNotContain("481625");
+        written.ShouldNotContain("Your sign-in code is");
+        written.ShouldNotContain("<p>");
+    }
+
     [Fact]
     public async Task KeepsTheWholeMessageRatherThanACallCount()
     {
@@ -137,5 +181,57 @@ public sealed class CapturingEmailSenderTests
         public DateTimeOffset Now { get; }
 
         public override DateTimeOffset GetUtcNow() => Now;
+    }
+}
+
+/// <summary>
+/// An <see cref="ILogger{T}"/> that keeps what it was asked to write.
+/// </summary>
+/// <remarks>
+/// Formats each entry the way a real provider would, so an assertion about what
+/// does and does not appear in a log is an assertion about the text an operator
+/// would actually see rather than about the structured arguments behind it.
+/// </remarks>
+internal sealed class RecordingLogger<T> : ILogger<T>
+{
+    private readonly List<string> _messages = [];
+
+    public IReadOnlyList<string> Messages
+    {
+        get
+        {
+            lock (_messages)
+            {
+                return [.. _messages];
+            }
+        }
+    }
+
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+        ArgumentNullException.ThrowIfNull(formatter);
+
+        lock (_messages)
+        {
+            _messages.Add(formatter(state, exception));
+        }
+    }
+
+    private sealed class NullScope : IDisposable
+    {
+        public static readonly NullScope Instance = new();
+
+        public void Dispose()
+        {
+        }
     }
 }

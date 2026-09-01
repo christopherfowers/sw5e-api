@@ -22,7 +22,7 @@ internal static class SessionHandlers
             return AccountProblems.NotAuthenticated;
         }
 
-        return TypedResults.Ok(await AccountProfile.DescribeAsync(users, user));
+        return TypedResults.Ok(await AccountProfile.DescribeAsync(users, user, context.User));
     }
 
     public static async Task<NoContent> LogoutAsync(

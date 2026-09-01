@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Sw5e.Identity.EmailSignIn;
 
 namespace Sw5e.Identity;
 
@@ -46,6 +47,16 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
     /// </remarks>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
+    /// <summary>
+    /// Email sign-in codes, issued and spent.
+    /// </summary>
+    /// <remarks>
+    /// A table of live credentials, which is why it is the only table here that
+    /// deletes its own rows: see <see cref="EmailSignInCodeService"/>, which
+    /// prunes an address's history every time it issues for that address.
+    /// </remarks>
+    public DbSet<EmailSignInCode> EmailSignInCodes => Set<EmailSignInCode>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -71,6 +82,37 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
             user.HasIndex(u => u.NormalizedEmail)
                 .HasDatabaseName("EmailIndex")
                 .IsUnique();
+        });
+
+        builder.Entity<EmailSignInCode>(code =>
+        {
+            code.ToTable("EmailSignInCodes");
+            code.HasKey(c => c.Id);
+
+            // 254 characters, matching the longest address the registration
+            // endpoint will accept. Bounded rather than unbounded because this
+            // column is written from unauthenticated input on every request to
+            // the code endpoint.
+            code.Property(c => c.NormalizedEmail).HasMaxLength(254).IsRequired();
+            code.Property(c => c.CodeSalt).IsRequired();
+            code.Property(c => c.CodeHash).IsRequired();
+
+            // Every query in the flow — counting an address's recent codes,
+            // finding the live one, pruning the spent ones — filters on the
+            // address and orders by time. One composite index serves all three,
+            // and without it the endpoint an unauthenticated caller can reach
+            // most cheaply is the one that scans this table.
+            code.HasIndex(c => new { c.NormalizedEmail, c.CreatedAt })
+                .HasDatabaseName("IX_EmailSignInCodes_Address");
+
+            // No foreign key to the user, and that is deliberate rather than an
+            // oversight. Rows are written for addresses that have no account at
+            // all — that is what keeps the request path taking the same time
+            // either way — so the column has to be free to hold an identifier
+            // that matches nothing. It is also why deleting an account cannot
+            // cascade here: the codes expire on their own within minutes, and a
+            // cascade would be a second, slower way to say so.
+            code.Property(c => c.UserId);
         });
     }
 }

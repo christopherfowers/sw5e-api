@@ -39,6 +39,7 @@ internal static class AccountEndpoints
             .AddEndpointFilter<CrossSiteRequestFilter>();
 
         MapRegistration(group);
+        MapEmailCodes(group);
         MapPasskeys(group);
         MapTwoFactor(group);
         MapSession(group);
@@ -74,6 +75,49 @@ internal static class AccountEndpoints
                  "in; only a passkey assertion does that.")
              .Produces<VerifyEmailResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .AllowAnonymous()
+             .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
+    }
+
+    private static void MapEmailCodes(RouteGroupBuilder group)
+    {
+        // Anonymous, because the entire point is to admit somebody who has no
+        // credential on this device. It is also the only anonymous endpoint on
+        // the platform that causes a message to be delivered to an address the
+        // caller names, which is why it draws on its own, much smaller budget.
+        group.MapPost("/email/code", EmailCodeHandlers.RequestAsync)
+             .WithName("requestSignInCode")
+             .WithSummary("Ask for a one-time sign-in code by email.")
+             .WithDescription(
+                 "Sends a short numeric code to the address, and answers identically whether or " +
+                 "not that address has an account: same status, same body, same amount of work, " +
+                 "and one message either way. An address with an account is sent the code; an " +
+                 "address without one is sent a note saying somebody tried to sign in and that " +
+                 "there is nothing here. Refusing to send to the second, or answering it " +
+                 "differently, would turn this endpoint into a way to test whether a given " +
+                 "person has an account. Rate limited per caller here and per address in the " +
+                 "handler; the throttled case answers 202 as well.")
+             .Produces<SignInCodeRequestedResponse>(StatusCodes.Status202Accepted)
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .AllowAnonymous()
+             .RequireRateLimiting(AuthRateLimiting.EmailCodePolicy);
+
+        group.MapPost("/email/code/verify", EmailCodeHandlers.VerifyAsync)
+             .WithName("verifySignInCode")
+             .WithSummary("Sign in with an emailed code.")
+             .WithDescription(
+                 "Redeems a code and issues a session, unless the account has an authenticator " +
+                 "app, in which case it answers mfaRequired and the client posts a code to " +
+                 "/api/auth/mfa/totp/verify exactly as it would after a passkey. A code is good " +
+                 "once, for ten minutes, for the address it was sent to, and for five attempts. " +
+                 "Every failure — unknown address, wrong digits, expired, already spent, " +
+                 "attempts exhausted, locked-out account — is the same 401. The resulting " +
+                 "session may reach the account area and may not use a Contributor or " +
+                 "Administrator role; that needs a passkey or an authenticator code.")
+             .Produces<SignInResponse>()
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .AllowAnonymous()
              .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
