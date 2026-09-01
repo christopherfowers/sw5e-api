@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sw5e.Infrastructure.Persistence.Content;
+using Sw5e.Infrastructure.Persistence.Moderation;
 
 namespace Sw5e.Migrator;
 
@@ -45,6 +46,15 @@ public static class MigratorCommands
             {
                 case "migrate":
                     await MigrateAsync(services, logger, cancellationToken);
+
+                    // Two schemas, two migration histories, one command. They
+                    // are separate contexts so that each can be authored and
+                    // reviewed on its own, and they are applied together
+                    // because a deployment that migrated one and not the other
+                    // is a deployment where half the site works — and because
+                    // the alternative is a second job somebody has to remember
+                    // to add to the pipeline.
+                    await MigrateModerationAsync(services, logger, cancellationToken);
                     break;
 
                 case "import":
@@ -55,6 +65,7 @@ public static class MigratorCommands
                     // Order is not negotiable: the importer writes to tables the
                     // migrations create.
                     await MigrateAsync(services, logger, cancellationToken);
+                    await MigrateModerationAsync(services, logger, cancellationToken);
                     await ImportAsync(services, logger, cancellationToken);
                     break;
 
@@ -109,6 +120,23 @@ public static class MigratorCommands
 
         logger.LogInformation("Migrations applied.");
     }
+
+    /// <summary>
+    /// Brings the moderation schema up to what this build expects.
+    /// </summary>
+    /// <remarks>
+    /// A thin forward to the implementation that lives beside the model, so
+    /// that the test host can play the migrator's part without depending on
+    /// this executable — and so there is exactly one implementation of "bring
+    /// the moderation schema up to date" rather than one the deployment runs
+    /// and one the tests approximate.
+    /// </remarks>
+    public static Task MigrateModerationAsync(
+        IServiceProvider services,
+        ILogger logger,
+        CancellationToken cancellationToken = default) =>
+        ModerationServiceCollectionExtensions.MigrateModerationAsync(
+            services, logger, cancellationToken);
 
     /// <summary>Loads the canonical content into the database.</summary>
     /// <exception cref="InvalidOperationException">
