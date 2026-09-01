@@ -86,7 +86,7 @@ public sealed class SiteEnvironmentEndpointTests
         });
     }
 
-    private static async Task<(HttpStatusCode Status, string Name, bool IsProduction)>
+    private static async Task<(HttpStatusCode Status, string Name, bool IsProduction, bool Delivering)>
         AskAsync(string environmentName)
     {
         using var factory = new EnvironmentFactory(environmentName);
@@ -97,7 +97,8 @@ public sealed class SiteEnvironmentEndpointTests
         return (
             response.StatusCode,
             body.Text("name"),
-            body.GetProperty("isProduction").GetBoolean());
+            body.GetProperty("isProduction").GetBoolean(),
+            body.GetProperty("accountEmailDelivering").GetBoolean());
     }
 
     /// <summary>
@@ -142,7 +143,7 @@ public sealed class SiteEnvironmentEndpointTests
     [Fact]
     public async Task ProductionReportsProduction()
     {
-        var (status, name, isProduction) = await AskAsync(Environments.Production);
+        var (status, name, isProduction, _) = await AskAsync(Environments.Production);
 
         status.ShouldBe(HttpStatusCode.OK);
         name.ShouldBe(Environments.Production);
@@ -158,7 +159,7 @@ public sealed class SiteEnvironmentEndpointTests
     [InlineData("Preview")]
     public async Task AnythingOtherThanProductionReportsItself(string environmentName)
     {
-        var (status, name, isProduction) = await AskAsync(environmentName);
+        var (status, name, isProduction, _) = await AskAsync(environmentName);
 
         status.ShouldBe(HttpStatusCode.OK);
         name.ShouldBe(environmentName);
@@ -173,7 +174,7 @@ public sealed class SiteEnvironmentEndpointTests
     [Fact]
     public async Task EnvironmentIsReadableWithoutASession()
     {
-        var (status, _, _) = await AskAsync("QA");
+        var (status, _, _, _) = await AskAsync("QA");
 
         status.ShouldNotBe(HttpStatusCode.Unauthorized);
         status.ShouldBe(HttpStatusCode.OK);
@@ -184,6 +185,12 @@ public sealed class SiteEnvironmentEndpointTests
     /// first, which for this endpoint is the one failure mode worth ruling out
     /// outright.
     /// </summary>
+    /// <remarks>
+    /// It matters more now than when it was written. The environment name is
+    /// wrong in a cache only across deployments; the delivery flag is wrong in
+    /// a cache within one, and a cached "mail is broken" would keep the site
+    /// refusing to promise mail long after the relay came back.
+    /// </remarks>
     [Fact]
     public async Task EnvironmentIsNeverCached()
     {
@@ -192,5 +199,100 @@ public sealed class SiteEnvironmentEndpointTests
         var response = await factory.Client().GetAsync(Path);
 
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The delivery flag's own fail-safe default, which points the opposite way
+    /// to the environment flag's and for the same reason.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// "Safe" here is not "assume the worst" — it is "change nothing". A
+    /// deployment that cannot say anything about its relay must leave the site
+    /// saying exactly what it said before this field existed, because the
+    /// alternative is telling every reader that email is broken on the strength
+    /// of not knowing. That is the same failure the test-environment banner
+    /// guards against, seen from the other end: a warning nobody has grounds to
+    /// show is a warning people learn to ignore.
+    /// </para>
+    /// <para>
+    /// Flip the default in <c>Describe</c> to <c>false</c> and this is what
+    /// goes red.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void ADeploymentThatSaysNothingAboutMailIsAssumedToBeDeliveringIt()
+    {
+        SiteEnvironmentEndpoint.Describe("QA").AccountEmailDelivering.ShouldBeTrue(
+            "a caller that cannot learn the delivery state must see the wording the " +
+            "site used before the state existed, not a mail-outage warning nobody " +
+            "has grounds to show");
+    }
+
+    /// <summary>
+    /// And the complementary assertion, without which the one above is
+    /// satisfied by a field hard-coded to true.
+    /// </summary>
+    [Fact]
+    public void ARefusingRelayIsReportedAsNotDelivering()
+    {
+        var answer = SiteEnvironmentEndpoint.Describe("QA", accountEmailDelivering: false);
+
+        answer.AccountEmailDelivering.ShouldBeFalse();
+
+        // The two flags are independent facts about one deployment. A relay
+        // outage is not a statement about which environment this is, and a
+        // reader of either must not be able to infer the other.
+        answer.IsProduction.ShouldBeFalse();
+        answer.Name.ShouldBe("QA");
+    }
+
+    /// <summary>
+    /// Through the whole stack: a deployment whose relay has refused nothing
+    /// reports mail as delivering.
+    /// </summary>
+    [Fact]
+    public async Task AHostWhoseRelayHasRefusedNothingReportsMailAsDelivering()
+    {
+        var (status, _, _, delivering) = await AskAsync("QA");
+
+        status.ShouldBe(HttpStatusCode.OK);
+        delivering.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// What this body is allowed to contain, stated as an exhaustive list.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This endpoint is anonymous, and the temptation the day somebody debugs a
+    /// mail outage is to put the useful detail here, where it can be read
+    /// without a session. The provider's reply is the specific hazard — a relay
+    /// writes it about one envelope and it can quote the recipient — but a
+    /// failure count or a timestamp would be no better a fit: neither changes
+    /// what a reader can do, and both invite the next field.
+    /// </para>
+    /// <para>
+    /// So the property is asserted as a whitelist rather than as a list of
+    /// forbidden strings. A test that only banned what today's code might leak
+    /// would pass against tomorrow's leak.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task TheAnonymousBodyCarriesTheseThreeFieldsAndNothingElse()
+    {
+        using var factory = new EnvironmentFactory("QA");
+
+        var body = await JsonResponse.ReadAsync(await factory.Client().GetAsync(Path));
+
+        var fields = body.EnumerateObject()
+                         .Select(property => property.Name)
+                         .OrderBy(name => name, StringComparer.Ordinal)
+                         .ToArray();
+
+        fields.ShouldBe(["accountEmailDelivering", "isProduction", "name"],
+                customMessage: "this body is readable by anyone; anything beyond the three facts the " +
+                "prerendered site cannot work out for itself belongs on /health/ready " +
+                "or in the application log");
     }
 }
