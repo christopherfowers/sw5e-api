@@ -4,6 +4,7 @@ using Sw5e.Api.Features.Accounts;
 using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
 using Sw5e.Api.Features.Moderation;
+using Sw5e.Api.Features.Site;
 using Sw5e.Api.Security;
 using Sw5e.Domain.Content;
 using Sw5e.Email.Configuration;
@@ -231,6 +232,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthEndpoints();
+
+// One anonymous route saying which deployment this is. It exists because the
+// browser application cannot work that out for itself: it is prerendered HTML
+// served by a static nginx image that is promoted from QA to production
+// unchanged, so nothing in it varies by environment and nothing in it can be
+// told. This service can be told, and already is — see SiteEnvironmentEndpoint
+// for why the answer defaults to production when nobody has said otherwise.
+app.MapSiteEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
 app.MapFlagEndpoints();

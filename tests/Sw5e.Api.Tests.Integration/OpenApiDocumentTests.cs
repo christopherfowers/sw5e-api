@@ -44,6 +44,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/flags/mine")]
     [InlineData("/api/flags/summary")]
     [InlineData("/api/flags/{flagId}/status")]
+    [InlineData("/api/site/environment")]
     public async Task Document_DescribesEveryContentRoute(string path)
     {
         var document = await DocumentAsync(factory);
@@ -76,6 +77,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
             [
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
+                "getSiteEnvironment",
                 "register", "verifyEmail",
                 "requestSignInCode", "verifySignInCode",
                 "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
