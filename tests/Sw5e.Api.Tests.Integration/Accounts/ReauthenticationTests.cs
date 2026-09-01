@@ -198,8 +198,10 @@ public sealed class ReauthenticationTests(PostgresFixture postgres) : IAsyncLife
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        (await refused.ReadJsonAsync())
-            .GetProperty("detail").GetString().ShouldContain("authenticator app");
+        var detail = (await refused.ReadJsonAsync()).GetProperty("detail").GetString();
+
+        detail.ShouldNotBeNull();
+        detail.ShouldContain("authenticator app");
     }
 
     [Fact]
