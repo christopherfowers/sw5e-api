@@ -65,10 +65,56 @@ internal static class AuthoringEndpoints
             // Applied at the group so a route added later cannot forget it.
             .AddEndpointFilter<CrossSiteRequestFilter>();
 
+        MapSchemas(group);
         MapDrafts(group);
         MapHistory(group);
 
         return routes;
+    }
+
+    /// <summary>
+    /// Publishing the shapes, so something other than this service can draw an
+    /// editor for them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Added because the write path was reachable and unusable. Thirty-one
+    /// content types have thirty-one different structures; a client offering an
+    /// editor for them can hand-write thirty-one forms, which does not scale
+    /// and is wrong the first time a schema changes, or it can read the same
+    /// schema this service validates against. Only the second can be right by
+    /// construction, and it is the difference between a contributor filling in
+    /// labelled fields and a contributor typing JSON into a box.
+    /// </para>
+    /// <para>
+    /// <c>sw5e:contribute</c> rather than anonymous. The schemas are public
+    /// information — they live in a public repository — so this is not
+    /// protecting a secret. It is keeping the anonymous surface of a
+    /// content-management API to the endpoints that serve readers, and it costs
+    /// the one caller that wants this nothing, because that caller already
+    /// holds the role.
+    /// </para>
+    /// </remarks>
+    private static void MapSchemas(RouteGroupBuilder group)
+    {
+        group.MapGet("/schemas/{type}", AuthoringHandlers.GetSchema)
+             .WithName("getContentSchema")
+             .WithSummary("The JSON Schema one content type is validated against.")
+             .WithDescription(
+                 "The schema document as it ships, including the description on every " +
+                 "property — which is what an editor puts under each field. This is the same " +
+                 "schema the write path evaluates, read from the same file, so a form " +
+                 "generated from it cannot describe a shape the service would refuse. A type " +
+                 "with no schema published answers 404 rather than an error: a client that " +
+                 "generates its editor from these should fall back to editing the document " +
+                 "directly rather than refusing to open.")
+             .Produces<ContentSchemaResponse>()
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+             .RequireAuthorization(Sw5ePolicies.Contribute)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
     }
 
     private static void MapDrafts(RouteGroupBuilder group)

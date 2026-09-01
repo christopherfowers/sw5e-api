@@ -123,4 +123,36 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
                 [$"No schema is published for content type '{type.Key}' at version {version}."]);
         }
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Delegated to the repository's own reader rather than opening the file
+    /// again here. That reader already answers the document as it is written —
+    /// key order and all — and caches it, and going through it is what keeps
+    /// the schema that is served and the schema that is evaluated provably the
+    /// same file rather than two files that happen to agree.
+    /// </para>
+    /// <para>
+    /// Null rather than the exception, because a registered type with no schema
+    /// file is not an error on this path. It is a packaging fact, and a client
+    /// that generates an editor from these has something sensible to do about
+    /// it: fall back to editing the document directly. The write path still
+    /// refuses documents of that type loudly, so nothing is waved through by
+    /// answering null here.
+    /// </para>
+    /// </remarks>
+    public JsonElement? Published(ContentTypeDefinition type, int version)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        try
+        {
+            return _repository.GetDocument(type.Key, version);
+        }
+        catch (SchemaNotFoundException)
+        {
+            return null;
+        }
+    }
 }
