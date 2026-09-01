@@ -42,6 +42,7 @@ internal static class AccountEndpoints
         MapEmailCodes(group);
         MapPasskeys(group);
         MapTwoFactor(group);
+        MapReauthentication(group);
         MapSession(group);
         MapAdministration(group);
 
@@ -205,6 +206,61 @@ internal static class AccountEndpoints
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .AllowAnonymous()
+             .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
+    }
+
+    /// <summary>
+    /// Raising a session that already exists to a stronger one.
+    /// </summary>
+    /// <remarks>
+    /// Every route here requires a session and none of them can create one, so
+    /// none is a way into an account. See <see cref="ReauthenticationHandlers"/>
+    /// for why adding the claim later is not a weakening of the rule that a
+    /// session records how it was established.
+    /// </remarks>
+    private static void MapReauthentication(RouteGroupBuilder group)
+    {
+        group.MapPost("/reauthenticate/passkey/begin", ReauthenticationHandlers.BeginPasskeyAsync)
+             .WithName("beginReauthentication")
+             .WithSummary("Start proving a passkey on the current session.")
+             .WithDescription(
+                 "Returns WebAuthn request options for navigator.credentials.get(), naming the " +
+                 "signed-in account's own credentials so the browser offers those and no others. " +
+                 "Unlike the sign-in ceremony this one identifies the account, because the caller " +
+                 "is already signed in and there is nothing left to keep from them.")
+             .Produces<object>(contentType: "application/json")
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.SignedIn)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
+        group.MapPost("/reauthenticate/passkey/complete", ReauthenticationHandlers.CompletePasskeyAsync)
+             .WithName("completeReauthentication")
+             .WithSummary("Finish proving a passkey on the current session.")
+             .WithDescription(
+                 "Verifies the assertion, refuses it if the credential belongs to any account " +
+                 "other than the one signed in, and re-issues the session cookie stamped as a " +
+                 "passkey sign-in. Answers with the same body a sign-in does.")
+             .Produces<SignInResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.SignedIn)
+             .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
+
+        group.MapPost("/reauthenticate/totp", ReauthenticationHandlers.CompleteTotpAsync)
+             .WithName("reauthenticateWithTotp")
+             .WithSummary("Prove an authenticator code on the current session.")
+             .WithDescription(
+                 "For an account that already has an authenticator app. Verifies a six-digit code " +
+                 "and re-issues the session cookie stamped as an authenticator sign-in. A wrong " +
+                 "code counts against the account's lockout exactly as a wrong code at sign-in " +
+                 "does, so this is not an unmetered guessing oracle for a stolen session.")
+             .Produces<SignInResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.SignedIn)
              .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
     }
 

@@ -100,6 +100,45 @@ internal sealed class AccountFlow(HttpClient client, string emailAddress, string
     }
 
     /// <summary>
+    /// Runs a passkey ceremony against an existing session in order to raise
+    /// it, on whichever client holds that session.
+    /// </summary>
+    /// <remarks>
+    /// Takes the client rather than using the flow's own, because the session
+    /// being raised is usually not the one this flow signed in with — the
+    /// interesting case is an account that got in through the weaker door on a
+    /// second client and is now proving the credential it already had.
+    /// </remarks>
+    public async Task<HttpResponseMessage> ReauthenticateAsync(HttpClient session)
+    {
+        var begin = await session.PostAsync(
+            "/api/auth/reauthenticate/passkey/begin", content: null);
+
+        Expect(begin, HttpStatusCode.OK, "reauthenticate/passkey/begin");
+
+        var credential = Authenticator.Get(await begin.Content.ReadAsStringAsync());
+
+        return await session.PostAsJsonAsync(
+            "/api/auth/reauthenticate/passkey/complete",
+            new { credential });
+    }
+
+    /// <summary>Signs in with an emailed code rather than a passkey.</summary>
+    public async Task<HttpResponseMessage> SignInWithEmailedCodeAsync(
+        HttpClient session,
+        RecordingEmailSender email)
+    {
+        var requested = await session.PostAsJsonAsync(
+            "/api/auth/email/code", new { email = EmailAddress });
+
+        Expect(requested, HttpStatusCode.Accepted, "email/code");
+
+        return await session.PostAsJsonAsync(
+            "/api/auth/email/code/verify",
+            new { email = EmailAddress, code = email.LatestSignInCode(EmailAddress) });
+    }
+
+    /// <summary>
     /// Registers, verifies, enrols a passkey and signs in — the complete
     /// journey from nothing to a session.
     /// </summary>
