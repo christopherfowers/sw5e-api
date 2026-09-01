@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sw5e.Infrastructure.Persistence;
+using Sw5e.Infrastructure.Persistence.Moderation;
 using Sw5e.Migrator;
 
 // The deploy-time database job: apply migrations, then load the canonical
@@ -28,6 +29,18 @@ var builder = Host.CreateApplicationBuilder(settings);
 
 builder.Services.AddSw5ePersistence(builder.Configuration);
 builder.Services.AddSw5eContentImporter();
+
+// The moderation schema, which is applied by the same job for the same reason
+// the content one is: a web process that can change a schema holds rights at
+// runtime it has no business holding, and N replicas racing to apply one
+// migration is not a plan.
+//
+// It resolves its own connection string through the same method the API uses,
+// so the schema is created in the database the endpoints will write to. Two
+// implementations of that precedence is how a deployment ends up migrating one
+// database and writing to another, which fails at the first report rather than
+// at deploy time.
+builder.Services.AddSw5eModeration(builder.Configuration);
 
 using var host = builder.Build();
 

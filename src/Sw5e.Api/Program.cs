@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Sw5e.Api.Features.Accounts;
 using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
+using Sw5e.Api.Features.Moderation;
 using Sw5e.Api.Security;
 using Sw5e.Domain.Content;
 using Sw5e.Email.Configuration;
@@ -10,6 +11,7 @@ using Sw5e.Identity;
 using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Content;
 using Sw5e.Infrastructure.Persistence;
+using Sw5e.Infrastructure.Persistence.Moderation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -173,6 +175,24 @@ builder.Services.AddSw5eIdentity(builder.Configuration);
 builder.Services.AddScoped<AccountStateCookies>();
 builder.Services.AddSw5eAuthRateLimiting(builder.Configuration);
 
+// Content flagging: the reports readers raise against the reference.
+//
+// Registered unconditionally, and separately from the content store, because
+// the two answer different questions. Whether the catalogue is served from
+// PostgreSQL or from JSON files is a deployment choice; where a user-submitted
+// report is written is not, and a deployment serving content from files still
+// has readers who can recognise an uncredited picture.
+//
+// The schema is its own, in its own PostgreSQL schema, with its own migration
+// history — see Sw5eModerationDbContext for why it is neither in the content
+// schema nor in the identity one. Which database it lands in is resolved by
+// ModerationServiceCollectionExtensions, and the migrator resolves it through
+// the same method so the two can never disagree.
+//
+// No migration runs here. As with content, schema is the migrator's job.
+builder.Services.AddSw5eModeration(builder.Configuration);
+builder.Services.AddSw5eFlagRateLimiting(builder.Configuration);
+
 // Bridges the identity system's IAccountEmailSender onto the email library
 // registered above. Registered after AddSw5eIdentity so it replaces the
 // fail-closed stub that only exists to stop a deployment quietly pretending it
@@ -213,6 +233,7 @@ app.UseAuthorization();
 app.MapHealthEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
+app.MapFlagEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
