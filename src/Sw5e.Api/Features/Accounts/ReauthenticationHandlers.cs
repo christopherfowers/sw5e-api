@@ -68,7 +68,7 @@ internal static class ReauthenticationHandlers
         return Results.Content(options.RequestOptionsJson, "application/json");
     }
 
-    public static async Task<Results<Ok<SignInResponse>, ProblemHttpResult>> CompletePasskeyAsync(
+    public static async Task<Results<Ok<CurrentUserResponse>, ProblemHttpResult>> CompletePasskeyAsync(
         PasskeyCredentialRequest request,
         HttpContext context,
         UserManager<Sw5eUser> users,
@@ -93,7 +93,7 @@ internal static class ReauthenticationHandlers
 
         if (challenge is null || request.Credential is not { } credential)
         {
-            return AccountProblems.PasskeyFailed;
+            return AccountProblems.ReauthenticationFailed;
         }
 
         var assertion = await passkeys.PerformAssertionAsync(new PasskeyAssertionContext
@@ -110,7 +110,7 @@ internal static class ReauthenticationHandlers
                 user.Id,
                 assertion.Failure.Message);
 
-            return AccountProblems.PasskeyFailed;
+            return AccountProblems.ReauthenticationFailed;
         }
 
         // The whole point of the endpoint. A verified assertion proves somebody
@@ -125,7 +125,7 @@ internal static class ReauthenticationHandlers
                 user.Id,
                 assertion.User.Id);
 
-            return AccountProblems.PasskeyFailed;
+            return AccountProblems.ReauthenticationFailed;
         }
 
         if (await users.IsLockedOutAsync(user) || !await signIn.CanSignInAsync(user))
@@ -133,7 +133,7 @@ internal static class ReauthenticationHandlers
             logger.LogWarning(
                 "Refused to raise the session for account {UserId}, which may not sign in.", user.Id);
 
-            return AccountProblems.PasskeyFailed;
+            return AccountProblems.ReauthenticationFailed;
         }
 
         // Writes back the signature counter and the backup-state flags. The
@@ -145,7 +145,7 @@ internal static class ReauthenticationHandlers
         if (!updated.Succeeded)
         {
             logger.LogError("Could not update the passkey record for account {UserId}.", user.Id);
-            return AccountProblems.PasskeyFailed;
+            return AccountProblems.ReauthenticationFailed;
         }
 
         await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod);
@@ -153,11 +153,16 @@ internal static class ReauthenticationHandlers
 
         logger.LogInformation("Account {UserId} re-authenticated with a passkey.", user.Id);
 
+        // The profile itself rather than the sign-in envelope. A sign-in may
+        // answer "mfaRequired" with no account attached; this cannot, because
+        // the caller was already signed in when they arrived. Returning a shape
+        // with a status that is always the same and a user that is never null
+        // would hand the client a branch it can never take.
         return TypedResults.Ok(
-            await AccountProfile.DescribeSignInAsync(users, user, Sw5eClaims.PasskeyMethod));
+            await AccountProfile.DescribeAsync(users, user, Sw5eClaims.PasskeyMethod));
     }
 
-    public static async Task<Results<Ok<SignInResponse>, ProblemHttpResult>> CompleteTotpAsync(
+    public static async Task<Results<Ok<CurrentUserResponse>, ProblemHttpResult>> CompleteTotpAsync(
         TotpVerifyRequest request,
         HttpContext context,
         UserManager<Sw5eUser> users,
@@ -223,6 +228,6 @@ internal static class ReauthenticationHandlers
         logger.LogInformation("Account {UserId} re-authenticated with an authenticator code.", user.Id);
 
         return TypedResults.Ok(
-            await AccountProfile.DescribeSignInAsync(users, user, Sw5eClaims.AuthenticatorMethod));
+            await AccountProfile.DescribeAsync(users, user, Sw5eClaims.AuthenticatorMethod));
     }
 }

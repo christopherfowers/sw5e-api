@@ -65,10 +65,12 @@ public sealed class ReauthenticationTests(PostgresFixture postgres) : IAsyncLife
         var raised = await administrator.ReauthenticateAsync(session);
         raised.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // The response says what the session is now, so the browser does not
-        // have to re-fetch the profile to find out whether it worked.
-        (await raised.ReadJsonAsync())
-            .GetProperty("authenticationMethod").GetString().ShouldBe("passkey");
+        // The response is the profile, in the same shape /api/auth/me answers
+        // with, so the browser can adopt it rather than making a second request
+        // to find out whether it worked.
+        var profile = await raised.ReadJsonAsync();
+        profile.GetProperty("authenticationMethod").GetString().ShouldBe("passkey");
+        profile.GetProperty("strongAuthentication").GetBoolean().ShouldBeTrue();
 
         var afterRaising = await session.PutAsJsonAsync(
             $"/api/auth/admin/users/{targetId}/roles",
@@ -130,7 +132,11 @@ public sealed class ReauthenticationTests(PostgresFixture postgres) : IAsyncLife
             "/api/auth/reauthenticate/passkey/complete",
             new { credential });
 
-        refused.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        // 400, the same answer the ceremony gives for an expired challenge or a
+        // bad signature. Saying "that credential is valid but belongs to
+        // somebody else" would be telling the caller something about somebody
+        // else, so every cause gets one answer.
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         // Still weak, and still refused by the thing the raise was wanted for.
         var profile = await (await stolen.GetAsync("/api/auth/me")).ReadJsonAsync();
@@ -160,7 +166,7 @@ public sealed class ReauthenticationTests(PostgresFixture postgres) : IAsyncLife
         // first attempt, so there is nothing left for this one to match.
         (await session.PostAsJsonAsync(
             "/api/auth/reauthenticate/passkey/complete", new { credential }))
-            .StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+            .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]

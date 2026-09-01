@@ -240,8 +240,9 @@ internal static class AccountEndpoints
              .WithDescription(
                  "Verifies the assertion, refuses it if the credential belongs to any account " +
                  "other than the one signed in, and re-issues the session cookie stamped as a " +
-                 "passkey sign-in. Answers with the same body a sign-in does.")
-             .Produces<SignInResponse>()
+                 "passkey sign-in. Answers with the account profile, in the same shape " +
+                 "/api/auth/me uses, so the client can adopt it without a second request.")
+             .Produces<CurrentUserResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
@@ -256,7 +257,7 @@ internal static class AccountEndpoints
                  "and re-issues the session cookie stamped as an authenticator sign-in. A wrong " +
                  "code counts against the account's lockout exactly as a wrong code at sign-in " +
                  "does, so this is not an unmetered guessing oracle for a stolen session.")
-             .Produces<SignInResponse>()
+             .Produces<CurrentUserResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)

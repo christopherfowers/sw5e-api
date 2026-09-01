@@ -88,6 +88,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
+                "beginReauthentication", "completeReauthentication", "reauthenticateWithTotp",
                 "logout", "currentUser", "assignRoles",
                 "listUsers", "getUser", "setAccountSuspension", "deleteUser",
                 "listAdministrativeActions",
