@@ -172,6 +172,14 @@ public sealed class ContentDatabase : IAsyncDisposable
         // also what a single-database deployment gets.
         services.AddSw5eModeration(configuration);
 
+        // Authoring and the exporter, both pointed at the schemas copied out of
+        // the submodule beside this assembly. The migrator registers the
+        // exporter the same way; authoring is here because "what does the
+        // exporter do with a draft" is a question about both of them, and
+        // answering it from two providers would prove nothing about either.
+        services.AddContentAuthoring(ContentFixture.SchemaPath);
+        services.AddSw5eContentExporter(ContentFixture.SchemaPath);
+
         _services = services.BuildServiceProvider();
     }
 
@@ -252,6 +260,31 @@ public static class ContentFixture
     /// <summary>Absolute path to the fixture, copied beside the test assembly.</summary>
     public static string Path { get; } =
         System.IO.Path.Combine(AppContext.BaseDirectory, "TestContent");
+
+    /// <summary>The JSON Schemas, copied out of the submodule at build time.</summary>
+    public static string SchemaPath { get; } =
+        System.IO.Path.Combine(AppContext.BaseDirectory, "TestSchemas");
+
+    /// <summary>This repository's root, found by walking out of the build output.</summary>
+    /// <remarks>
+    /// <c>tests/&lt;project&gt;/bin/&lt;configuration&gt;/&lt;framework&gt;</c> is
+    /// five levels down, and is where every build of this project puts its
+    /// assembly regardless of who started it.
+    /// </remarks>
+    public static string RepositoryRoot { get; } = System.IO.Path.GetFullPath(
+        System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
+    /// <summary>
+    /// The content repository's own corpus, at the submodule commit this build
+    /// is pinned to.
+    /// </summary>
+    /// <remarks>
+    /// Not copied beside the assembly the way the schemas are: 7,877 files is a
+    /// slow copy to do on every build, and the round-trip test wants to compare
+    /// against the committed tree itself rather than against a copy of it.
+    /// </remarks>
+    public static string CommittedCorpus { get; } =
+        System.IO.Path.Combine(RepositoryRoot, "external", "sw5e-database", "content");
 
     /// <summary>
     /// How many documents the fixture holds per type, once the deliberately

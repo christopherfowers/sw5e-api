@@ -93,6 +93,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "listAdministrativeActions",
                 "raiseFlag", "listOwnFlags",
                 "listFlags", "summariseFlags", "updateFlagStatus",
+                "getContentSchema",
                 "listContentDrafts", "getContentDraft", "saveContentDraft",
                 "discardContentDraft", "publishContentDraft",
                 "listContentRevisions", "getContentRevision", "revertContent",

@@ -64,6 +64,25 @@ public sealed record DraftResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// The JSON Schema one content type is validated against.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The version is carried alongside the document rather than being left for the
+/// client to read out of the <c>$id</c>. A client that generates an editor from
+/// this needs to be able to say which version it drew, and a revision already
+/// records which version it was judged against — the two only line up if both
+/// are stated the same way.
+/// </para>
+/// <para>
+/// <c>Schema</c> is the document as it is on disk, so every <c>description</c>
+/// survives. Those descriptions are the only place this corpus explains what a
+/// field means, and they are what an editor puts under the control.
+/// </para>
+/// </remarks>
+public sealed record ContentSchemaResponse(string Type, int Version, JsonElement Schema);
+
 /// <summary>One entry in a document's history, without its body.</summary>
 public sealed record RevisionSummaryResponse(
     long Id,

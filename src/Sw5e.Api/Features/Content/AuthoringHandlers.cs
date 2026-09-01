@@ -33,6 +33,39 @@ namespace Sw5e.Api.Features.Content;
 /// </remarks>
 internal static class AuthoringHandlers
 {
+    public static Results<Ok<ContentSchemaResponse>, ProblemHttpResult> GetSchema(
+        string type,
+        [FromServices] IContentSchemaValidator? schemas)
+    {
+        // Resolved optionally like the store, and for the same reason: the
+        // validator is registered alongside the database content store, so a
+        // file-backed deployment answers the same 503 here as everywhere else
+        // rather than a 500 about a missing service.
+        if (schemas is null)
+        {
+            return AuthoringProblems.NotEnabled;
+        }
+
+        if (!ContentTypeRegistry.TryResolve(type, out var definition))
+        {
+            return AuthoringProblems.UnknownType;
+        }
+
+        var version = schemas.CurrentVersion(definition);
+        var document = schemas.Published(definition, version);
+
+        if (document is null)
+        {
+            return AuthoringProblems.NoSchema;
+        }
+
+        // The canonical key, not the name the caller used. The registry accepts
+        // the route segment too, and a client that asked with one spelling and
+        // stored the answer under the other would decide the same type was two.
+        return TypedResults.Ok(
+            new ContentSchemaResponse(definition.Key, version, document.Value));
+    }
+
     public static async Task<Results<Ok<DraftListResponse>, ProblemHttpResult>> ListDraftsAsync(
         [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
