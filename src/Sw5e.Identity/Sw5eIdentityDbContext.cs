@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Sw5e.Identity.Administration;
 using Sw5e.Identity.EmailSignIn;
 
 namespace Sw5e.Identity;
@@ -57,6 +58,28 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
     /// </remarks>
     public DbSet<EmailSignInCode> EmailSignInCodes => Set<EmailSignInCode>();
 
+    /// <summary>
+    /// Every administrative action taken against an account.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// In the identity schema rather than in moderation's, even though
+    /// moderation is where the platform's other actor-and-timestamp record
+    /// lives, because this one is <em>about accounts</em>. It has to be present
+    /// in every deployment — accounts are, and a file-backed content deployment
+    /// still has administrators — it has to be restored on the same schedule as
+    /// the rows it describes, and it must survive a moderation database being
+    /// moved, rebuilt or lost. Putting the record of who was made an
+    /// administrator somewhere it could disappear separately from the
+    /// administrators would defeat the point of keeping it.
+    /// </para>
+    /// <para>
+    /// The migration installs an append-only trigger over it. See
+    /// <see cref="AdministrativeAction"/>.
+    /// </para>
+    /// </remarks>
+    public DbSet<AdministrativeAction> AdministrativeActions => Set<AdministrativeAction>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -82,6 +105,72 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
             user.HasIndex(u => u.NormalizedEmail)
                 .HasDatabaseName("EmailIndex")
                 .IsUnique();
+
+            // See Sw5eUser.SuspensionReason. Bounded in the column and not only
+            // in the endpoint, because a length check in a handler is a check
+            // and a column length is a constraint.
+            user.Property(u => u.SuspensionReason)
+                .HasMaxLength(Administration.AccountSuspension.MaxReasonLength);
+
+            // The administrative directory's one non-trivial filter: "show me
+            // the suspended accounts". Filtered so the index covers only the
+            // handful of rows that are suspended rather than carrying an entry
+            // for every account that is not.
+            user.HasIndex(u => u.SuspendedAt)
+                .HasDatabaseName("IX_AspNetUsers_Suspended")
+                .HasFilter("\"SuspendedAt\" IS NOT NULL");
+        });
+
+        builder.Entity<AdministrativeAction>(action =>
+        {
+            action.ToTable("AdministrativeActions");
+            action.HasKey(entry => entry.Id);
+
+            action.Property(entry => entry.Action)
+                  .HasMaxLength(AdministrativeActionWire.MaxNameLength)
+                  .IsRequired();
+
+            // The same bound the account's own display name carries. These are
+            // copies of that value, and a copy that could be longer than the
+            // original is a column somebody will eventually write something
+            // else into.
+            action.Property(entry => entry.ActorDisplayName).HasMaxLength(64).IsRequired();
+            action.Property(entry => entry.SubjectDisplayName).HasMaxLength(64).IsRequired();
+
+            // Comma-separated assignable role names. Two of them at the very
+            // most, and the names are compile-time constants, so the bound is
+            // generous by an order of magnitude on purpose: it exists to stop a
+            // future caller treating the column as free text, not to be tight.
+            action.Property(entry => entry.RolesBefore).HasMaxLength(128);
+            action.Property(entry => entry.RolesAfter).HasMaxLength(128);
+
+            action.Property(entry => entry.Reason)
+                  .HasMaxLength(Administration.AccountSuspension.MaxReasonLength);
+
+            // The log's own query: everything, newest first. The key is a
+            // version 7 Guid, so it is already in creation order — the explicit
+            // timestamp index is what serves a filtered listing, where the key's
+            // ordering is not available to the planner after a predicate on
+            // another column.
+            action.HasIndex(entry => entry.CreatedAt)
+                  .HasDatabaseName("IX_AdministrativeActions_CreatedAt");
+
+            // "What has been done to this account", which is the question asked
+            // when somebody disputes a suspension or asks how they got a role.
+            action.HasIndex(entry => new { entry.SubjectUserId, entry.CreatedAt })
+                  .HasDatabaseName("IX_AdministrativeActions_Subject");
+
+            // "What has this administrator done", which is the question asked
+            // when an administrator's account is believed to be compromised.
+            action.HasIndex(entry => new { entry.ActorUserId, entry.CreatedAt })
+                  .HasDatabaseName("IX_AdministrativeActions_Actor");
+
+            // No foreign keys to AspNetUsers, in either direction, and that is
+            // the whole design rather than an omission. A record of an account
+            // being deleted cannot carry a constraint requiring that account to
+            // exist. The identifiers are soft references, exactly as the
+            // moderation schema's reporter is, and the display names are copied
+            // so the row stays legible once the account behind it is gone.
         });
 
         builder.Entity<EmailSignInCode>(code =>

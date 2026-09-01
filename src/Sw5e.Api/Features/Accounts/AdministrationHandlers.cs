@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
+using Sw5e.Identity.Administration;
 using Sw5e.Identity.Email;
 
 namespace Sw5e.Api.Features.Accounts;
@@ -23,7 +24,9 @@ internal static class AdministrationHandlers
         AssignRolesRequest request,
         HttpContext context,
         UserManager<Sw5eUser> users,
+        Sw5eIdentityDbContext store,
         IAccountEmailSender email,
+        TimeProvider clock,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -92,6 +95,24 @@ internal static class AdministrationHandlers
 
         if (toGrant.Length > 0 || toRevoke.Length > 0)
         {
+            // The record of the change, in a table the administrator who made
+            // it cannot afterwards edit — the migration puts an append-only
+            // trigger over it. Staged here and flushed by the security stamp
+            // rotation below, which writes through the same scoped context, so
+            // the grant and the record of it are one transaction.
+            //
+            // The log line further down stays. It is what an operator watching
+            // a stream sees in the moment; this is what somebody asks six
+            // months later, and a log stream is not a place to ask a question.
+            AdministrativeLog.Record(
+                store,
+                actor,
+                target,
+                AdministrativeActionKind.RolesChanged,
+                clock,
+                rolesBefore: held,
+                rolesAfter: requested);
+
             // Rotating the stamp is what makes a revocation take effect on a
             // session that is already open. Without it the demoted account
             // keeps its old role claims until its cookie expires — up to eight

@@ -133,4 +133,66 @@ internal static class AccountProblems
         title: "No such account",
         detail: "No account with that identifier exists.",
         statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>
+    /// An administrator tried to suspend or delete their own account.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same reasoning that already refuses self-demotion, applied to the
+    /// two other ways of reaching the same end state. The administrator role is
+    /// the only thing that can grant the administrator role, so any action that
+    /// takes the last one out of circulation leaves the platform with no way to
+    /// appoint another short of editing the database by hand — and combined
+    /// with the self-demotion rule, refusing every self-directed removal is
+    /// what makes "the set of administrators can never reach zero through this
+    /// API" a property rather than a hope.
+    /// </para>
+    /// <para>
+    /// It is also the move most attractive to somebody who has just stolen an
+    /// administrator's session, and the one the real administrator would have
+    /// the hardest time undoing.
+    /// </para>
+    /// </remarks>
+    public static ProblemHttpResult NotOnYourself(string action) => TypedResults.Problem(
+        title: "Not on your own account",
+        detail:
+            $"An administrator cannot {action} their own account. Ask another " +
+            "administrator to do it.",
+        statusCode: StatusCodes.Status400BadRequest);
+
+    /// <summary>
+    /// The account still owns unpublished drafts, so deleting it would strand
+    /// them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A draft is not history — it is a proposal somebody has not finished, and
+    /// it holds the only editing slot for the document it names. Deleting its
+    /// author and leaving it behind would leave a draft attributed to nobody
+    /// blocking everybody else from editing that entry; deleting it silently
+    /// would throw away work whose value the deleting administrator has no way
+    /// to judge.
+    /// </para>
+    /// <para>
+    /// So the deletion is refused and says how many, and the administrator
+    /// publishes or discards them through the authoring surface that owns them
+    /// first. That also keeps this endpoint from writing to the content schema
+    /// at all: identity deletion touches one database, in one transaction, and
+    /// has no half-done state.
+    /// </para>
+    /// </remarks>
+    public static ProblemHttpResult DraftsOutstanding(int count) => TypedResults.Problem(
+        title: "Drafts outstanding",
+        detail:
+            $"That account owns {count} unpublished " +
+            (count == 1 ? "draft" : "drafts") +
+            ". Publish or discard them first — deleting the account would leave the work " +
+            "attributed to nobody and would keep anyone else from editing those entries.",
+        statusCode: StatusCodes.Status409Conflict,
+        extensions: new Dictionary<string, object?>
+        {
+            ["code"] = "drafts-outstanding",
+            ["draftCount"] = count,
+        });
 }

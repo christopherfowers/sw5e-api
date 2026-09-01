@@ -255,3 +255,173 @@ internal sealed record AccountRolesResponse(
     Guid UserId,
     IReadOnlyList<string> Roles,
     bool AwaitingSecondFactor);
+
+/* ------------------------------------------------- the administrative surface */
+
+/// <summary>
+/// One account as an administrator sees it in the directory.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>The address is here, and that is the point.</b> Every other response on
+/// this platform withholds it: the flag queue shows a display name to
+/// Contributors precisely so that being trusted with content does not entitle
+/// somebody to the address of everyone who ever reported a typo. This one does
+/// not withhold it, because the task it exists for is "somebody wrote to me
+/// asking to be made a contributor, find them", and an address is the only
+/// identifier that person and the administrator share.
+/// </para>
+/// <para>
+/// That is exactly why the route behind it is administrators only, from a
+/// session that used a passkey or an authenticator, and why there is no
+/// variant of it for anybody else. This record is a directory of real people's
+/// email addresses; the authorization on the route is the only thing standing
+/// between it and being a mailing list.
+/// </para>
+/// <para>
+/// What is still absent, on an administrative route and with an administrator
+/// reading it: the security stamp, the concurrency stamp, the normalised
+/// identifiers, and the password hash column that no flow here ever writes.
+/// None of them tells an administrator anything they can act on, and all of
+/// them help somebody holding a stolen administrator session reason about
+/// tokens.
+/// </para>
+/// </remarks>
+/// <param name="SecondFactorEnrolled">
+/// Whether the account holds a passkey or an authenticator app — the thing an
+/// elevated role cannot be exercised without. Present so that an administrator
+/// can see, before granting Contributor, whether the grant will be usable; the
+/// alternative is finding out afterwards from the response's
+/// <c>awaitingSecondFactor</c> flag.
+/// </param>
+/// <param name="LockedOut">
+/// Whether failed attempts have currently locked the account out. Distinct from
+/// <paramref name="Suspension"/> in every way that matters: this one is the
+/// framework counting failures and it expires by itself.
+/// </param>
+internal sealed record AdminUserSummary(
+    Guid Id,
+    string Email,
+    string DisplayName,
+    IReadOnlyList<string> Roles,
+    bool EmailConfirmed,
+    bool TwoFactorEnabled,
+    bool SecondFactorEnrolled,
+    bool LockedOut,
+    AccountSuspensionResponse? Suspension,
+    DateTimeOffset CreatedAt);
+
+/// <summary>A page of the account directory.</summary>
+/// <remarks>
+/// The same envelope the flag queue uses, deliberately. Two paged collections
+/// on one platform with two different shapes is two client-side pagers, and the
+/// second one is always the one with the off-by-one.
+/// </remarks>
+internal sealed record AdminUserListResponse(
+    IReadOnlyList<AdminUserSummary> Users,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages);
+
+/// <summary>
+/// An account's suspension, as an administrator sees it.
+/// </summary>
+/// <param name="Reason">
+/// The administrator's own words. Disclosed here, on an administrators-only
+/// route, and never to the account it is about — see <c>AccountSuspension</c>.
+/// </param>
+/// <param name="ByUserId">
+/// Who did it. An identifier rather than a name, because the name is a fact
+/// about an account that may itself have been deleted since; the administrative
+/// log is where the readable version lives, with the name copied onto the row.
+/// </param>
+internal sealed record AccountSuspensionResponse(
+    DateTimeOffset At,
+    string? Reason,
+    Guid? ByUserId);
+
+/// <summary>
+/// One account in administrative detail.
+/// </summary>
+/// <param name="OutstandingDrafts">
+/// How many unpublished drafts this account owns. It is here because it is the
+/// one thing that will refuse a deletion, and an administrator meeting that
+/// refusal for the first time at the moment they try to delete somebody is an
+/// administrator who has to go and find out what a draft is. Null when the
+/// deployment serves content from files and therefore has no authoring at all.
+/// </param>
+internal sealed record AdminUserDetail(
+    AdminUserSummary User,
+    int? OutstandingDrafts);
+
+/// <summary>Declares whether an account should be suspended.</summary>
+/// <param name="Suspended">
+/// The state the account should end up in. Declarative, like the role
+/// assignment beside it: a replayed request cannot deepen a suspension, and
+/// "reinstate" is the same endpoint with a different value rather than a second
+/// route somebody has to remember exists.
+/// </param>
+/// <param name="Reason">
+/// Why. Required when suspending — a suspension nobody wrote a reason for is
+/// one nobody can review — and refused when reinstating, because there is
+/// nowhere for it to be stored and silently discarding it would be worse.
+/// </param>
+internal sealed record SetSuspensionRequest(bool? Suspended, string? Reason);
+
+/// <summary>The state of an account after a suspension was set or lifted.</summary>
+internal sealed record AccountSuspensionStateResponse(
+    Guid UserId,
+    AccountSuspensionResponse? Suspension);
+
+/// <summary>Confirms that an account no longer exists.</summary>
+/// <param name="AuthorshipRetained">
+/// Always true, and sent anyway. Deleting an account does not delete what it
+/// wrote: revisions and reports keep the identifier and render as a removed
+/// account. Saying so in the response is how the administrator who pressed the
+/// button finds that out at the moment it matters, rather than from a
+/// paragraph in a document they read once.
+/// </param>
+internal sealed record AccountDeletedResponse(
+    Guid UserId,
+    bool AuthorshipRetained)
+{
+    public static AccountDeletedResponse For(Guid userId) => new(userId, true);
+}
+
+/// <summary>One entry in the administrative log.</summary>
+/// <remarks>
+/// The display names are the copies stored on the row rather than a lookup, so
+/// an entry stays legible after either account has gone. See
+/// <c>AdministrativeAction</c>.
+/// </remarks>
+internal sealed record AdministrativeActionResponse(
+    Guid Id,
+    string Action,
+    Guid ActorUserId,
+    string ActorDisplayName,
+    Guid SubjectUserId,
+    string SubjectDisplayName,
+    IReadOnlyList<string>? RolesBefore,
+    IReadOnlyList<string>? RolesAfter,
+    string? Reason,
+    DateTimeOffset CreatedAt);
+
+/// <summary>A page of the administrative log.</summary>
+internal sealed record AdministrativeLogResponse(
+    IReadOnlyList<AdministrativeActionResponse> Actions,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages);
+
+/// <summary>
+/// The optional note recorded against a deletion.
+/// </summary>
+/// <remarks>
+/// A body on a <c>DELETE</c>, which is unusual and is the right place for it
+/// anyway: the alternative is a query parameter, and a sentence naming a person
+/// and describing their conduct does not belong in a URL that every access log
+/// between the browser and the process writes down.
+/// </remarks>
+internal sealed record DeleteAccountRequest(string? Reason);

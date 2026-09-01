@@ -330,6 +330,140 @@ thing on screen.
 
 400 unknown role, 401, 403 not an administrator, 404 no such account.
 
+## `GET /api/auth/admin/users` — 200
+
+Administrators only, and only from a session established with a passkey or an
+authenticator app. This is the account directory, and it is **the only response
+on the platform that carries somebody else's email address**.
+
+Query: `q` (email or display name, case-insensitive, 2–254 characters),
+`role` (`Community` | `Contributor` | `Administrator`), `status` (`active` |
+`suspended` | `unverified` | `all`), `page`, `pageSize` (default 25, max 100).
+An unrecognised `role` or `status`, or a `q` shorter than two characters, is a
+**400** rather than an ignored filter.
+
+```json
+{
+  "users": [
+    {
+      "id": "guid",
+      "email": "reader@example.test",
+      "displayName": "Jaina",
+      "roles": ["Community"],
+      "emailConfirmed": true,
+      "twoFactorEnabled": false,
+      "secondFactorEnrolled": true,
+      "lockedOut": false,
+      "suspension": null,
+      "createdAt": "2026-09-01T12:00:00+00:00"
+    }
+  ],
+  "page": 1,
+  "pageSize": 25,
+  "totalCount": 1,
+  "totalPages": 1
+}
+```
+
+`suspension` is `null` or
+`{ "at": "...", "reason": "...", "byUserId": "guid" }`. Not suspended is the
+*absence* of a suspension, so a client has one question to ask rather than two.
+
+`secondFactorEnrolled` is whether the account holds a passkey or an
+authenticator — that is, whether granting it `Contributor` will produce a role
+it can actually use. It is not a credential list; no credential identifiers,
+public keys or counters leave the store for a directory listing.
+
+401, 403 not an administrator, 403 `strong-authentication-required`.
+
+## `GET /api/auth/admin/users/{userId}` — 200
+
+`{ "user": { ...AdminUser }, "outstandingDrafts": 0 }`
+
+`outstandingDrafts` is `null` on a deployment that serves content from files and
+has no authoring at all — not `0`, so an interface does not draw "0 drafts"
+beside an account where the concept does not exist. It is the one thing that
+will refuse a deletion, which is why it is readable before trying one.
+
+401, 403, 404 no such account.
+
+## `PUT /api/auth/admin/users/{userId}/suspension` — 200
+
+Request: `{ "suspended": true, "reason": "..." }` or `{ "suspended": false }`.
+
+Declarative, like the role grant. `reason` is **required** when suspending and
+**refused** when reinstating — there is nowhere to store the second, and
+accepting it would mean an administrator writing an explanation that goes
+nowhere. The reason is never disclosed to the account it is about.
+
+Response: `{ "userId": "guid", "suspension": { ... } | null }`
+
+A suspended account cannot obtain a session by any route — the passkey
+assertion, the emailed code and the authenticator step all answer the same
+`401` every other sign-in failure gets — and any session it already had stops
+working on its very next request. Its passkeys stay on the account and are
+inert, so reinstating restores access rather than requiring re-credentialling.
+
+400 missing flag, missing reason, reason on a reinstatement, own account,
+already in that state. 401, 403, 404.
+
+## `DELETE /api/auth/admin/users/{userId}` — 200
+
+Optional body: `{ "reason": "..." }`. In the body rather than a query string,
+because a sentence naming a person does not belong in a URL every access log
+writes down.
+
+Response: `{ "userId": "guid", "authorshipRetained": true }`
+
+Removes the account and everything identifying it. Does **not** remove what it
+wrote: content revisions keep `actorUserId` and moderation reports keep their
+reporter identifier, and both render afterwards as a removed account — which on
+the flag queue is `reporter.displayName === null`, the state that contract
+already documented.
+
+400 own account. 401, 403, 404 no such account. **409** with
+`code: "drafts-outstanding"` and a `draftCount` extension while the account owns
+unpublished drafts.
+
+## `GET /api/auth/admin/audit` — 200
+
+Every role change, suspension, reinstatement and deletion, newest first. Query:
+`subjectId`, `actorId`, `action`, `page`, `pageSize`.
+
+```json
+{
+  "actions": [
+    {
+      "id": "guid",
+      "action": "roles-changed",
+      "actorUserId": "guid",
+      "actorDisplayName": "Jaina",
+      "subjectUserId": "guid",
+      "subjectDisplayName": "Zeb",
+      "rolesBefore": null,
+      "rolesAfter": ["Contributor"],
+      "reason": null,
+      "createdAt": "2026-09-01T12:00:00+00:00"
+    }
+  ],
+  "page": 1,
+  "pageSize": 25,
+  "totalCount": 1,
+  "totalPages": 1
+}
+```
+
+`action` is one of `roles-changed`, `account-suspended`, `account-reinstated`,
+`account-deleted` — hyphenated and lower case, which is also what is stored.
+
+The display names are copies taken at the time, so an entry stays readable after
+either account has gone; that is what makes the `account-deleted` entry worth
+anything. Email addresses are never copied into the log.
+
+`rolesBefore` and `rolesAfter` list only assignable roles, so `null` means "held
+no assignable role" as well as "this action was not about roles". `action` is
+what tells those apart.
+
 ### The `strong-authentication-required` 403
 
 Contributor and Administrator actions require the session to have been
