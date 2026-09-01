@@ -26,9 +26,25 @@ namespace Sw5e.Identity.Email;
 /// points.
 /// </para>
 /// <para>
-/// Implementations must treat a failure as a failure and throw. Swallowing a
-/// delivery error turns "we emailed you a link" into a lie the user cannot
-/// distinguish from a slow inbox.
+/// <b>Implementations must not throw because a message was not delivered.</b>
+/// Every method here is called from an endpoint that has to answer the same way
+/// whether or not the address has an account, and an exception from a send is a
+/// difference between those two answers waiting for the day the two branches
+/// stop sending the same number of messages. It also puts a 500 in front of
+/// somebody whose registration in fact succeeded.
+/// </para>
+/// <para>
+/// Swallowing the failure is the other wrong answer: it turns "we emailed you a
+/// link" into a lie nobody can distinguish from a slow inbox. So an
+/// implementation owes the failure to somebody who is not the caller — the
+/// application log at error, and whatever the deployment watches. What it must
+/// not do is let it change the response.
+/// </para>
+/// <para>
+/// This is about delivery. A programmer or deployment error — no
+/// implementation registered at all, no sending identity configured, a
+/// malformed URL handed in — is not a delivery failure and still throws, and
+/// cancellation still propagates.
 /// </para>
 /// </remarks>
 public interface IAccountEmailSender

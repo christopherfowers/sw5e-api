@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Sw5e.Api.Features.Accounts;
 using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
@@ -198,7 +199,23 @@ builder.Services.AddSw5eFlagRateLimiting(builder.Configuration);
 // registered above. Registered after AddSw5eIdentity so it replaces the
 // fail-closed stub that only exists to stop a deployment quietly pretending it
 // sent anything.
+builder.Services.AddSingleton<AccountEmailDeliveryMonitor>();
 builder.Services.AddScoped<IAccountEmailSender, ProviderAccountEmailSender>();
+
+// Where an undelivered account message ends up. The endpoints that send one
+// cannot report the failure — their answer must not depend on whether mail got
+// out, or it becomes a way to test whether an address has an account here — so
+// the report comes out on this surface instead, alongside the error the sender
+// logs.
+//
+// Degraded, never unhealthy: see AccountEmailHealthCheck for why a mail outage
+// must not drain the instances that are still serving the rest of the site
+// perfectly well.
+builder.Services.AddHealthChecks()
+       .AddCheck<AccountEmailHealthCheck>(
+           AccountEmailHealthCheck.Name,
+           failureStatus: HealthStatus.Degraded,
+           tags: [AccountEmailHealthCheck.ReadyTag]);
 
 var app = builder.Build();
 
