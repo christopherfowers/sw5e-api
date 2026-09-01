@@ -126,6 +126,47 @@ What this library does **not** do, and will not start doing: generate tokens,
 validate them, enforce expiry, or build URLs. Those belong to the identity
 system, which is the only thing that can do them correctly.
 
+## Which provider this deployment uses
+
+**SendPulse, over SMTP.** MailerSend was the provider named when this project
+started and its implementation stays in the tree, but it is not what production
+will send through.
+
+SendPulse offers two routes and this deployment deliberately takes the plainer
+one. Their REST API (`POST /smtp/emails`) authenticates by exchanging a client
+id and secret for an access token that expires, base64-encodes the HTML body,
+and — per their own reference — deprecates the `smtpSendMail()` helper in
+favour of generic HTTP methods. That is a provider class worth writing only if
+something is needed that plain submission cannot give: per-message tracking,
+delivery webhooks, their template system. None of that is needed to send an
+address-verification link.
+
+Their SMTP relay, by contrast, needs no code at all. `SmtpEmailSender` already
+exists, is exercised against a real SMTP conversation in the tests, and is one
+of the two implementations that keep this seam honest. Pointing it at SendPulse
+is four configuration values. If the REST API is wanted later it is a new class
+beside the other two, not a change to anything above the seam — which is the
+whole reason the seam is shaped this way.
+
+Note the credential rule this runs into: cleartext submission is refused
+whenever a username is configured (see `SmtpOptions.UseStartTls`). SendPulse
+submission is authenticated, so `UseStartTls` must be true. The loopback
+allowance exists for a local catcher such as Mailpit and does not apply here.
+
+### What must be true before any of it delivers
+
+A correctly configured relay still lands in spam, or is rejected outright, if
+the sending domain does not vouch for it. **SPF and DKIM records must exist in
+DNS for the domain in `Email:FromAddress`**, and SendPulse issues the exact
+records once an account is live. This is the failure most easily mistaken for a
+bug in this code: the application reports a successful send, the provider
+accepts the message, and it never arrives. Verify the domain before concluding
+anything here is broken.
+
+The sending address must also be one the provider considers verified. An
+address on a domain nobody has proved control of is refused at submission by
+most providers, including this one.
+
 ## Configuration
 
 Bound from the `Email` section. In deployed environments that means environment
