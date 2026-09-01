@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Sw5e.Domain.Content;
@@ -33,7 +34,7 @@ namespace Sw5e.Api.Features.Content;
 internal static class AuthoringHandlers
 {
     public static async Task<Results<Ok<DraftListResponse>, ProblemHttpResult>> ListDraftsAsync(
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -60,7 +61,7 @@ internal static class AuthoringHandlers
     public static async Task<Results<Ok<DraftResponse>, ProblemHttpResult>> GetDraftAsync(
         string type,
         string key,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -98,7 +99,7 @@ internal static class AuthoringHandlers
         SaveDraftRequest? request,
         HttpContext context,
         UserManager<Sw5eUser> users,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -138,7 +139,7 @@ internal static class AuthoringHandlers
     public static async Task<Results<NoContent, ProblemHttpResult>> DiscardDraftAsync(
         string type,
         string key,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -162,7 +163,7 @@ internal static class AuthoringHandlers
         AuthoringReasonRequest? request,
         HttpContext context,
         UserManager<Sw5eUser> users,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         Sw5eModerationDbContext moderation,
         TimeProvider clock,
         ILoggerFactory loggerFactory,
@@ -217,7 +218,7 @@ internal static class AuthoringHandlers
         string type,
         string key,
         int? limit,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -241,7 +242,7 @@ internal static class AuthoringHandlers
         string type,
         string key,
         long revisionId,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         CancellationToken cancellationToken)
     {
         if (store is null)
@@ -281,7 +282,7 @@ internal static class AuthoringHandlers
         RevertRequest? request,
         HttpContext context,
         UserManager<Sw5eUser> users,
-        IContentAuthoringStore? store,
+        [FromServices] IContentAuthoringStore? store,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {

@@ -86,6 +86,9 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "logout", "currentUser", "assignRoles",
                 "raiseFlag", "listOwnFlags",
                 "listFlags", "summariseFlags", "updateFlagStatus",
+                "listContentDrafts", "getContentDraft", "saveContentDraft",
+                "discardContentDraft", "publishContentDraft",
+                "listContentRevisions", "getContentRevision", "revertContent",
             ],
             ignoreOrder: true);
     }
