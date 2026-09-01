@@ -31,7 +31,7 @@ public sealed class FlagRateLimitOptions
     /// <summary>The window the submission budget is measured over.</summary>
     public TimeSpan SubmitWindow { get; set; } = TimeSpan.FromMinutes(10);
 
-    /// <summary>Reads of the queue one caller may make per <see cref="ReadWindow"/>.</summary>
+    /// <summary>Queue requests one caller may make per <see cref="ReadWindow"/>.</summary>
     /// <remarks>
     /// Generous, because the people hitting it are moderators paging through a
     /// list and the endpoint costs one indexed query. It exists to bound the
@@ -98,7 +98,18 @@ internal static class FlagRateLimiting
     /// <summary>Applied to the one endpoint that writes a report.</summary>
     public const string SubmitPolicy = "sw5e-flag-submit";
 
-    /// <summary>Applied to the endpoints that read the queue.</summary>
+    /// <summary>
+    /// Applied to the queue endpoints, including the one that moves a report
+    /// through its lifecycle.
+    /// </summary>
+    /// <remarks>
+    /// A write sharing a read budget looks careless and is deliberate. That
+    /// endpoint is reachable only by a Contributor or an Administrator, nothing
+    /// about it rewards guessing, and the traffic it sees is a reviewer
+    /// clicking down a page they are already allowed to read — which is the
+    /// same shape as reading it. Giving it a tighter budget would throttle the
+    /// people the queue exists for and defend against nobody.
+    /// </remarks>
     public const string ReadPolicy = "sw5e-flag-read";
 
     public static IServiceCollection AddSw5eFlagRateLimiting(
