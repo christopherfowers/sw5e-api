@@ -117,6 +117,36 @@ asked for a code for that address.
 400 for a malformed address. That is the last point at which it is safe to be
 specific: the shape of an address is not a fact about whether an account exists.
 
+## When mail cannot be delivered
+
+`register` and `email/code` answer **202 with the body above even when the mail
+provider refuses the message.** A relay that is down, misconfigured or rejecting
+the sending domain does not change the status code, the body, or the fact that
+exactly one message is attempted on each branch. This is not indifference: a
+delivery failure that changed the response would be an error the caller could
+provoke, and the day one branch stops sending — an unregistered address, say,
+whose notice somebody removes as a saving — the difference between the two
+answers would be a perfect test of whether an address has an account here.
+
+Clients must therefore not read "202" as "the message was delivered". The
+message that goes with it already says *if* that address can be registered;
+delivery is a separate fact, and it is not per-address.
+
+Where that fact does appear:
+
+- **The application log**, at error, with the provider's own reply. That reply
+  can quote the envelope, so it stops there.
+- **`GET /api/health/ready`**, as a check named `account-email`. It reports
+  `degraded` — never `unhealthy` — while account mail is failing, and the
+  overall response stays **200** so that a mail outage never drains the
+  instances still serving the rest of the site. The description names no
+  address and does not repeat the provider's reply.
+
+The readiness surface is anonymous and its answer is one global fact, the same
+for every reader, which is what makes it safe to show. A front end that wants to
+be honest with somebody who has just been told to check their inbox can read it
+and say, site-wide, that email is currently delayed — never per address.
+
 ## `POST /api/auth/email/code/verify` — 200
 
 Request: `{ "email": string, "code": "123456" }` — **both fields required.** The

@@ -66,6 +66,19 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
     /// </remarks>
     public AdjustableTimeProvider Clock { get; } = new();
 
+    /// <summary>
+    /// Whether the real mail adapter is replaced by the recording one.
+    /// </summary>
+    /// <remarks>
+    /// True for every test that needs to read a link or a code out of a
+    /// message, which is nearly all of them. The one suite that turns it off is
+    /// the one whose subject is what the API does when delivery fails: that
+    /// behaviour lives in ProviderAccountEmailSender, and a fixture that
+    /// replaced the adapter would be testing a stand-in instead of it. That
+    /// suite substitutes the provider underneath the adapter instead.
+    /// </remarks>
+    protected virtual bool RecordEmailInsteadOfSending => true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Content:RootPath", ContentApiFactory.FixturePath);
@@ -99,8 +112,11 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
 
         builder.ConfigureServices(services =>
         {
-            services.RemoveAll<IAccountEmailSender>();
-            services.AddSingleton<IAccountEmailSender>(Email);
+            if (RecordEmailInsteadOfSending)
+            {
+                services.RemoveAll<IAccountEmailSender>();
+                services.AddSingleton<IAccountEmailSender>(Email);
+            }
 
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
