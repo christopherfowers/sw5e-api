@@ -6,6 +6,7 @@ using Npgsql;
 using Sw5e.Domain.Content;
 using Sw5e.Infrastructure.Persistence;
 using Sw5e.Infrastructure.Persistence.Content;
+using Sw5e.Infrastructure.Persistence.Moderation;
 using Testcontainers.PostgreSql;
 
 namespace Sw5e.Persistence.Tests.Integration;
@@ -162,6 +163,14 @@ public sealed class ContentDatabase : IAsyncDisposable
         services.AddSw5ePersistence(configuration);
         services.AddSw5eContentImporter();
         services.AddDatabaseContentStore();
+
+        // The moderation schema, registered here for the same reason the
+        // migrator registers it: `migrate` and `all` bring both schemas up, and
+        // a provider holding only one of them cannot run the command the
+        // deployment runs. It resolves ConnectionStrings:Sw5e above, so it
+        // lands in this test's own database in a schema of its own — which is
+        // also what a single-database deployment gets.
+        services.AddSw5eModeration(configuration);
 
         _services = services.BuildServiceProvider();
     }

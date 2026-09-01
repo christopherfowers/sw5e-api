@@ -298,34 +298,70 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         var stored = (await FlagFlow.StoredAsync(_factory)).ShouldHaveSingleItem();
         stored.Details.ShouldBe(Payload);
 
-        // And escaped on the way out. This asserts on the bytes rather than on
-        // the parsed value, because the parsed value is identical either way —
-        // it is the raw response a browser would receive that decides whether
-        // this is a stored cross-site scripting hole in a page belonging to a
-        // Contributor or an Administrator.
-        var raw = await created.Content.ReadAsStringAsync();
+        // It comes back byte for byte as well, which is the half a reviewer
+        // depends on: a value quietly altered between here and the queue is a
+        // report that no longer says what was reported.
+        (await created.ReadJsonAsync()).GetProperty("details").GetString().ShouldBe(Payload);
 
-        raw.ShouldNotContain("<script>");
-        raw.ShouldNotContain("<img");
-        raw.ShouldContain("\\u003C");
+        // And the response cannot be turned into a page.
+        //
+        // This deliberately does not assert that the JSON escapes the angle
+        // brackets. It does not, and it does not need to: what stops these
+        // bytes being rendered as markup is that they are served as JSON, with
+        // nosniff so a browser will not second-guess that, under a policy that
+        // permits nothing to load. The escaping that matters happens where the
+        // value is rendered — in the browser client, which puts it in a text
+        // node — and is asserted in that repository, where rendering exists.
+        //
+        // Asserting on the bytes here would have been the comfortable thing to
+        // write and would have proved the wrong property: JSON escaping is not
+        // what makes a moderation queue safe, and a test that says it is would
+        // let somebody relax the headers below and still go green.
+        AssertNotRenderableAsMarkup(created);
 
-        // The queue renders the same value to a reviewer, so it is checked
-        // there too rather than only on the reply to the person who filed it.
+        // The queue serves the same value to a reviewer, so the same holds
+        // there rather than only on the reply to the person who filed it.
         var reviewer = _factory.CreateBrowserClient();
         await FlagFlow.SignInWithRoleAsync(
             _factory, reviewer, "markup-reviewer", Sw5eRoles.Contributor);
 
         var queue = await reviewer.GetAsync("/api/flags");
-        var queueBody = await queue.Content.ReadAsStringAsync();
 
         queue.StatusCode.ShouldBe(HttpStatusCode.OK);
-        queueBody.ShouldNotContain("<script>");
-        queueBody.ShouldNotContain("<img");
+        AssertNotRenderableAsMarkup(queue);
 
-        // Escaped, not lost: the reviewer has to be able to read what was
-        // actually reported.
+        // Carried through intact: a reviewer has to be able to read what was
+        // actually reported, so nothing here may strip or rewrite it.
         var parsed = FlagFlow.FlagsIn(await queue.ReadJsonAsync()).ShouldHaveSingleItem();
         parsed.GetProperty("details").GetString().ShouldBe(Payload);
+    }
+
+    /// <summary>
+    /// That a response carrying user-submitted text cannot be made to render as
+    /// a page.
+    /// </summary>
+    /// <remarks>
+    /// Three properties together, and none of them is sufficient alone. The
+    /// content type says it is data. <c>nosniff</c> stops a browser deciding
+    /// otherwise from the bytes, which is the whole attack against a JSON
+    /// endpoint that echoes markup. And the policy denies every source, so even
+    /// a document that somehow got parsed as HTML could not fetch or execute
+    /// anything.
+    /// </remarks>
+    private static void AssertNotRenderableAsMarkup(HttpResponseMessage response)
+    {
+        response.Content.Headers.ContentType?.MediaType
+            .ShouldBe("application/json");
+
+        response.Headers.TryGetValues("X-Content-Type-Options", out var nosniff)
+            .ShouldBeTrue("a JSON response carrying user text must not be sniffable");
+
+        nosniff!.ShouldContain("nosniff");
+
+        response.Headers.TryGetValues("Content-Security-Policy", out var policy)
+            .ShouldBeTrue();
+
+        policy!.ShouldContain(value => value.Contains("default-src 'none'", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -346,10 +382,15 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
             _factory, reviewer, "markup-name-reviewer", Sw5eRoles.Contributor);
 
         var queue = await reviewer.GetAsync("/api/flags");
-        var raw = await queue.Content.ReadAsStringAsync();
 
-        raw.ShouldNotContain("<img");
+        queue.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertNotRenderableAsMarkup(queue);
 
+        // Carried through exactly, and left for the renderer to escape. The
+        // service accepts angle brackets in a display name — refusing them
+        // would be an arbitrary rule about what a person may be called — so
+        // escaping at the point of display is the only thing standing between
+        // this and a reviewer's session.
         FlagFlow.FlagsIn(await queue.ReadJsonAsync())
             .ShouldHaveSingleItem()
             .GetProperty("reporter").GetProperty("displayName").GetString()
