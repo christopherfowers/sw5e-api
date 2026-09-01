@@ -94,6 +94,28 @@ partial catalogue. The integration tests use a fixture committed under
 `tests/Sw5e.Api.Tests.Integration/TestContent`, so they never depend on that
 sibling checkout.
 
+## Which deployment this is
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/site/environment` | `{ "name": "QA", "isProduction": false }`. Anonymous, `Cache-Control: no-store`. |
+
+The site is prerendered HTML served by a static nginx image, and the same image
+is promoted from QA to production unchanged — which is the whole value of
+promoting it, and which also means nothing in it can be told which environment
+it is running in. This service can be told, and already is, so it is what the
+site asks after hydration in order to decide whether to draw its
+"test environment, nothing here is kept" banner.
+
+**A deployment that is told nothing reports production.** `ASPNETCORE_ENVIRONMENT`
+unset gives the host the name `Production`; an `ASPNETCORE_ENVIRONMENT` that is
+present but empty gives it a blank name, which is *not* production as far as
+`IsProduction()` is concerned and is normalised to production here on purpose.
+Set `ASPNETCORE_ENVIRONMENT=QA` on the QA stack to get the banner. Everything
+that is not `Production` reports itself as what it is, including names nobody
+anticipated, because a test environment with no banner is the failure this
+endpoint exists to prevent.
+
 ## Accounts
 
 Authentication is by **passkey**, with an optional authenticator-app second
@@ -636,7 +658,7 @@ below is supplied at run time.
 | `Sw5e__Database__CommandTimeoutSeconds` | `15` | Per-command timeout. Every query the API issues is a single-page read; one that has not answered in fifteen seconds is stuck, not slow. |
 | `Sw5e__Database__MaxRetryCount` | `3` | Retries for transient failures only — a dropped connection, a failover. A constraint violation or a syntax error is never retried. |
 | `Sw5e__Database__ReportPendingMigrations` | `true` | Whether readiness reports a schema behind this build as degraded. |
-| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document. Do not set it in a deployed stack. |
+| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document; never set that in a deployed stack. Set it to `QA` on the QA stack: anything other than `Production` makes [`/api/site/environment`](#which-deployment-this-is) report a test environment, which is what puts the "nothing here is kept" banner on the site. Leave it unset on production — the default is what keeps that banner off the live site, and an empty value counts as unset. |
 | `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development** — the app refuses to start without it. See [Email](#email). |
 | `Email__FromAddress` | unset | The sending mailbox. Required whenever `Email__Provider` is set. |
 | `Email__MailerSend__ApiToken` | unset | **Secret.** Required when the provider is `MailerSend`. Never bake it into the image. |
