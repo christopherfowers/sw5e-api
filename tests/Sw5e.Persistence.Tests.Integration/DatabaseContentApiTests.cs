@@ -284,6 +284,19 @@ public sealed class DatabaseBackedApi(string connectionString) : WebApplicationF
             "Content:RootPath",
             Path.Combine(AppContext.BaseDirectory, "TestContent-not-mounted"));
 
+        // The database store brings content authoring with it, and authoring
+        // refuses to start without the schemas it validates writes against —
+        // deliberately, because an API that came up without them would accept
+        // every write and check none of them. The deployed image bakes them in;
+        // this host is given the same ones, copied beside the test assembly.
+        //
+        // Note this is a real path while Content:RootPath above is not. Taking
+        // the filesystem away is about proving content came from the database;
+        // the schemas are not content and are not served.
+        builder.UseSetting(
+            "Content:SchemaPath",
+            Path.Combine(AppContext.BaseDirectory, "TestSchemas"));
+
         builder.UseSetting("Sw5e:Database:MaxRetryCount", "0");
     }
 }

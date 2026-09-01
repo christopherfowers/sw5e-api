@@ -124,6 +124,16 @@ internal static class AuthoringFlow
     }
 
     /// <summary>A key nothing else in the suite will use.</summary>
-    public static string NewKey(string label) =>
-        $"{label}-{Guid.NewGuid():N}"[..40].TrimEnd('-');
+    /// <remarks>
+    /// Trimmed to the shorter of the string and the cut. A range that runs past
+    /// the end throws rather than stopping there, so a short label — which is
+    /// most of them, since a name plus a 32-character identifier is only 37
+    /// characters — would fail before the request under test was ever made.
+    /// </remarks>
+    public static string NewKey(string label)
+    {
+        var candidate = $"{label}-{Guid.NewGuid():N}";
+
+        return candidate[..Math.Min(40, candidate.Length)].TrimEnd('-');
+    }
 }

@@ -28,6 +28,14 @@
          behaviour and asserting on both from one directory would make each set
          of tests fragile to edits made for the other. -->
     <Content Include="TestContent\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The JSON Schemas, from the submodule. Hosting the API with the database
+         content store also registers content authoring, which refuses to start
+         without the schemas it validates writes against. The deployed image
+         bakes the same files in. -->
+    <Content Include="..\..\external\sw5e-database\schemas\**\*.json"
+             Link="TestSchemas\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
