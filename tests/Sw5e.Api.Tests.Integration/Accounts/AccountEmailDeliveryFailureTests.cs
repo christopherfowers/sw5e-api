@@ -194,6 +194,172 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
     }
 
     /// <summary>
+    /// The failure also reaches the surface the site itself reads, so the
+    /// interface can stop telling people a message is on its way.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>/health/ready</c> is for operators and is not what a browser consults;
+    /// without this the site keeps promising mail it has just been told was
+    /// refused, and then sends the reader to a spam folder to look for it. The
+    /// ordering matters and is asserted rather than assumed: the flag reads true
+    /// before the registration and false after it, because the account endpoints
+    /// attempt their send before they answer. A client asking after its own 202
+    /// therefore sees the failure its own request caused, with no polling
+    /// interval to be unlucky in.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AFailedSendIsPublishedOnTheSurfaceTheSiteReads()
+    {
+        await using var factory = BrokenMailApiFactory.Permanent(postgres);
+        var client = factory.CreateBrowserClient();
+
+        var before = await (await client.GetAsync(SiteEnvironment)).ReadJsonAsync();
+        before.GetProperty("accountEmailDelivering").GetBoolean().ShouldBeTrue(
+            "nothing has been refused yet, so the site has no reason to change what it says");
+
+        await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new { email = AccountFlow.NewAddress("published"), displayName = "Nobody" });
+
+        var after = await (await client.GetAsync(SiteEnvironment)).ReadJsonAsync();
+        after.GetProperty("accountEmailDelivering").GetBoolean().ShouldBeFalse(
+            "the relay refused the verification message before the 202 was written, so a " +
+            "client asking now must be told that mail is not getting out");
+
+        // The rest of the document is untouched. A mail outage is not a
+        // statement about which deployment this is, and the QA banner must not
+        // start or stop appearing because a relay went down.
+        after.GetProperty("isProduction").GetBoolean()
+             .ShouldBe(before.GetProperty("isProduction").GetBoolean());
+        after.Text("name").ShouldBe(before.Text("name"));
+    }
+
+    /// <summary>
+    /// What the anonymous surface is allowed to say about a failure: that there
+    /// was one, and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// The provider's reply is the named hazard — the relay wrote it about one
+    /// envelope and it can quote the recipient — so both it and the address are
+    /// ruled out of the whole body rather than out of one field. The assertion
+    /// is on the raw text for that reason: a leak into a field nobody thought to
+    /// read is still a leak.
+    /// </remarks>
+    [Fact]
+    public async Task TheSurfaceTheSiteReadsNamesNeitherTheAddressNorTheProvidersReply()
+    {
+        await using var factory = BrokenMailApiFactory.Permanent(postgres);
+        var client = factory.CreateBrowserClient();
+
+        var address = AccountFlow.NewAddress("no-leak");
+
+        await client.PostAsJsonAsync("/api/auth/email/code", new { email = address });
+
+        var body = await (await client.GetAsync(SiteEnvironment)).Content.ReadAsStringAsync();
+
+        body.Contains("accountEmailDelivering", StringComparison.Ordinal).ShouldBeTrue(
+            "the assertions below are worthless against a body that does not mention " +
+            "delivery at all");
+
+        body.Contains(address, StringComparison.OrdinalIgnoreCase).ShouldBeFalse(
+            "an anonymous caller who can see an address in here can enumerate accounts " +
+            "by watching which ones appear");
+        body.Contains(BrokenMailApiFactory.ProviderReply, StringComparison.Ordinal)
+            .ShouldBeFalse(
+                "the relay wrote that sentence about a specific envelope and it can quote " +
+                "the recipient");
+
+        // The pieces of the reply, not only the whole of it. A future adapter
+        // that forwarded a fragment — the status code and the phrase — would
+        // satisfy a whole-string check and still be publishing what a relay
+        // said about one message.
+        body.Contains("554", StringComparison.Ordinal).ShouldBeFalse();
+        body.Contains("Sender domain", StringComparison.OrdinalIgnoreCase).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// The new surface is not a new oracle: it answers the same to a caller who
+    /// has just probed a registered address and to one who has just probed a
+    /// stranger, byte for byte, in both delivery states.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the question the change had to answer before it could ship.
+    /// Publishing a delivery state is safe only because the state is global; a
+    /// per-address one would rebuild exactly the oracle the 202 exists to
+    /// prevent, since asking whether mail to an address failed is asking whether
+    /// that address has an account.
+    /// </para>
+    /// <para>
+    /// So the test probes an account endpoint with a known address and with a
+    /// stranger, reads the site surface after each, and compares whole bodies
+    /// rather than the one field — a difference anywhere is an enumeration
+    /// channel, and the point is that nothing in here varies with who was asked
+    /// about. Both delivery states are covered, and the working one is not
+    /// ceremony: with the relay refusing everything, a per-address
+    /// implementation has something to differ about, and with it working, one
+    /// does not. Only the pair rules the design out.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task TheDeliveryFlagCannotBeUsedToTellARegisteredAddressFromAnUnknownOne()
+    {
+        string registered;
+
+        await using (var working = new AccountApiFactory(postgres))
+        {
+            var account = AccountFlow.For(working.CreateBrowserClient(), "flag-known");
+            await account.EstablishAsync(working.Email);
+            registered = account.EmailAddress;
+
+            // Healthy relay first. Both probes must leave the same answer
+            // behind, and it must be the answer that changes no wording.
+            var healthy = working.CreateBrowserClient();
+
+            await healthy.PostAsJsonAsync("/api/auth/email/code", new { email = registered });
+            var afterKnown = await (await healthy.GetAsync(SiteEnvironment))
+                .Content.ReadAsStringAsync();
+
+            await healthy.PostAsJsonAsync(
+                "/api/auth/email/code", new { email = AccountFlow.NewAddress("flag-unknown") });
+            var afterStranger = await (await healthy.GetAsync(SiteEnvironment))
+                .Content.ReadAsStringAsync();
+
+            afterKnown.ShouldBe(afterStranger);
+            afterKnown.ShouldContain(
+                "\"accountEmailDelivering\":true",
+                customMessage: "a working relay must leave the site saying what it always said");
+        }
+
+        // And with the relay refusing everything, where a per-address
+        // implementation would finally have something to differ about.
+        await using var broken = BrokenMailApiFactory.Permanent(postgres);
+        var client = broken.CreateBrowserClient();
+
+        await client.PostAsJsonAsync("/api/auth/register",
+            new { email = registered, displayName = "Somebody Else" });
+        var brokenKnown = await (await client.GetAsync(SiteEnvironment))
+            .Content.ReadAsStringAsync();
+
+        await client.PostAsJsonAsync("/api/auth/register",
+            new { email = AccountFlow.NewAddress("flag-unknown"), displayName = "Somebody Else" });
+        var brokenStranger = await (await client.GetAsync(SiteEnvironment))
+            .Content.ReadAsStringAsync();
+
+        brokenKnown.ShouldBe(brokenStranger);
+        brokenKnown.ShouldContain(
+            "\"accountEmailDelivering\":false",
+            customMessage:
+                "and the outage must actually be visible, or the equality above is the " +
+                "trivial one between two healthy answers");
+    }
+
+    /// <summary>Where the site reads the delivery state from.</summary>
+    private const string SiteEnvironment = "/api/site/environment";
+
+    /// <summary>
     /// Hosts the API with the real mail adapter in place and the provider seam
     /// underneath it refusing every message.
     /// </summary>

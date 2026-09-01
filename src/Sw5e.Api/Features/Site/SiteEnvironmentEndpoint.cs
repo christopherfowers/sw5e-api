@@ -1,12 +1,18 @@
+using Sw5e.Api.Features.Accounts;
+
 namespace Sw5e.Api.Features.Site;
 
 /// <summary>
-/// Tells the browser application which deployment it is talking to.
+/// Tells the browser application the few facts about this deployment that it
+/// cannot work out for itself.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This exists for one reason: the QA site has to say, visibly, that it is QA
-/// and that nothing entered there is kept. It could not say so on its own.
+/// It began with one: the QA site has to say, visibly, that it is QA and that
+/// nothing entered there is kept. It could not say so on its own. It now
+/// carries a second — whether account email is getting out — for the same
+/// reason and by the same route. See <em>Why the mail flag lives here</em>
+/// below.
 /// </para>
 /// <para>
 /// The web tier is a static nginx image serving HTML that was rendered at build
@@ -52,6 +58,47 @@ namespace Sw5e.Api.Features.Site;
 /// of this application already uses to decide HSTS and HTTPS redirection, so
 /// the banner cannot end up disagreeing with the app about where it is running.
 /// </para>
+/// <para>
+/// <b>Why the mail flag lives here.</b> A deployment's identity is a constant
+/// and a relay's health is not, so putting the two in one document is worth
+/// justifying rather than assuming. The case against is that they have
+/// different lifetimes, and that a reader could reasonably expect a document
+/// about "which environment this is" to be cacheable. That expectation is
+/// already false: this response has been <c>no-store</c> since it was written,
+/// because a one-line body naming an environment is exactly what a shared cache
+/// would hold and later hand to the wrong deployment. So the lifetime objection
+/// costs nothing here — there was never a cache to invalidate.
+/// </para>
+/// <para>
+/// The case for is that a second anonymous endpoint is a second thing to route,
+/// a second thing to leave unmounted during a partial deploy, a second thing to
+/// name in a policy, and a second thing whose absence the client has to have an
+/// opinion about — all of it to carry one boolean. The honest description of
+/// this endpoint was never "the environment" but "what the prerendered site has
+/// to ask, because it was built before the answer existed", and a relay
+/// refusing everything is squarely that: the site cannot observe it, cannot
+/// infer it, and is actively lying to people without it.
+/// </para>
+/// <para>
+/// What the flag is <em>not</em> is an operations surface. It carries no count,
+/// no timestamp, no permanent-versus-transient distinction and no provider
+/// reply. Those stay on <c>/health/ready</c> and in the application log, which
+/// have an audience already trusted with them. One boolean is published, it is
+/// the same boolean for every caller, and it is exactly what the interface
+/// needs in order to stop promising mail it already knows will not arrive.
+/// </para>
+/// <para>
+/// <b>It is global, and that is the security property.</b> The account
+/// endpoints answer 202 with an identical body whether or not an address has an
+/// account, and nothing published here may weaken that. A per-address delivery
+/// answer would rebuild the oracle precisely: asking whether mail to
+/// <c>someone@example.com</c> failed is asking whether
+/// <c>someone@example.com</c> has an account. What
+/// <see cref="AccountEmailDeliveryMonitor"/> holds has no per-address dimension
+/// at all, so there is no arrangement of requests that turns this field into an
+/// answer about anybody. "Mail is not getting out" is true for every reader at
+/// once and identifies none of them.
+/// </para>
 /// </remarks>
 public static class SiteEnvironmentEndpoint
 {
@@ -62,27 +109,42 @@ public static class SiteEnvironmentEndpoint
         // prefix. That is also what keeps the site's Content-Security-Policy
         // at `connect-src 'self'`: the request is same-origin, so no host is
         // named in the policy and no CORS preflight is involved.
-        routes.MapGet("/api/site/environment", (IWebHostEnvironment environment, HttpContext context) =>
+        routes.MapGet("/api/site/environment", (
+                  IWebHostEnvironment environment,
+                  AccountEmailDeliveryMonitor mail,
+                  HttpContext context) =>
               {
-                  // Never cached, anywhere. The answer is a property of the
-                  // deployment rather than of the resource, and it is exactly
-                  // the kind of one-line body a shared cache would happily hold
-                  // and hand to the wrong environment. It costs one string
-                  // comparison to compute, so there is nothing to save.
+                  // Never cached, anywhere. Neither answer is a property of the
+                  // resource: one is a property of the deployment, the other of
+                  // a relay in the last few minutes, and this is exactly the
+                  // kind of one-line body a shared cache would happily hold and
+                  // hand to the wrong environment — or, now, hand back long
+                  // after the outage it described was over. Both cost a field
+                  // read to compute, so there is nothing to save.
                   context.Response.Headers.CacheControl = "no-store";
 
-                  return Results.Ok(Describe(environment.EnvironmentName));
+                  // Read here rather than at the client's page load, and that
+                  // ordering is the point: the account endpoints attempt their
+                  // send before they answer, so a client that asks this after
+                  // its 202 is reading a monitor that has already seen the
+                  // failure its own request caused.
+                  return Results.Ok(Describe(
+                      environment.EnvironmentName, mail.Current.Delivering));
               })
               .WithName("getSiteEnvironment")
               .WithTags("Site")
               .WithSummary("Which deployment this is.")
               .WithDescription(
-                  "Answers whether this deployment is production. The site is served as static " +
+                  "Answers whether this deployment is production, and whether account email is " +
+                  "currently reaching the mail provider. The site is served as static " +
                   "prerendered HTML from an image that is promoted unchanged between " +
                   "environments, so it cannot know which one it is running in and asks here " +
                   "after hydration. A deployment that has not been told its environment " +
                   "reports production, so the absence of configuration can never produce a " +
-                  "test-environment banner on the live site.")
+                  "test-environment banner on the live site. The delivery flag is one global " +
+                  "fact with no per-address dimension: it says whether mail is getting out at " +
+                  "all, never whether a particular message or a particular address failed, and " +
+                  "it never carries the provider's own reply.")
               .Produces<SiteEnvironmentResponse>()
               // Explicitly anonymous. AddSw5eIdentity installs a fallback
               // authorization policy that denies anything which has not said
@@ -127,7 +189,17 @@ public static class SiteEnvironmentEndpoint
     /// <c>IWebHostEnvironment.EnvironmentName</c>. Null, empty and whitespace
     /// are all treated as "nobody said", which means production.
     /// </param>
-    public static SiteEnvironmentResponse Describe(string? environmentName)
+    /// <param name="accountEmailDelivering">
+    /// Whether account mail is currently reaching the provider, from
+    /// <see cref="AccountEmailDeliveryMonitor"/>. Defaults to true, which is
+    /// the same fail-safe direction as the environment flag but pointed the
+    /// other way round, and for the same reason: the safe answer is the one
+    /// that changes nothing. Silence here leaves the site saying exactly what
+    /// it said before this field existed, rather than telling every reader that
+    /// mail is broken on the strength of not knowing.
+    /// </param>
+    public static SiteEnvironmentResponse Describe(
+        string? environmentName, bool accountEmailDelivering = true)
     {
         var name = string.IsNullOrWhiteSpace(environmentName)
             ? Environments.Production
@@ -135,7 +207,8 @@ public static class SiteEnvironmentEndpoint
 
         return new SiteEnvironmentResponse(
             name,
-            string.Equals(name, Environments.Production, StringComparison.OrdinalIgnoreCase));
+            string.Equals(name, Environments.Production, StringComparison.OrdinalIgnoreCase),
+            accountEmailDelivering);
     }
 
     /// <summary>What deployment this is.</summary>
@@ -149,5 +222,20 @@ public static class SiteEnvironmentEndpoint
     /// True for the live deployment. The site draws its test-environment banner
     /// when, and only when, this is explicitly false.
     /// </param>
-    public sealed record SiteEnvironmentResponse(string Name, bool IsProduction);
+    /// <param name="AccountEmailDelivering">
+    /// True when nothing has failed to send recently. The site stops telling
+    /// people to go and check an inbox when, and only when, this is explicitly
+    /// false — an older service that does not send this field, an unreachable
+    /// endpoint and a malformed body all leave the wording as it was.
+    /// <para>
+    /// One global boolean, and nothing else. No address appears in it, because
+    /// the monitor behind it holds none; no provider reply appears in it,
+    /// because that text can quote an envelope and this endpoint is anonymous;
+    /// no count or timestamp appears in it, because nothing a reader can do
+    /// changes with the number. Anything richer than this belongs on
+    /// <c>/health/ready</c>, which exists for operators, or in the log.
+    /// </para>
+    /// </param>
+    public sealed record SiteEnvironmentResponse(
+        string Name, bool IsProduction, bool AccountEmailDelivering);
 }
