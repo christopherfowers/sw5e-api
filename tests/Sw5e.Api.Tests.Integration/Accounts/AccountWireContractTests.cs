@@ -535,6 +535,132 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
         query["token"].ShouldNotBeNullOrWhiteSpace();
     }
 
+    /// <summary>
+    /// The administrative directory's shape, which the administration client
+    /// reads directly.
+    /// </summary>
+    /// <remarks>
+    /// Pinned for the same reason the account projection is: this list is the
+    /// only response on the platform that carries somebody else's address, and
+    /// a client that expected <c>emailAddress</c> where the service sends
+    /// <c>email</c> would render a directory of blanks rather than fail.
+    /// </remarks>
+    [Fact]
+    public async Task TheUserDirectoryCarriesExactlyTheAgreedProperties()
+    {
+        var client = _factory.CreateBrowserClient();
+        await AdministrationFlow.AdministratorAsync(_factory, client, "wire-directory");
+
+        var target = await AdministrationFlow.MemberAsync(
+            _factory, _factory.CreateBrowserClient(), "wire-directory-target");
+
+        var response = await client.GetAsync(
+            $"/api/auth/admin/users?q={Uri.EscapeDataString(target.EmailAddress)}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.ReadJsonAsync();
+
+        // The same paging envelope the flag queue uses. Two paged collections
+        // with two shapes is two client-side pagers, and the second one always
+        // has the off-by-one.
+        PropertyNamesOf(body).ShouldBe(
+            ["users", "page", "pageSize", "totalCount", "totalPages"],
+            ignoreOrder: true);
+
+        var user = body.GetProperty("users").EnumerateArray().Single();
+
+        PropertyNamesOf(user).ShouldBe(
+            [
+                "id", "email", "displayName", "roles", "emailConfirmed",
+                "twoFactorEnabled", "secondFactorEnrolled", "lockedOut",
+                "suspension", "createdAt",
+            ],
+            ignoreOrder: true);
+
+        user.GetProperty("email").GetString().ShouldBe(target.EmailAddress);
+
+        // Null rather than an object with a false flag. "Not suspended" is the
+        // absence of a suspension, and a client rendering a date has one
+        // question to ask rather than two.
+        user.GetProperty("suspension").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task ASuspensionCarriesWhenWhyAndByWhom()
+    {
+        var client = _factory.CreateBrowserClient();
+        var administrator = await AdministrationFlow.AdministratorAsync(
+            _factory, client, "wire-suspension");
+
+        var administratorId = await AdministrationFlow.IdOfAsync(
+            _factory, administrator.EmailAddress);
+
+        var targetId = await AdministrationFlow.IdOfAsync(
+            _factory,
+            (await AdministrationFlow.MemberAsync(
+                _factory, _factory.CreateBrowserClient(), "wire-suspension-target")).EmailAddress);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/auth/admin/users/{targetId}/suspension",
+            new { suspended = true, reason = "Wire contract." });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.ReadJsonAsync();
+
+        PropertyNamesOf(body).ShouldBe(["userId", "suspension"], ignoreOrder: true);
+
+        var suspension = body.GetProperty("suspension");
+
+        PropertyNamesOf(suspension).ShouldBe(["at", "reason", "byUserId"], ignoreOrder: true);
+
+        suspension.GetProperty("reason").GetString().ShouldBe("Wire contract.");
+        suspension.GetProperty("byUserId").GetGuid().ShouldBe(administratorId);
+    }
+
+    [Fact]
+    public async Task AnAdministrativeLogEntryCarriesExactlyTheAgreedProperties()
+    {
+        var client = _factory.CreateBrowserClient();
+        await AdministrationFlow.AdministratorAsync(_factory, client, "wire-audit");
+
+        var targetId = await AdministrationFlow.IdOfAsync(
+            _factory,
+            (await AdministrationFlow.MemberAsync(
+                _factory, _factory.CreateBrowserClient(), "wire-audit-target")).EmailAddress);
+
+        await client.PutAsJsonAsync(
+            $"/api/auth/admin/users/{targetId}/roles",
+            new { roles = new[] { "Contributor" } });
+
+        var log = await client.GetAsync($"/api/auth/admin/audit?subjectId={targetId}");
+
+        log.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await log.ReadJsonAsync();
+
+        PropertyNamesOf(body).ShouldBe(
+            ["actions", "page", "pageSize", "totalCount", "totalPages"],
+            ignoreOrder: true);
+
+        var entry = body.GetProperty("actions").EnumerateArray().Single();
+
+        PropertyNamesOf(entry).ShouldBe(
+            [
+                "id", "action", "actorUserId", "actorDisplayName",
+                "subjectUserId", "subjectDisplayName",
+                "rolesBefore", "rolesAfter", "reason", "createdAt",
+            ],
+            ignoreOrder: true);
+
+        // The wire spelling, hyphenated and lower case, which is also what is
+        // written to the column. Not the enum member name: a C# rename would
+        // then be a silent data migration in one direction and a silent
+        // contract break in the other.
+        entry.GetProperty("action").GetString().ShouldBe("roles-changed");
+    }
+
     private static string[] PropertyNamesOf(JsonElement element) =>
         [.. element.EnumerateObject().Select(property => property.Name)];
 }

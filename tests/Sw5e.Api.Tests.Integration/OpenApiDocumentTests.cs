@@ -40,6 +40,11 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/auth/mfa/totp/verify")]
     [InlineData("/api/auth/logout")]
     [InlineData("/api/auth/me")]
+    [InlineData("/api/auth/admin/users")]
+    [InlineData("/api/auth/admin/users/{userId}")]
+    [InlineData("/api/auth/admin/users/{userId}/roles")]
+    [InlineData("/api/auth/admin/users/{userId}/suspension")]
+    [InlineData("/api/auth/admin/audit")]
     [InlineData("/api/flags")]
     [InlineData("/api/flags/mine")]
     [InlineData("/api/flags/summary")]
@@ -84,6 +89,8 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
                 "logout", "currentUser", "assignRoles",
+                "listUsers", "getUser", "setAccountSuspension", "deleteUser",
+                "listAdministrativeActions",
                 "raiseFlag", "listOwnFlags",
                 "listFlags", "summariseFlags", "updateFlagStatus",
                 "listContentDrafts", "getContentDraft", "saveContentDraft",

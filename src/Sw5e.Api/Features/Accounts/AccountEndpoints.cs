@@ -270,8 +270,141 @@ internal static class AccountEndpoints
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
     }
 
+    /// <summary>
+    /// The administrative routes: the account directory, the role grant, the
+    /// suspension switch, deletion, and the log of all four.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every route below requires <see cref="Sw5ePolicies.Administer"/>, which
+    /// is the Administrator role <em>and</em> a session established with a
+    /// passkey or an authenticator app. Both halves are load-bearing and
+    /// neither is inherited from the group: an emailed code proves control of a
+    /// mailbox, and a mailbox is what everything else on the internet is
+    /// recovered through, so it can open somebody's own account and can never
+    /// open a list of everybody else's addresses.
+    /// </para>
+    /// <para>
+    /// <b>The listing is the reason the rest of this exists.</b> Before it, the
+    /// role grant below was addressed by an account identifier that nothing in
+    /// the API would tell anybody — no listing, no search, no lookup by
+    /// address. The single administrative capability the platform had was
+    /// therefore reachable only from a database client, which is another way of
+    /// saying it was not reachable.
+    /// </para>
+    /// <para>
+    /// The refusals are worth reading as carefully as the permissions. An
+    /// anonymous caller gets the cookie handler's 401 and a caller with the
+    /// wrong role gets its 403, both written before any handler runs, both
+    /// identical whether the account they named exists or not, and neither
+    /// costing a single query. That is what keeps this from being an
+    /// enumeration oracle: there is no path from a non-administrator's request
+    /// to a database read, so there is nothing for a response shape or a
+    /// response time to differ on.
+    /// </para>
+    /// </remarks>
     private static void MapAdministration(RouteGroupBuilder group)
     {
+        group.MapGet("/admin/users", UserDirectoryHandlers.ListAsync)
+             .WithName("listUsers")
+             .WithSummary("Find an account.")
+             .WithDescription(
+                 "Administrators only. The account directory, oldest first, paginated. `q` " +
+                 "matches an email address or a display name, case-insensitively, and needs at " +
+                 "least two characters — below that it is a table dump wearing a search box. " +
+                 "`role` filters to one of Community, Contributor or Administrator; `status` to " +
+                 "active, suspended, unverified or all. An unrecognised filter value is a 400 " +
+                 "rather than no filter, because showing somebody the whole directory while " +
+                 "they believe they are looking at one slice of it is how the wrong account " +
+                 "gets acted on. This response carries email addresses and is the only one on " +
+                 "the platform that carries anybody else's.")
+             .Produces<AdminUserListResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
+        group.MapGet("/admin/users/{userId:guid}", UserDirectoryHandlers.GetAsync)
+             .WithName("getUser")
+             .WithSummary("One account, in administrative detail.")
+             .WithDescription(
+                 "Administrators only. Everything the directory shows for one account, plus how " +
+                 "many unpublished drafts it owns — which is the one thing that will refuse a " +
+                 "deletion, and is therefore worth knowing before trying one. The draft count " +
+                 "is null on a deployment that serves content from files and has no authoring " +
+                 "at all.")
+             .Produces<AdminUserDetail>()
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
+        group.MapPut("/admin/users/{userId:guid}/suspension", AccountLifecycleHandlers.SetSuspensionAsync)
+             .WithName("setAccountSuspension")
+             .WithSummary("Suspend an account, or reinstate it.")
+             .WithDescription(
+                 "Administrators only, and declarative like the role grant: send suspended=true " +
+                 "with a reason, or suspended=false to lift it. A suspended account cannot sign " +
+                 "in by any route, and its open sessions end on their very next request rather " +
+                 "than when the cookie expires. Its passkeys are left in place and are inert " +
+                 "while the suspension stands, so reinstating restores access rather than " +
+                 "requiring the account to be credentialled again. The reason is required when " +
+                 "suspending, is written for the other administrators, and is never shown to " +
+                 "the account — which is told that it has been suspended and who to write to. " +
+                 "An administrator cannot suspend themselves.")
+             .Produces<AccountSuspensionStateResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
+        group.MapDelete("/admin/users/{userId:guid}", AccountLifecycleHandlers.DeleteAsync)
+             .WithName("deleteUser")
+             .WithSummary("Delete an account.")
+             .WithDescription(
+                 "Administrators only, and not reversible. Removes the account and everything " +
+                 "that identifies it: the address, the display name, the roles, the passkeys, " +
+                 "the authenticator secret and any live sign-in code. It does not remove what " +
+                 "the account wrote — content revisions and moderation reports keep their " +
+                 "identifier and afterwards render as a removed account, because a history that " +
+                 "can be edited by deleting an account is not a history. Refused while the " +
+                 "account owns unpublished drafts: publish or discard those first. An " +
+                 "administrator cannot delete themselves.")
+             .Produces<AccountDeletedResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .ProducesProblem(StatusCodes.Status409Conflict)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
+        group.MapGet("/admin/audit", UserDirectoryHandlers.ListActionsAsync)
+             .WithName("listAdministrativeActions")
+             .WithSummary("What administrators have done.")
+             .WithDescription(
+                 "Administrators only. Every role change, suspension, reinstatement and " +
+                 "deletion, newest first, filterable by subject, by actor and by action. The " +
+                 "display names are copies taken at the time, so an entry stays readable after " +
+                 "either account has gone — which is the whole point of the one entry that " +
+                 "records a deletion. The table is append-only at the database: nothing in this " +
+                 "API updates or removes a row, and PostgreSQL refuses to as well.")
+             .Produces<AdministrativeLogResponse>()
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status401Unauthorized)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
+
         // Not part of the original endpoint list, and added because without it
         // the Contributor role can only ever be granted by someone with a
         // database client — which means the privilege that gates content upload

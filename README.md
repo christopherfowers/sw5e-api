@@ -135,7 +135,12 @@ every account this platform creates.
 | `POST /api/auth/mfa/totp/verify` | a signed-in account enrolling, or a caller awaiting a second factor |
 | `POST /api/auth/logout` | anyone |
 | `GET /api/auth/me` | a signed-in account |
+| `GET /api/auth/admin/users` | an administrator |
+| `GET /api/auth/admin/users/{userId}` | an administrator |
 | `PUT /api/auth/admin/users/{userId}/roles` | an administrator |
+| `PUT /api/auth/admin/users/{userId}/suspension` | an administrator |
+| `DELETE /api/auth/admin/users/{userId}` | an administrator |
+| `GET /api/auth/admin/audit` | an administrator |
 
 ### The one way in
 
@@ -190,9 +195,124 @@ flow and proves control of the address like anybody else, and the setting only
 decides which of the resulting accounts is promoted, on the next start. It is
 therefore safe if it leaks.
 
-An administrator cannot remove their own administrator role — the role is the
-only thing that can grant the role, so the last one revoking themselves would
-leave the platform with no way to appoint another.
+An administrator cannot remove their own administrator role, cannot suspend
+their own account and cannot delete it. The role is the only thing that can
+grant the role, so any self-directed removal would let the last administrator
+leave the platform with no way to appoint another — and with all three closed,
+the number of administrators cannot reach zero through this API at all. It is
+also the move most attractive to somebody who has just stolen an
+administrator's session.
+
+### Administering accounts
+
+Every route under `/api/auth/admin` requires the `Administrator` role **and** a
+session established with a passkey or an authenticator app. Both halves matter.
+An emailed one-time code proves control of a mailbox, and a mailbox is what
+every other account on the internet is recovered through; it is enough to reach
+your own account and not enough to open a list of everybody else's addresses.
+
+**Finding somebody.** `GET /api/auth/admin/users` is the account directory:
+paginated, oldest first, with `q` matching an email address or a display name
+case-insensitively, `role` filtering to one of the three roles and `status` to
+`active`, `suspended`, `unverified` or `all`. A search term shorter than two
+characters is refused rather than answered, because below that it is a table
+dump wearing a search box. An unrecognised filter value is a `400` rather than
+no filter: showing an administrator the whole directory while they believe they
+are looking at one slice of it is how the wrong account gets acted on.
+
+This is the only response on the platform that carries somebody else's email
+address, and it is the reason the authorization above is what it is. A caller
+who is not an administrator never reaches the handler — the cookie
+authentication events answer `401` or `403` before any endpoint runs — so there
+is no query, no branch, and nothing for a response shape or a response time to
+differ on between an account identifier that exists and one somebody invented.
+
+**Suspension** is `PUT /api/auth/admin/users/{userId}/suspension`, declarative
+like the role grant: `{"suspended": true, "reason": "..."}` to suspend and
+`{"suspended": false}` to lift it. A reason is required to suspend, is written
+for the other administrators, and is never shown to the account — where the
+reason is an investigation, quoting it back would tell the subject what is being
+investigated. The account is emailed that it has been suspended and told who to
+write to.
+
+What a suspension actually does:
+
+- **No new session, by any route.** It is enforced through
+  `IUserConfirmation`, which `SignInManager.CanSignInAsync` consults, so the
+  passkey assertion, the emailed code and the authenticator step that can follow
+  either are all covered by one registration rather than by three handlers each
+  remembering to ask. A valid passkey assertion for a suspended account gets the
+  same `401` every other sign-in failure gets.
+- **No use of an existing session.** Every authenticated request re-checks the
+  suspension alongside the security stamp and signs the caller out the moment it
+  finds one. Suspending also rotates the security stamp, which would drop the
+  session on its own — but only at the stamp validator's next interval, up to
+  five minutes later. Five minutes is a defensible ceiling for a role revocation
+  and an indefensible one for somebody being removed because of what they are
+  doing with the session they are holding right now. The cost is one indexed
+  read by primary key on authenticated requests; anonymous traffic, which is
+  nearly all of it, never reaches the check.
+- **Passkeys are left in place, and are inert.** Revoking them would make
+  reinstatement a re-credentialling exercise and turn a reversible decision into
+  an irreversible one. Suspension is meant to be reversible; deletion is the
+  door that does not open again.
+
+Suspension is deliberately *not* the framework's lockout with a distant
+`LockoutEnd`. Lockout is the automatic, self-healing consequence of failed
+attempts, and any stranger can cause one against any account they can name.
+Conflating the two would mean lifting a suspension also forgave an attack in
+progress, and an expiring lockout quietly reinstating somebody a person had
+decided to remove.
+
+**Deletion** is `DELETE /api/auth/admin/users/{userId}`, with an optional
+`{"reason": "..."}` in the body — in the body rather than a query string,
+because a sentence naming a person and describing their conduct does not belong
+in a URL that every access log between the browser and the process writes down.
+
+It removes the account and everything that identifies it: the address, the
+display name, the roles, the passkeys, the authenticator secret and its recovery
+codes, and any live emailed sign-in code. The address becomes free to register
+again.
+
+It does **not** remove what the account wrote. Content revisions keep their
+`actor_user_id` and moderation reports keep their `reporter_user_id`; neither is
+rewritten, reassigned or blanked, and both render afterwards as *a removed
+account* — the state the flag queue's contract already documented. A revision is
+the record that somebody changed what a whole community reads, and the revision
+table is append-only at the database precisely so that the people who can make
+those changes cannot quietly unmake the record of having made them. A deletion
+that reached in and erased authorship would be exactly that with a friendlier
+name, available to any administrator against any contributor at any time. A
+history that can be edited by deleting an account is not a history.
+
+Drafts are the exception in the other direction. A draft is not history — it is
+unfinished work holding the only editing slot for the entry it names — so a
+deletion is refused with `409` and `code: "drafts-outstanding"` while the
+account owns any, and the count is on `GET /api/auth/admin/users/{userId}` so an
+administrator can see it before trying. Publishing or discarding them first is
+the fix. That also keeps identity deletion inside one database and one
+transaction, with no half-done state spanning two schemas.
+
+**The record.** `GET /api/auth/admin/audit` is every role change, suspension,
+reinstatement and deletion — who did it, to whom, when, with what changed and
+why — filterable by subject, actor and action. It lives in the `identity`
+schema, because it is about accounts, has to be present in every deployment, and
+has to be restored on the same schedule as the rows it describes. It follows the
+moderation schema's actor-and-timestamp pattern — a bare `Guid` with no foreign
+key — with one deliberate difference: the actor's and the subject's display
+names are **copied onto the row**. A flag can afford to render "a removed
+account"; an audit entry recording a deletion cannot, because surviving that
+deletion is the entire point of it. Email addresses are not copied: an audit
+table is the one place here that outlives an account, which makes it exactly the
+wrong place to keep the address of somebody who asked to be deleted.
+
+The table is append-only, and PostgreSQL is what refuses. A trigger installed by
+the migration raises on any `UPDATE` or `DELETE`, the same protection the content
+revision table carries. Nothing in the application issues either statement, so
+the trigger is not there to catch this codebase — it is there because the party
+with both the database access and the motive to edit a record of administrative
+actions is an administrator, which is exactly the party the record exists to hold
+to account.
 
 ### Configuration
 

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Sw5e.Identity.Administration;
 using Sw5e.Identity.Authorization;
 using Sw5e.Identity.Email;
 using Sw5e.Identity.EmailSignIn;
@@ -203,6 +204,16 @@ public static class Sw5eIdentityServiceCollectionExtensions
             .AddTokenProvider<Sw5eAuthenticatorTokenProvider>(
                 TokenOptions.DefaultAuthenticatorProvider);
 
+        // Replaces the framework's DefaultUserConfirmation, which answers
+        // EmailConfirmed and nothing else. This one additionally refuses a
+        // suspended account, and it is registered here rather than checked in
+        // the sign-in handlers because SignInManager.CanSignInAsync is the one
+        // gate every route in — a passkey assertion, an emailed code, and the
+        // authenticator step that can follow either — already passes through.
+        // See SuspensionAwareUserConfirmation.
+        services.Replace(ServiceDescriptor
+            .Scoped<IUserConfirmation<Sw5eUser>, SuspensionAwareUserConfirmation>());
+
         // Applies to the email verification and recovery tokens.
         services.Configure<DataProtectionTokenProviderOptions>(
             tokens => tokens.TokenLifespan = options.EmailTokenLifetime);
@@ -302,6 +313,28 @@ public static class Sw5eIdentityServiceCollectionExtensions
             {
                 context.Response.StatusCode = StatusCodes.Status200OK;
                 return Task.CompletedTask;
+            };
+
+            // What decides, on every authenticated request, whether the cookie
+            // in front of us still stands for anything.
+            //
+            // AddIdentityCookies installs SecurityStampValidator here. That is
+            // kept — it is what makes a role revocation or a passkey removal
+            // take effect on a session that is already open — and one check is
+            // added after it. Assigning the delegate replaces the framework's,
+            // so calling it explicitly is not politeness: omitting the call
+            // would silently switch off stamp validation altogether, and the
+            // symptom would be a revoked administrator who kept working for
+            // eight hours.
+            //
+            // The added check is suspension, and it runs every time rather than
+            // on the stamp validator's five-minute interval. See
+            // AccountSuspension for why a suspension is the one state where
+            // five minutes of grace is the wrong answer.
+            cookie.Events.OnValidatePrincipal = async context =>
+            {
+                await SecurityStampValidator.ValidatePrincipalAsync(context);
+                await AccountSuspension.RejectSuspendedAsync(context);
             };
         });
 
