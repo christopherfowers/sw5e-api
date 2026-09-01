@@ -35,7 +35,55 @@ public sealed class ContentSchemaTests(PostgresFixture fixture) : DatabaseTest(f
             ORDER BY table_name
             """);
 
-        tables.ShouldBe(["__EFMigrationsHistory", "content_item", "content_reference", "content_type"]);
+        tables.ShouldBe([
+            "__EFMigrationsHistory",
+            "content_draft",
+            "content_item",
+            "content_reference",
+            "content_revision",
+            "content_type",
+        ]);
+    }
+
+    /// <summary>
+    /// The revision history refuses to be edited, and the refusal comes from
+    /// the database rather than from the code above it.
+    /// </summary>
+    /// <remarks>
+    /// Asserted at this level, on a bare migrated schema, because the guard is
+    /// a property of the schema. The API suite proves the same thing through a
+    /// row it published; this proves the migration installs the trigger at all,
+    /// which is what a deployment gets.
+    /// </remarks>
+    [DockerFact]
+    public async Task Migrate_MakesTheRevisionHistoryAppendOnly()
+    {
+        await ExecuteAsync(
+            """
+            INSERT INTO content.content_revision
+                (content_type, item_key, number, name, body, version, action,
+                 schema_version, created_at)
+            VALUES
+                ('species', 'append-only-probe', 1, 'Probe', '{}'::jsonb, 'v0',
+                 'imported', 1, now())
+            """);
+
+        var update = await Should.ThrowAsync<PostgresException>(async () =>
+            await ExecuteAsync(
+                "UPDATE content.content_revision SET name = 'edited' WHERE item_key = 'append-only-probe'"));
+
+        update.SqlState.ShouldBe(PostgresErrorCodes.RestrictViolation);
+
+        var delete = await Should.ThrowAsync<PostgresException>(async () =>
+            await ExecuteAsync(
+                "DELETE FROM content.content_revision WHERE item_key = 'append-only-probe'"));
+
+        delete.SqlState.ShouldBe(PostgresErrorCodes.RestrictViolation);
+
+        var names = await QueryAsync(
+            "SELECT name FROM content.content_revision WHERE item_key = 'append-only-probe'");
+
+        names.ShouldBe(["Probe"]);
     }
 
     /// <summary>

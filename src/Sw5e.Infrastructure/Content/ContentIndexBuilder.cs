@@ -183,9 +183,61 @@ internal static class ContentIndexBuilder
             return null;
         }
 
-        if (!TryReadString(body, "key", out var key) || !string.Equals(key, fileKey, StringComparison.Ordinal))
+        var projected = TryProject(definition, fileKey, body, ComputeVersion(bytes), out var failure);
+
+        if (projected is null)
         {
-            warnings.Add($"Skipped '{file}': the 'key' property must be present and equal to the file name.");
+            warnings.Add($"Skipped '{file}': {failure}");
+            return null;
+        }
+
+        return projected;
+    }
+
+    /// <summary>
+    /// Derives the projected row from a document already in memory.
+    /// </summary>
+    /// <param name="definition">The resolved content type.</param>
+    /// <param name="expectedKey">
+    /// The key the document is filed under — the file name for the scanner, the
+    /// route value for an authored write. The document's own <c>key</c>
+    /// property must agree with it.
+    /// </param>
+    /// <param name="body">The document. Must be a JSON object.</param>
+    /// <param name="version">
+    /// The opaque change token for this document. Supplied by the caller
+    /// because the two callers derive it from different bytes: the scanner
+    /// hashes the file as it sits on disk, and the authoring store hashes the
+    /// document it is about to store.
+    /// </param>
+    /// <param name="failure">Why the document was rejected, when it was.</param>
+    /// <returns>The projection, or null when the document cannot be filed.</returns>
+    /// <remarks>
+    /// Shared by the filesystem scan and the authoring store rather than
+    /// restated in each. The projected columns are what every list, sort,
+    /// filter and search reads, and the two stores are held to parity on all of
+    /// them by an explicit test suite — so a document that arrives through an
+    /// endpoint has to be projected by the identical code that projects one
+    /// arriving as a file, or the parity that suite asserts becomes a property
+    /// only of content that came from disk.
+    /// </remarks>
+    internal static IndexedContentItem? TryProject(
+        ContentTypeDefinition definition,
+        string expectedKey,
+        JsonElement body,
+        string version,
+        out string? failure)
+    {
+        if (body.ValueKind != JsonValueKind.Object)
+        {
+            failure = "root value is not a JSON object.";
+            return null;
+        }
+
+        if (!TryReadString(body, "key", out var key) ||
+            !string.Equals(key, expectedKey, StringComparison.Ordinal))
+        {
+            failure = "the 'key' property must be present and equal to the item key.";
             return null;
         }
 
@@ -193,7 +245,7 @@ internal static class ContentIndexBuilder
 
         if (!TryReadString(body, nameField, out var name))
         {
-            warnings.Add($"Skipped '{file}': required property '{nameField}' is missing or empty.");
+            failure = $"required property '{nameField}' is missing or empty.";
             return null;
         }
 
@@ -205,12 +257,14 @@ internal static class ContentIndexBuilder
 
         var searchText = ContentProjection.SearchText(body);
 
+        failure = null;
+
         return new IndexedContentItem
         {
             Type = definition,
             Key = key,
             Name = name,
-            Version = ComputeVersion(bytes),
+            Version = version,
             Body = body,
             SourceKey = sourceKey,
             ContentSet = contentSet,
@@ -221,6 +275,24 @@ internal static class ContentIndexBuilder
             SearchTextLower = searchText.ToLowerInvariant(),
         };
     }
+
+    /// <summary>
+    /// The change token for a document that never existed as a file.
+    /// </summary>
+    /// <remarks>
+    /// Same construction as the scanner's — a truncated SHA-256, so the two are
+    /// the same shape and the same width — but over the document as it will be
+    /// stored rather than over file bytes. The token's contract is only that it
+    /// changes when the document changes and does not when it has not, and
+    /// hashing the stored text satisfies both. It deliberately does not try to
+    /// predict the hash the scanner would compute if this document were later
+    /// written out to a file: that depends on the exporter's formatting, and a
+    /// token that quietly depended on formatting would be a token that changed
+    /// when nothing had.
+    /// </remarks>
+    internal static string ComputeVersionFor(JsonElement body) =>
+        Convert.ToHexStringLower(
+            SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(body.GetRawText())))[..16];
 
     private static string? ReadStringOrNull(JsonElement body, string property) =>
         TryReadString(body, property, out var value) ? value : null;

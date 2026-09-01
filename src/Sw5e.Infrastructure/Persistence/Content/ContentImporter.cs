@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sw5e.Domain.Content;
@@ -404,7 +404,17 @@ public sealed class ContentImporter(
         return unresolved;
     }
 
-    private static ContentItemRow Project(IndexedContentItem item, DateTimeOffset now)
+    /// <summary>
+    /// Builds a catalogue row from a scanned or authored document.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private because the authoring store writes the same
+    /// row from a document that arrived through an endpoint. The projected
+    /// columns are what every list, filter, sort and search reads, and the two
+    /// stores are held to parity on all of them, so a published document has to
+    /// be projected by this code and not by a second copy of it.
+    /// </remarks>
+    internal static ContentItemRow Project(IndexedContentItem item, DateTimeOffset now)
     {
         var row = new ContentItemRow
         {
@@ -426,7 +436,8 @@ public sealed class ContentImporter(
         return row;
     }
 
-    private static void Apply(ContentItemRow row, IndexedContentItem item, DateTimeOffset now)
+    /// <summary>Copies a document's projection onto an existing row.</summary>
+    internal static void Apply(ContentItemRow row, IndexedContentItem item, DateTimeOffset now)
     {
         row.Name = item.Name;
         row.SourceKey = item.SourceKey;

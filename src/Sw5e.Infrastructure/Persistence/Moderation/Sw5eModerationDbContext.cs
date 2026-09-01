@@ -125,6 +125,9 @@ public sealed class Sw5eModerationDbContext(DbContextOptions<Sw5eModerationDbCon
                   .HasColumnName("reviewer_note")
                   .HasMaxLength(ContentFlagRules.MaxReviewerNoteLength);
 
+            entity.Property(flag => flag.ResolvedByRevisionId)
+                  .HasColumnName("resolved_by_revision_id");
+
             // The queue's own query: outstanding reports, newest first. Status
             // leads because every view of the queue filters on it, and without
             // this index the cheapest page a moderator can ask for is a scan of

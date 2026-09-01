@@ -55,6 +55,12 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
     /// <summary>The type registry, mirrored so the type column can be constrained.</summary>
     public DbSet<ContentTypeRow> ContentTypes => Set<ContentTypeRow>();
 
+    /// <summary>The change history: append-only, one row per recorded change.</summary>
+    public DbSet<ContentRevisionRow> ContentRevisions => Set<ContentRevisionRow>();
+
+    /// <summary>Work in progress that is not live.</summary>
+    public DbSet<ContentDraftRow> ContentDrafts => Set<ContentDraftRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(SchemaName);
@@ -69,6 +75,8 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
         ConfigureContentTypes(modelBuilder);
         ConfigureContentItems(modelBuilder);
         ConfigureContentReferences(modelBuilder);
+        ConfigureContentRevisions(modelBuilder);
+        ConfigureContentDrafts(modelBuilder);
 
         ApplyByteOrderCollation(modelBuilder);
     }
@@ -312,5 +320,122 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
             entity.HasIndex(reference => new { reference.TargetType, reference.TargetIdentifier })
                   .HasDatabaseName("ix_content_reference_unresolved")
                   .HasFilter("resolved_item_id IS NULL");
+        });
+
+    private static void ConfigureContentRevisions(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<ContentRevisionRow>(entity =>
+        {
+            entity.ToTable("content_revision");
+            entity.HasKey(revision => revision.Id);
+
+            entity.Property(revision => revision.Id).HasColumnName("id").UseIdentityByDefaultColumn();
+            entity.Property(revision => revision.ContentType).HasColumnName("content_type").HasMaxLength(64);
+            entity.Property(revision => revision.ItemKey).HasColumnName("item_key").HasMaxLength(ContentSlug.MaxLength);
+            entity.Property(revision => revision.Number).HasColumnName("number");
+            entity.Property(revision => revision.Name).HasColumnName("name").HasMaxLength(512);
+            entity.Property(revision => revision.Body).HasColumnName("body").HasColumnType("jsonb");
+            entity.Property(revision => revision.Version).HasColumnName("version").HasMaxLength(64);
+            entity.Property(revision => revision.Action).HasColumnName("action").HasMaxLength(16);
+            entity.Property(revision => revision.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(revision => revision.Reason)
+                  .HasColumnName("reason")
+                  .HasMaxLength(ContentAuthoringLimits.MaxReasonLength);
+            entity.Property(revision => revision.SchemaVersion).HasColumnName("schema_version");
+            entity.Property(revision => revision.RevertedFromId).HasColumnName("reverted_from_id");
+            entity.Property(revision => revision.CreatedAt).HasColumnName("created_at");
+
+            // Constrained to a registered type for the same reason the
+            // catalogue is: a revision filed under a type the API never asks
+            // about is a record nobody will ever find.
+            entity.HasOne<ContentTypeRow>()
+                  .WithMany()
+                  .HasForeignKey(revision => revision.ContentType)
+                  .HasPrincipalKey(type => type.Key)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Deliberately no foreign key to content_item: the history has to
+            // survive the document being withdrawn, which is when it is worth
+            // most.
+
+            // The numbering guarantee. Two publishes racing on the same
+            // document both read the same highest number and both try to write
+            // it; this constraint makes the loser fail and retry rather than
+            // produce two revision 4s, which would make the history ambiguous
+            // in the one place it must not be.
+            entity.HasIndex(revision => new { revision.ContentType, revision.ItemKey, revision.Number })
+                  .IsUnique()
+                  .HasDatabaseName("ix_content_revision_item_number");
+
+            // Reading one document's history, newest first.
+            entity.HasIndex(revision => new { revision.ContentType, revision.ItemKey, revision.CreatedAt })
+                  .HasDatabaseName("ix_content_revision_item_time");
+
+            // "What has this person changed", which is the question an audit
+            // asks and the one a compromised account makes urgent.
+            entity.HasIndex(revision => new { revision.ActorUserId, revision.CreatedAt })
+                  .HasDatabaseName("ix_content_revision_actor")
+                  .HasFilter("actor_user_id IS NOT NULL");
+
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_content_revision_key_slug",
+                    "item_key ~ '^[a-z0-9]+(-[a-z0-9]+)*$'");
+
+                table.HasCheckConstraint(
+                    "ck_content_revision_body_is_object",
+                    "jsonb_typeof(body) = 'object'");
+
+                table.HasCheckConstraint(
+                    "ck_content_revision_number_positive",
+                    "number >= 1");
+            });
+        });
+
+    private static void ConfigureContentDrafts(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<ContentDraftRow>(entity =>
+        {
+            entity.ToTable("content_draft");
+            entity.HasKey(draft => draft.Id);
+
+            entity.Property(draft => draft.Id).HasColumnName("id").UseIdentityByDefaultColumn();
+            entity.Property(draft => draft.ContentType).HasColumnName("content_type").HasMaxLength(64);
+            entity.Property(draft => draft.ItemKey).HasColumnName("item_key").HasMaxLength(ContentSlug.MaxLength);
+            entity.Property(draft => draft.Name).HasColumnName("name").HasMaxLength(512);
+            entity.Property(draft => draft.Body).HasColumnName("body").HasColumnType("jsonb");
+            entity.Property(draft => draft.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(draft => draft.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(draft => draft.BaseRevisionId).HasColumnName("base_revision_id");
+            entity.Property(draft => draft.ResolvesFlagId).HasColumnName("resolves_flag_id");
+            entity.Property(draft => draft.CreatedAt).HasColumnName("created_at");
+            entity.Property(draft => draft.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne<ContentTypeRow>()
+                  .WithMany()
+                  .HasForeignKey(draft => draft.ContentType)
+                  .HasPrincipalKey(type => type.Key)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // One draft per document. Two people editing the same entry collide
+            // here, visibly, instead of each silently discarding the other's
+            // work at publication.
+            entity.HasIndex(draft => new { draft.ContentType, draft.ItemKey })
+                  .IsUnique()
+                  .HasDatabaseName("ix_content_draft_item");
+
+            // The worklist ordering: most recently touched first.
+            entity.HasIndex(draft => draft.UpdatedAt)
+                  .HasDatabaseName("ix_content_draft_updated");
+
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_content_draft_key_slug",
+                    "item_key ~ '^[a-z0-9]+(-[a-z0-9]+)*$'");
+
+                table.HasCheckConstraint(
+                    "ck_content_draft_body_is_object",
+                    "jsonb_typeof(body) = 'object'");
+            });
         });
 }

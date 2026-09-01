@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -88,6 +95,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
 
       - uses: docker/setup-buildx-action@v4
 

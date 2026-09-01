@@ -27,6 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
 
       # Registered even though the runtime stage contains no RUN instruction,
       # so a later change that adds one cannot silently break arm64 builds.
