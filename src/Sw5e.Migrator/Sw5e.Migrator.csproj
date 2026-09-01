@@ -5,6 +5,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The JSON Schemas, beside the assemblies. The export command needs them
+         twice over — to order each document's members, which is what makes the
+         output byte-stable, and to refuse to write one the content repository
+         would reject — and it resolves them relative to this directory.
+
+         The published image copies the same files from the same submodule
+         commit, so this changes nothing there. What it changes is running the
+         command from a source checkout, where without it the exporter would
+         simply not register and `export` would report the schemas missing. -->
+    <Content Include="..\..\external\sw5e-database\schemas\**\*.json"
+             Link="schemas\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Design is what `dotnet ef` loads to build the model at design time. It
          is referenced by this project rather than by Sw5e.Api so the API's
          published output carries no design-time tooling, and so scaffolding a

@@ -21,14 +21,37 @@ using Sw5e.Migrator;
 // Only settings-shaped arguments are handed to the configuration builder. The
 // command-line provider rejects a bare word such as "migrate" with a format
 // error, so passing args straight through would make the migrator refuse to
-// start whenever it was given something to do.
-var settings = args.Where(argument => argument.StartsWith("--", StringComparison.Ordinal)).ToArray();
-var command = args.FirstOrDefault(argument => !argument.StartsWith('-')) ?? "all";
+// start whenever it was given something to do — and it rejects a bare flag such
+// as "--check" for the same reason, which is why the export's own switches are
+// taken out here rather than looked up in configuration.
+var parsed = MigratorArguments.Parse(args);
 
-var builder = Host.CreateApplicationBuilder(settings);
+var builder = Host.CreateApplicationBuilder(parsed.Settings);
 
 builder.Services.AddSw5ePersistence(builder.Configuration);
 builder.Services.AddSw5eContentImporter();
+
+// The exporter, when this build has the schemas beside it — which the published
+// image always does, because it bakes them in from the same submodule commit
+// the validator comes from.
+//
+// Registered conditionally rather than unconditionally so that `migrate` and
+// `import`, which need no schemas at all, keep working when run from a
+// directory that has none. `export` says so plainly when it is missing, which
+// puts the failure on the command that actually needed it.
+var schemaPath = builder.Configuration["Content:SchemaPath"] ?? "schemas";
+
+// Resolved against the directory the assemblies are in rather than the working
+// directory: in the image that is /app, where the schemas are, and a job's
+// working directory is not something the deployment sets.
+var schemaRoot = Path.IsPathRooted(schemaPath)
+    ? schemaPath
+    : Path.Combine(AppContext.BaseDirectory, schemaPath);
+
+if (Directory.Exists(schemaRoot))
+{
+    builder.Services.AddSw5eContentExporter(schemaRoot);
+}
 
 // The moderation schema, which is applied by the same job for the same reason
 // the content one is: a web process that can change a schema holds rights at
@@ -56,4 +79,15 @@ Console.CancelKeyPress += (_, eventArgs) =>
     cancellation.Cancel();
 };
 
-return await MigratorCommands.RunAsync(host.Services, command, logger, cancellation.Token);
+if (parsed.Error is not null)
+{
+    logger.LogError(
+        "{Error} Usage: migrate | import | all | export --output <path> [--type <content-type>] " +
+        "[--key <slug>] [--check] [--no-prune]",
+        parsed.Error);
+
+    return MigratorCommands.UnknownCommand;
+}
+
+return await MigratorCommands.RunAsync(
+    host.Services, parsed.Command, logger, cancellation.Token, parsed.Export);
