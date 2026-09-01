@@ -68,6 +68,23 @@ internal static class AuthoringProblems
             detail: "The content type in the URL is not one this site publishes.",
             statusCode: StatusCodes.Status404NotFound);
 
+    /// <summary>The content type is real, and has no schema published.</summary>
+    /// <remarks>
+    /// Separate from <see cref="UnknownType"/> because they are different facts
+    /// and a client acts differently on each. An unknown type is an address
+    /// nobody should have built; a type with no schema is this deployment being
+    /// packaged without one, and a client that generates an editor from schemas
+    /// should fall back to editing the document directly rather than refusing
+    /// to open.
+    /// </remarks>
+    public static ProblemHttpResult NoSchema =>
+        TypedResults.Problem(
+            title: "No schema is published for that content type",
+            detail:
+                "This deployment has no schema file for that type, so its shape cannot be " +
+                "described. Documents of this type are still validated on the way in.",
+            statusCode: StatusCodes.Status404NotFound);
+
     /// <summary>No draft, document or revision by that name.</summary>
     public static ProblemHttpResult NotFound =>
         TypedResults.Problem(

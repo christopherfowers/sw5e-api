@@ -42,6 +42,38 @@ public interface IContentSchemaValidator
     /// schema at <paramref name="version"/>.
     /// </summary>
     ContentValidation Validate(ContentTypeDefinition type, int version, JsonElement body);
+
+    /// <summary>
+    /// The published schema document for <paramref name="type"/> at
+    /// <paramref name="version"/>, or null when none is published.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Reading a schema is not something validation needs, and it is on this
+    /// interface anyway, because the alternative is worse: a second component
+    /// that finds schema files by its own path convention would eventually
+    /// serve a document that is not the one being validated against, and the
+    /// symptom would be an editor drawing a form for fields the write path
+    /// refuses.
+    /// </para>
+    /// <para>
+    /// It exists because the shapes have to be readable by something other than
+    /// this service. There are thirty-one content types with thirty-one
+    /// different structures, and a client that wants to offer an editor for
+    /// them has three options: a hand-written form per type, which does not
+    /// scale and is wrong the first time a schema changes; guessing the shape
+    /// from a document, which cannot know what is required or what an absent
+    /// field would have accepted; or reading the same schema this service
+    /// validates against. Only the third can be right by construction.
+    /// </para>
+    /// <para>
+    /// Null rather than an exception for an unpublished schema. A registered
+    /// type with no schema file is a packaging mistake and the write path
+    /// already refuses it loudly; this read path has no reason to throw over
+    /// the same fact.
+    /// </para>
+    /// </remarks>
+    JsonElement? Published(ContentTypeDefinition type, int version);
 }
 
 /// <summary>The outcome of validating one document.</summary>
