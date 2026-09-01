@@ -31,6 +31,19 @@
     <!-- The content fixture is committed here so the tests never depend on the
          sibling content repository being checked out beside this one. -->
     <Content Include="TestContent\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The real JSON Schemas, from the submodule, copied beside the test
+         assembly.
+
+         The authoring tests assert that a document violating its schema is
+         refused and stores nothing. Asserting that against a schema written for
+         the test would prove only that some validator rejects some document; it
+         has to be the schema the corpus is actually held to, or the test does
+         not cover the thing that matters. Copied rather than read in place so a
+         test run does not depend on the working directory. -->
+    <Content Include="..\..\external\sw5e-database\schemas\**\*.json"
+             Link="TestSchemas\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
