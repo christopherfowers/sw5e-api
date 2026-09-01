@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Sw5e.Domain.Content;
 using Sw5e.Identity;
 using Sw5e.Identity.Administration;
@@ -234,7 +235,14 @@ internal static class AccountLifecycleHandlers
         // DELETE is the less common shape. A reason names a person and says
         // something about their conduct, and a query string is written to every
         // access log and proxy log between the browser and the process.
-        DeleteAccountRequest? request,
+        //
+        // Both halves of the attribute are load-bearing. Minimal APIs refuse to
+        // *infer* a body on DELETE — the endpoint fails to map at startup, which
+        // takes the whole application down rather than one route — so the source
+        // has to be stated. And EmptyBodyBehavior.Allow is what keeps a caller
+        // who has no reason to give from having to send `{}`; without it the
+        // parameter is required and a bodiless DELETE is a 400.
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DeleteAccountRequest? request,
         HttpContext context,
         UserManager<Sw5eUser> users,
         Sw5eIdentityDbContext store,
