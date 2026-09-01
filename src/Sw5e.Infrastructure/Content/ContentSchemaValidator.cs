@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sw5e.Database.Schemas;
@@ -32,31 +31,44 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
 {
     private readonly SchemaRepository _repository;
     private readonly SchemaValidator _validator;
-    private readonly ConcurrentDictionary<string, int> _versions = new(StringComparer.Ordinal);
-    private readonly string _root;
 
     /// <summary>
     /// The version assumed for a type whose schema directory cannot be read.
     /// </summary>
     /// <remarks>
     /// Every schema in the repository is at v1 today. This constant is what a
-    /// probe falls back to, not a hard-coded answer: the probe below reads the
+    /// probe falls back to, not a hard-coded answer: the probe reads the
     /// directory, so publishing <c>v2.json</c> is picked up without a code
     /// change, which is the property the design asks for — a content type's
     /// definition is a reviewed schema file, never a migration.
     /// </remarks>
-    public const int FallbackVersion = 1;
+    public const int FallbackVersion = SchemaRepository.FallbackVersion;
 
     public ContentSchemaValidator(string schemaRootPath)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(schemaRootPath);
-
-        _root = Path.GetFullPath(schemaRootPath);
-
         // Throws when the directory is absent. Deliberately not softened: an
         // API that starts without its schemas would accept every write and
         // validate none of them, and would look completely healthy doing it.
-        _repository = new SchemaRepository(_root);
+        : this(new SchemaRepository(
+            !string.IsNullOrWhiteSpace(schemaRootPath)
+                ? schemaRootPath
+                : throw new ArgumentException(
+                    "A schema root path is required.", nameof(schemaRootPath))))
+    {
+    }
+
+    /// <summary>
+    /// Uses a repository somebody else built.
+    /// </summary>
+    /// <remarks>
+    /// The exporter needs the same schemas this validator holds, and each
+    /// <see cref="SchemaRepository"/> compiles and caches all 31 of them
+    /// separately. Sharing one is not only cheaper, it is the difference
+    /// between a deployment where the validator and the exporter could be
+    /// looking at two different directories and one where they cannot.
+    /// </remarks>
+    public ContentSchemaValidator(SchemaRepository repository)
+    {
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _validator = new SchemaValidator(_repository);
     }
 
@@ -65,7 +77,7 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
     {
         ArgumentNullException.ThrowIfNull(type);
 
-        return _versions.GetOrAdd(type.Key, ProbeVersion);
+        return _repository.LatestVersion(type.Key);
     }
 
     /// <inheritdoc />
@@ -110,34 +122,5 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
             return ContentValidation.Invalid(
                 [$"No schema is published for content type '{type.Key}' at version {version}."]);
         }
-    }
-
-    /// <summary>
-    /// The highest <c>v{n}.json</c> present for a type.
-    /// </summary>
-    private int ProbeVersion(string typeKey)
-    {
-        var directory = Path.Combine(_root, typeKey);
-
-        if (!Directory.Exists(directory))
-        {
-            return FallbackVersion;
-        }
-
-        var highest = 0;
-
-        foreach (var file in Directory.EnumerateFiles(directory, "v*.json", SearchOption.TopDirectoryOnly))
-        {
-            var name = Path.GetFileNameWithoutExtension(file);
-
-            if (name.Length > 1 &&
-                int.TryParse(name.AsSpan(1), out var version) &&
-                version > highest)
-            {
-                highest = version;
-            }
-        }
-
-        return highest == 0 ? FallbackVersion : highest;
     }
 }
