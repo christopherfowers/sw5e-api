@@ -274,12 +274,16 @@ app.UseAuthorization();
 
 app.MapHealthEndpoints();
 
-// One anonymous route saying which deployment this is. It exists because the
-// browser application cannot work that out for itself: it is prerendered HTML
-// served by a static nginx image that is promoted from QA to production
-// unchanged, so nothing in it varies by environment and nothing in it can be
-// told. This service can be told, and already is — see SiteEnvironmentEndpoint
-// for why the answer defaults to production when nobody has said otherwise.
+// One anonymous route carrying the handful of facts the browser application
+// cannot work out for itself. It is prerendered HTML served by a static nginx
+// image that is promoted from QA to production unchanged, so nothing in it
+// varies by environment and nothing in it can be told; this service can be
+// told, and already is. It answers which deployment this is — see
+// SiteEnvironmentEndpoint for why that defaults to production when nobody has
+// said otherwise — and whether account mail is currently getting out, which is
+// how the site stops telling people to watch an inbox for a message the relay
+// has just refused. The mail flag is global and carries no address and no
+// provider reply, so it cannot be turned into a question about an account.
 app.MapSiteEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
