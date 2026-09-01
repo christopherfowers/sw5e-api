@@ -73,15 +73,25 @@ public sealed class DbContentAuthoringStore(
         // Answered in one pass rather than per draft: the worklist is a single
         // screen, and a query per row is how a page that renders instantly with
         // three drafts stops rendering at all with three hundred.
-        var keys = drafts.Select(draft => draft.ContentType).Distinct().ToArray();
+        var wanted = drafts.Select(draft => (draft.ContentType, draft.ItemKey)).ToHashSet();
+        var types = wanted.Select(item => item.ContentType).Distinct().ToArray();
+        var itemKeys = wanted.Select(item => item.ItemKey).Distinct().ToArray();
 
+        // Narrowed on both halves of the identity. Filtering on type alone
+        // would be correct and would also drag back every row of that type —
+        // 2,682 of them for `feature` — to answer a question about the handful
+        // of documents somebody has open. Filtering on the two lists separately
+        // still admits pairs nobody asked for, so the pairing is re-checked
+        // when the set is built.
         var existing = await database.ContentItems
-            .Where(item => keys.Contains(item.ContentType))
+            .AsNoTracking()
+            .Where(item => types.Contains(item.ContentType) && itemKeys.Contains(item.ItemKey))
             .Select(item => new { item.ContentType, item.ItemKey })
             .ToListAsync(cancellationToken);
 
         var present = existing
             .Select(item => (item.ContentType, item.ItemKey))
+            .Where(wanted.Contains)
             .ToHashSet();
 
         var latest = await LatestRevisionIdsAsync(drafts.Select(
@@ -250,7 +260,7 @@ public sealed class DbContentAuthoringStore(
             await database.SaveChangesAsync(token);
 
             return ContentAuthoringResult.Succeeded(revision);
-        });
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -381,7 +391,7 @@ public sealed class DbContentAuthoringStore(
             await database.SaveChangesAsync(token);
 
             return ContentAuthoringResult.Succeeded(revision);
-        });
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -635,26 +645,54 @@ public sealed class DbContentAuthoringStore(
         return (highest ?? 0) + 1;
     }
 
+    /// <summary>
+    /// The newest revision id for each of a set of documents.
+    /// </summary>
+    /// <remarks>
+    /// The grouping is done in memory rather than as a <c>GROUP BY</c> with a
+    /// correlated "first row per group". That shape is the natural way to write
+    /// it and is the one EF cannot always translate — when it fails it does so
+    /// at run time, on the worklist endpoint, rather than at build time. The
+    /// input here is the drafts outstanding right now, which is a handful of
+    /// documents on a screen somebody is looking at, so narrowing on the server
+    /// and folding on the client costs nothing and cannot fail to translate.
+    /// </remarks>
     private async Task<Dictionary<(string Type, string Key), long>> LatestRevisionIdsAsync(
         IEnumerable<(string Type, string Key)> items,
         CancellationToken cancellationToken)
     {
-        var types = items.Select(item => item.Type).Distinct().ToArray();
+        var wanted = items.ToHashSet();
 
+        if (wanted.Count == 0)
+        {
+            return [];
+        }
+
+        var types = wanted.Select(item => item.Type).Distinct().ToArray();
+        var keys = wanted.Select(item => item.Key).Distinct().ToArray();
+
+        // Both halves of the identity are filtered on so the scan is bounded by
+        // the drafts in play; the pairing is re-checked below, because filtering
+        // on the two lists separately also admits combinations nobody asked for.
         var rows = await database.ContentRevisions
-            .Where(revision => types.Contains(revision.ContentType))
-            .GroupBy(revision => new { revision.ContentType, revision.ItemKey })
-            .Select(group => new
+            .AsNoTracking()
+            .Where(revision =>
+                types.Contains(revision.ContentType) && keys.Contains(revision.ItemKey))
+            .Select(revision => new
             {
-                group.Key.ContentType,
-                group.Key.ItemKey,
-                Id = group.OrderByDescending(revision => revision.Number)
-                          .Select(revision => revision.Id)
-                          .First(),
+                revision.ContentType,
+                revision.ItemKey,
+                revision.Id,
+                revision.Number,
             })
             .ToListAsync(cancellationToken);
 
-        return rows.ToDictionary(row => (row.ContentType, row.ItemKey), row => row.Id);
+        return rows
+            .Where(row => wanted.Contains((row.ContentType, row.ItemKey)))
+            .GroupBy(row => (row.ContentType, row.ItemKey))
+            .ToDictionary(
+                group => group.Key,
+                group => group.MaxBy(row => row.Number)!.Id);
     }
 
     private static bool IsCurrent(
@@ -669,14 +707,19 @@ public sealed class DbContentAuthoringStore(
     /// strategy the retrying connection requires.
     /// </summary>
     private Task<ContentAuthoringResult> InTransactionAsync(
-        Func<CancellationToken, Task<ContentAuthoringResult>> work) =>
+        Func<CancellationToken, Task<ContentAuthoringResult>> work,
+        CancellationToken cancellationToken) =>
         database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
+            // A retried attempt starts from a context still tracking everything
+            // the failed one loaded and added; reusing that state would re-add
+            // rows the rolled-back transaction disposed of.
             database.ChangeTracker.Clear();
 
-            await using var transaction = await database.Database.BeginTransactionAsync();
+            await using var transaction =
+                await database.Database.BeginTransactionAsync(cancellationToken);
 
-            var result = await work(CancellationToken.None);
+            var result = await work(cancellationToken);
 
             // A refusal must leave nothing behind. Publishing writes the
             // catalogue row before it writes the revision, so a validation
@@ -685,11 +728,11 @@ public sealed class DbContentAuthoringStore(
             // to make impossible.
             if (result.Status != ContentAuthoringStatus.Succeeded)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return result;
             }
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(cancellationToken);
 
             return result;
         });
