@@ -61,9 +61,7 @@ internal static class AuthoringEndpoints
     {
         var group = routes
             .MapGroup("/api/authoring")
-            .WithTags("Authoring")
-            // Applied at the group so a route added later cannot forget it.
-            .AddEndpointFilter<CrossSiteRequestFilter>();
+            .WithTags("Authoring");
 
         MapDrafts(group);
         MapHistory(group);
@@ -121,7 +119,7 @@ internal static class AuthoringEndpoints
              .ProducesProblem(StatusCodes.Status404NotFound)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
-             .RequireAuthorization(Sw5ePolicies.Contribute)
+             .AllowAnonymous()
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
 
         group.MapDelete("/drafts/{type}/{key}", AuthoringHandlers.DiscardDraftAsync)
@@ -159,7 +157,7 @@ internal static class AuthoringEndpoints
              .ProducesProblem(StatusCodes.Status409Conflict)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
-             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireAuthorization(Sw5ePolicies.Contribute)
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
     }
 

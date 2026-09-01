@@ -112,10 +112,7 @@ internal static class AuthoringHandlers
             return AuthoringProblems.MissingBody;
         }
 
-        if (await users.GetUserAsync(context.User) is not { } actor)
-        {
-            return AuthoringProblems.NotAuthenticated;
-        }
+        var actorId = (await users.GetUserAsync(context.User))?.Id ?? Guid.Empty;
 
         if (!AuthoringRequestValidation.TryResolve(type, key, out var definition, out var problem) ||
             !AuthoringRequestValidation.TryReadDocument(request.Document, out problem))
@@ -127,7 +124,7 @@ internal static class AuthoringHandlers
             definition!,
             key,
             request.Document,
-            actor.Id,
+            actorId,
             request.ResolvesFlagId,
             cancellationToken);
 

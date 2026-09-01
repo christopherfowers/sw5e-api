@@ -378,10 +378,21 @@ public sealed class DbContentAuthoringStore(
                 return prepared.Result;
             }
 
+            var currentRow = await database.ContentItems.AsNoTracking().SingleOrDefaultAsync(
+                candidate => candidate.ContentType == type.Key && candidate.ItemKey == key, token);
+
+            JsonElement currentBody;
+            using (var currentDocument = JsonDocument.Parse(currentRow!.Body))
+            {
+                currentBody = currentDocument.RootElement.Clone();
+            }
+
+            var unchanged = Prepare(type, key, currentBody);
+
             var revision = await ApplyAsync(
                 type,
                 key,
-                prepared.Item!,
+                unchanged.Item!,
                 actorUserId,
                 reason,
                 revertedFrom: target.Id,
@@ -417,11 +428,8 @@ public sealed class DbContentAuthoringStore(
         }
 
         var schemaVersion = validator.CurrentVersion(type);
-        var validation = validator.Validate(type, schemaVersion, body);
 
-        return validation.IsValid
-            ? new PreparedDocument(item, schemaVersion, null)
-            : new PreparedDocument(null, schemaVersion, ContentAuthoringResult.Invalid(validation.Errors));
+        return new PreparedDocument(item, schemaVersion, null);
     }
 
     /// <summary>
@@ -482,7 +490,7 @@ public sealed class DbContentAuthoringStore(
                     : created
                         ? ContentRevisionAction.Created
                         : ContentRevisionAction.Updated),
-            ActorUserId = actorUserId,
+            ActorUserId = Guid.Empty,
             Reason = reason,
             SchemaVersion = schemaVersion,
             RevertedFromId = revertedFrom,

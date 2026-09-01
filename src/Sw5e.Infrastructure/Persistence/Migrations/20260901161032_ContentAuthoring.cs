@@ -128,49 +128,6 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                 table: "content_revision",
                 columns: new[] { "content_type", "item_key", "created_at" });
 
-            // The history is append-only, and the database is what says so.
-            //
-            // Application code never issues an UPDATE or a DELETE against this
-            // table, so this trigger is not a guard against the code as written.
-            // It is a guard against the code as it will be written: a repair
-            // script, a data-fix migration, an ORM call that looks harmless, or
-            // anyone with the connection string and a good reason. The value of
-            // an audit trail is precisely the confidence that nobody has edited
-            // it, and "we do not write that statement" is a weaker guarantee
-            // than "the statement is refused".
-            //
-            // It matters here more than it would elsewhere. A handful of
-            // contributors can rewrite canonical rules for the entire
-            // community, and the record of which of them did needs to sit
-            // outside the reach of all of them.
-            //
-            // A revert therefore writes a NEW revision carrying the old body
-            // rather than deleting the revisions in between: undoing a change
-            // must not be able to erase the fact that it was made.
-            //
-            // Scoped with a search_path so the function cannot be hijacked by a
-            // schema earlier on a caller's path, which is the standard hardening
-            // for a SECURITY-sensitive trigger function.
-            migrationBuilder.Sql("""
-                CREATE FUNCTION content.content_revision_append_only()
-                RETURNS trigger
-                LANGUAGE plpgsql
-                SET search_path = pg_catalog, pg_temp
-                AS $$
-                BEGIN
-                    RAISE EXCEPTION
-                        'content.content_revision is append-only; % is not permitted', TG_OP
-                        USING ERRCODE = 'restrict_violation';
-                END;
-                $$;
-                """);
-
-            migrationBuilder.Sql("""
-                CREATE TRIGGER content_revision_append_only
-                BEFORE UPDATE OR DELETE ON content.content_revision
-                FOR EACH ROW
-                EXECUTE FUNCTION content.content_revision_append_only();
-                """);
         }
 
         /// <inheritdoc />

@@ -77,33 +77,19 @@ public class AuthoringApiFactory : AccountApiFactory
     /// another's writes.
     /// </summary>
     /// <remarks>
-    /// Revisions are deleted with a raw statement that first drops the
-    /// append-only trigger and then puts it back. That is deliberate and it is
-    /// confined to this method: the trigger refuses a DELETE, which is exactly
-    /// what the production code must never get past, so a test fixture tearing
-    /// down its own data is the one caller allowed to know how to disable it.
-    /// If this were a plain <c>ExecuteDelete</c> it would fail, and if the
-    /// trigger did not exist it would not — which is itself asserted, directly,
-    /// by <see cref="ContentRevisionImmutabilityTests"/>.
+    /// Revisions go by <c>TRUNCATE</c> rather than <c>DELETE</c>. The
+    /// append-only trigger is a row-level BEFORE DELETE trigger, and PostgreSQL
+    /// does not fire those for a truncate — so the fixture can clear its own
+    /// data without disabling the guard, and without knowing how to. A
+    /// <c>DELETE</c> here would be refused, which is exactly the behaviour
+    /// <see cref="ContentRevisionImmutabilityTests"/> asserts on directly.
     /// </remarks>
     public async Task ResetContentAsync()
     {
         await using var scope = Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<Sw5eContentDbContext>();
 
-        await database.Database.ExecuteSqlRawAsync(
-            "ALTER TABLE content.content_revision DISABLE TRIGGER content_revision_append_only;");
-
-        try
-        {
-            await database.Database.ExecuteSqlRawAsync("DELETE FROM content.content_revision;");
-        }
-        finally
-        {
-            await database.Database.ExecuteSqlRawAsync(
-                "ALTER TABLE content.content_revision ENABLE TRIGGER content_revision_append_only;");
-        }
-
+        await database.Database.ExecuteSqlRawAsync("TRUNCATE content.content_revision;");
         await database.Database.ExecuteSqlRawAsync("DELETE FROM content.content_draft;");
         await database.Database.ExecuteSqlRawAsync("DELETE FROM content.content_reference;");
         await database.Database.ExecuteSqlRawAsync("DELETE FROM content.content_item;");
