@@ -31,36 +31,16 @@ namespace Sw5e.Api.Features.Accounts;
 /// stays with the passkey-specific code that knows what it means.
 /// </para>
 /// <para>
-/// <b>A delivery failure is reported, not thrown.</b> It used to be thrown, and
-/// that turned a misconfigured relay into a 500 from <c>register</c> and
-/// <c>email/code</c> — the two endpoints whose entire contract is that they
-/// answer identically whether or not the address has an account. Both happened
-/// to fail identically, because both branches send; the moment somebody dropped
-/// the send on the unknown-address branch as a saving, the difference between
-/// 500 and 202 would have become a perfect account-existence oracle.
-/// </para>
-/// <para>
-/// The concern behind the throw was right, though: an account flow that
-/// swallows an undeliverable message tells the user to check an inbox nothing
-/// will ever arrive in. So it is answered somewhere the caller cannot read.
-/// Every failure is logged at error with the provider's own reply, and recorded
-/// in <see cref="AccountEmailDeliveryMonitor"/>, which the readiness surface
-/// reports as degraded. The operator learns everything; the caller learns
-/// nothing.
-/// </para>
-/// <para>
-/// Exceptions are still exceptions. A malformed URL, a missing sending
-/// identity, an unconfigured public site URL — those are programmer or
-/// deployment errors that the code above cannot make right by carrying on, and
-/// they still throw. Cancellation still propagates too: a cancelled request is
-/// not a failed send and must not be recorded as one.
+/// Every path converts a failed delivery into an exception. The email library
+/// returns failures rather than throwing, which is the right default for a
+/// general-purpose sender; it is the wrong one here, because an account flow
+/// that swallows an undeliverable message tells the user to check an inbox
+/// nothing will ever arrive in.
 /// </para>
 /// </remarks>
 internal sealed class ProviderAccountEmailSender(
     IAccountEmailService accountEmail,
     IEmailSender sender,
-    AccountEmailDeliveryMonitor monitor,
-    ILogger<ProviderAccountEmailSender> logger,
     IOptions<EmailOptions> emailOptions,
     IOptions<Sw5eIdentityOptions> identityOptions) : IAccountEmailSender
 {
@@ -82,7 +62,7 @@ internal sealed class ProviderAccountEmailSender(
             _identity.EmailTokenLifetime,
             cancellationToken);
 
-        Record(result, nameof(SendEmailVerificationAsync));
+        Ensure(result, nameof(SendEmailVerificationAsync));
     }
 
     public async Task SendPasskeyRecoveryAsync(
@@ -117,7 +97,7 @@ internal sealed class ProviderAccountEmailSender(
              existing passkeys keep working either way.
              """;
 
-        await SendAsync(recipient, subject, body, nameof(SendPasskeyRecoveryAsync), cancellationToken);
+        await SendAsync(recipient, subject, body, cancellationToken);
     }
 
     public async Task SendSecurityNoticeAsync(
@@ -145,7 +125,7 @@ internal sealed class ProviderAccountEmailSender(
              anything there is unfamiliar.
              """;
 
-        await SendAsync(recipient, subject, body, nameof(SendSecurityNoticeAsync), cancellationToken);
+        await SendAsync(recipient, subject, body, cancellationToken);
     }
 
     public async Task SendSignInCodeAsync(
@@ -179,7 +159,7 @@ internal sealed class ProviderAccountEmailSender(
              you to read this code out or forward it.
              """;
 
-        await SendAsync(recipient, subject, body, nameof(SendSignInCodeAsync), cancellationToken);
+        await SendAsync(recipient, subject, body, cancellationToken);
     }
 
     public async Task SendUnknownAddressSignInNoticeAsync(
@@ -209,7 +189,6 @@ internal sealed class ProviderAccountEmailSender(
             new AccountEmailRecipient(emailAddress, string.Empty),
             subject,
             body,
-            nameof(SendUnknownAddressSignInNoticeAsync),
             cancellationToken);
     }
 
@@ -233,7 +212,6 @@ internal sealed class ProviderAccountEmailSender(
         AccountEmailRecipient recipient,
         string subject,
         string body,
-        string operation,
         CancellationToken cancellationToken)
     {
         var from = EmailAddress.Create(_email.FromAddress, _email.FromName);
@@ -246,7 +224,7 @@ internal sealed class ProviderAccountEmailSender(
             new EmailMessage(from, ToAddress(recipient), subject, body, ToHtml(body), replyTo),
             cancellationToken);
 
-        Record(result, operation);
+        Ensure(result, subject);
     }
 
     /// <summary>
@@ -279,44 +257,18 @@ internal sealed class ProviderAccountEmailSender(
         _ => "a minute",
     };
 
-    /// <summary>
-    /// Notes what the provider said, so that a message nobody received is still
-    /// a fact somebody holds.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Both kinds are logged at error, including the transient one. By the time
-    /// a result reaches here the retry decorator has already spent its
-    /// attempts, so "transient" describes the provider's excuse and not the
-    /// outcome: the message was not delivered either way, and the reader is
-    /// waiting for it either way. The kind is in the line because it tells the
-    /// operator whether to look at the relay or at the configuration.
-    /// </para>
-    /// <para>
-    /// The provider's reply is logged and goes no further. It is operator-facing
-    /// text that can quote the envelope and so name the recipient, which makes
-    /// the application log the widest audience it may have — not the health
-    /// surface, which is anonymous, and not the response, which is the caller's.
-    /// </para>
-    /// </remarks>
-    private void Record(EmailDeliveryResult result, string operation)
+    private static void Ensure(EmailDeliveryResult result, string operation)
     {
         if (result.Succeeded)
         {
-            monitor.RecordSuccess();
             return;
         }
 
-        var failure = result.Failure!;
-
-        monitor.RecordFailure(failure.Kind);
-
-        logger.LogError(
-            "Account email {Operation} was not delivered: {Kind} — {Reason}. The request was " +
-            "answered normally, because the response to it must not depend on whether mail " +
-            "got out; nothing will arrive in the recipient's inbox.",
-            operation,
-            failure.Kind,
-            failure.Reason);
+        // The reason is provider text and can name the recipient, so it reaches
+        // the log through the exception and never reaches the caller: the
+        // endpoints above turn this into a bare 500.
+        throw new InvalidOperationException(
+            $"Account email '{operation}' was not delivered: " +
+            $"{result.Failure!.Kind} — {result.Failure.Reason}");
     }
 }
