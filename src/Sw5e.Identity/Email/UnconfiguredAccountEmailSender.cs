@@ -36,6 +36,17 @@ internal sealed class UnconfiguredAccountEmailSender(ILogger<UnconfiguredAccount
         AccountEmailRecipient recipient, string summary, CancellationToken cancellationToken = default) =>
         Fail(nameof(SendSecurityNoticeAsync));
 
+    public Task SendSignInCodeAsync(
+        AccountEmailRecipient recipient,
+        string code,
+        TimeSpan validFor,
+        CancellationToken cancellationToken = default) =>
+        Fail(nameof(SendSignInCodeAsync));
+
+    public Task SendUnknownAddressSignInNoticeAsync(
+        string emailAddress, CancellationToken cancellationToken = default) =>
+        Fail(nameof(SendUnknownAddressSignInNoticeAsync));
+
     private Task Fail(string operation)
     {
         // Logged as well as thrown: the exception reaches the caller as a 500

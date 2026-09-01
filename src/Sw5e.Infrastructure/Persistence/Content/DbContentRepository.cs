@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -72,8 +72,8 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     {
         await using var database = await contextFactory.CreateDbContextAsync(cancellationToken);
 
-        // One grouped count for the whole registry rather than nine counts, and
-        // certainly rather than nine paged reads. This endpoint is on the
+        // One grouped count for the whole registry rather than fourteen counts,
+        // and certainly rather than fourteen paged reads. This endpoint is on the
         // critical path of every page load, because the site's navigation is
         // built from it.
         var counts = await database.ContentItems
@@ -356,7 +356,7 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     /// is ranked and cut inside the database. The alternative — fetching every
     /// match and bucketing them in memory — over-fetches by however many types
     /// the results cluster into, which for a one-word query against a corpus
-    /// where the same word appears in prose across nine types is most of the
+    /// where the same word appears in prose across fourteen types is most of the
     /// catalogue.
     /// </para>
     /// <para>

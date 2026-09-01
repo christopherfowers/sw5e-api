@@ -47,6 +47,32 @@ public sealed class AuthRateLimitOptions
 
     /// <summary>The window the standard budget is measured over.</summary>
     public TimeSpan StandardWindow { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Requests allowed per window to have a sign-in code emailed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Far tighter than anything else here, because this is the only endpoint
+    /// on the platform where one anonymous request causes a message to be
+    /// delivered to a mailbox the caller chose. Left on the ordinary sensitive
+    /// budget it would be a mail cannon: twenty messages every five minutes,
+    /// per address, pointed at whoever the caller likes.
+    /// </para>
+    /// <para>
+    /// Five in fifteen minutes is more than a real person needs — the flow
+    /// takes one, and a resend takes a second — and it is measured per caller
+    /// rather than per address, so it is the half of the defence that survives
+    /// an attacker who spreads one request each across ten thousand addresses.
+    /// The other half, the per-address budget, lives in the identity options
+    /// and is what survives an attacker with ten thousand addresses of their
+    /// own to send from.
+    /// </para>
+    /// </remarks>
+    public int EmailCodeRequests { get; set; } = 5;
+
+    /// <summary>The window the email-code budget is measured over.</summary>
+    public TimeSpan EmailCodeWindow { get; set; } = TimeSpan.FromMinutes(15);
 }
 
 /// <summary>
@@ -75,6 +101,12 @@ internal static class AuthRateLimiting
 
     /// <summary>Applied to the remaining account endpoints.</summary>
     public const string StandardPolicy = "sw5e-auth-standard";
+
+    /// <summary>
+    /// Applied to the one endpoint that sends mail on an anonymous caller's
+    /// say-so.
+    /// </summary>
+    public const string EmailCodePolicy = "sw5e-auth-email-code";
 
     public static IServiceCollection AddSw5eAuthRateLimiting(
         this IServiceCollection services,
@@ -111,6 +143,9 @@ internal static class AuthRateLimiting
 
             AddPolicy(limiter, StandardPolicy, options =>
                 (options.StandardRequests, options.StandardWindow));
+
+            AddPolicy(limiter, EmailCodePolicy, options =>
+                (options.EmailCodeRequests, options.EmailCodeWindow));
         });
 
         return services;

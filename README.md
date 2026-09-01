@@ -29,9 +29,9 @@ probe. In development, the OpenAPI document is served at `/openapi/v1.json`.
 |---|---|
 | `Sw5e.Api` | Endpoints, composition root, HTTP concerns |
 | `Sw5e.Domain` | Content graph model and rules |
-| `Sw5e.Infrastructure` | Content persistence and search |
+| `Sw5e.Infrastructure` | Content persistence and search, plus the `moderation` schema behind content flagging |
 | `Sw5e.Identity` | Accounts, roles, passkeys, and their own DbContext and schema |
-| `Sw5e.Migrator` | Deploy-time job: applies content migrations, then imports content |
+| `Sw5e.Migrator` | Deploy-time job: applies the content and moderation migrations, then imports content |
 | `Sw5e.Email` | Email abstraction and provider adapters |
 
 Endpoints are organized as vertical feature slices under `Features/`. Each
@@ -93,6 +93,28 @@ not an error: the API starts, logs what it skipped, and serves an empty or
 partial catalogue. The integration tests use a fixture committed under
 `tests/Sw5e.Api.Tests.Integration/TestContent`, so they never depend on that
 sibling checkout.
+
+## Which deployment this is
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/site/environment` | `{ "name": "QA", "isProduction": false }`. Anonymous, `Cache-Control: no-store`. |
+
+The site is prerendered HTML served by a static nginx image, and the same image
+is promoted from QA to production unchanged — which is the whole value of
+promoting it, and which also means nothing in it can be told which environment
+it is running in. This service can be told, and already is, so it is what the
+site asks after hydration in order to decide whether to draw its
+"test environment, nothing here is kept" banner.
+
+**A deployment that is told nothing reports production.** `ASPNETCORE_ENVIRONMENT`
+unset gives the host the name `Production`; an `ASPNETCORE_ENVIRONMENT` that is
+present but empty gives it a blank name, which is *not* production as far as
+`IsProduction()` is concerned and is normalised to production here on purpose.
+Set `ASPNETCORE_ENVIRONMENT=QA` on the QA stack to get the banner. Everything
+that is not `Production` reports itself as what it is, including names nobody
+anticipated, because a test environment with no banner is the failure this
+endpoint exists to prevent.
 
 ## Accounts
 
@@ -246,10 +268,11 @@ Three tables in a `content` schema.
 | `content_reference` | One row per cross-reference found in a document, resolved where the target exists and recorded as intent where it does not |
 | `content_type` | The type registry, seeded by migration so the type column can carry a foreign key |
 
-**The document is stored whole, not shredded into a table per type.** The nine
-SW5e content types have very little in common below the surface — a species has
-`traits[]` and markdown lore, a monster has a nested stat block, equipment
-changes shape depending on whether it is a weapon or armour — and normalising
+**The document is stored whole, not shredded into a table per type.** The
+twenty-four SW5e content types have very little in common below the surface — a
+species has `traits[]` and markdown lore, a monster has a nested stat block, a
+starship base size has a six-row tier table and six roles, equipment changes
+shape depending on whether it is a weapon or armour — and normalising
 all of it is roughly forty tables that no endpoint queries. It would also cost
 something specific: the published contract for `GET /api/content/{type}/{key}`
 is that the response body *is* the type's JSON Schema, passed through unaltered.
@@ -306,6 +329,11 @@ dotnet run --project src/Sw5e.Migrator -- import    # load content only
 dotnet run --project src/Sw5e.Migrator -- all       # both, in that order
 ```
 
+`migrate` applies two schemas: `content` and `moderation`. They are separate
+contexts with separate migration histories so each can be authored and reviewed
+on its own, and they are applied together because a deployment that migrated one
+and not the other is a deployment where half the site works.
+
 It ships inside the API image, so the two are always built from the same commit:
 
 ```bash
@@ -361,6 +389,156 @@ stops rather than publishing an empty catalogue.
 | `GET /health/ready`, `GET /api/health/ready` | Readiness. `healthy`, `degraded` (reachable, schema behind this build) or `unhealthy` (unreachable), with one entry per check. |
 
 Neither ever returns a connection string, a host name or a stack trace.
+
+## Content flagging
+
+The first feature that accepts user-submitted data. A **flag** is a report
+raised against one content document — a species entry, a rules chapter, or the
+`asset-credit` record behind a picture — and it is a note attached from the
+outside. It never mutates the thing it points at, and the handler that writes it
+holds `IContentRepository`, which is read-only by its interface, rather than a
+content `DbContext`. That is what makes "a report cannot change the reference" a
+property of the type system instead of a promise.
+
+It ships before content authoring on purpose. There is no revision history to
+attach a correction to and no write endpoint for content, and flagging needs
+neither — while the knowledge it collects is being lost right now. Around a
+hundred and fifty of the pictures inherited from the original sw5e.com have no
+recorded artist, and the people who can identify them are reading the site
+today.
+
+### Reporting a picture
+
+There is no separate image target. Every picture the site publishes already has
+an `asset-credit` document recording what is known about its provenance, keyed
+`{group}-{key}` — `species-wookiee`, `classes-guardian`, `brand-logo`. A picture
+is reported by pointing at that record, so the report points at exactly the
+document a reviewer edits to resolve it, and one existence check covers both
+kinds of target.
+
+Whether a report is about a picture or about writing is therefore **derived from
+the reason**, never sent by the client: a field the caller supplies is a field
+the caller can contradict.
+
+### Reasons
+
+| Reason | About | What a reviewer does with it |
+|---|---|---|
+| `image-artist-known` | a picture | Somebody recognises the work. Edits the `asset-credit` record from `inherited-unattributed` to `cited`. This is the one the feature was built for. |
+| `image-attribution-missing` | a picture | The credit is absent or wrong and the reporter does not know what it should say. Starts a search rather than ending one. |
+| `image-replacement-wanted` | a picture | Should be replaced with work the project owns. A commissioning queue, not a correction. |
+| `image-rights-complaint` | a picture | The rights holder objects. Sorted ahead of everything else in the queue. |
+| `image-wrong-subject` | a picture | A mis-keyed asset. Cheap to fix, cheap to verify. |
+| `text-error` | writing | A typo, a broken link, mangled formatting. |
+| `content-incorrect` | writing | The rules text disagrees with the book. Needs somebody holding the source. |
+| `content-missing` | writing | Something absent. The answer is authoring rather than correcting. |
+| `source-attribution` | writing | The rule is right and cited to the wrong book, or to none. |
+| `other` | either | Free text is compulsory. Also the taxonomy's own feedback channel. |
+
+The test for whether a reason deserves to exist is not "is this a distinct kind
+of wrongness" but "does a reviewer do something different about it". Two of
+these are not in the list this was asked for. `image-rights-complaint` is the
+same sentence as `image-replacement-wanted` read from the other side and behaves
+nothing like it — one is a wish, the other is a person saying their work is
+published without permission, which has a clock on it and must not queue behind
+two hundred requests to redraw a portrait. `content-missing` is split from
+`content-incorrect` because the work is authoring rather than correcting.
+
+### Lifecycle
+
+```
+open ──▶ accepted ──▶ resolved
+ │           │
+ └──▶ declined ◀──┘
+```
+
+Every finished state can be reopened. `declined → resolved` is refused: it would
+claim work was done on something a reviewer had just said needed none, and a
+queue that permits it has a status field nobody can trust afterwards. Restating
+the current status is refused too — it is almost always two reviewers acting on
+one row, and answering 200 would tell the second they did something they did
+not.
+
+`accepted` earns its place by being the worklist. Without it, agreeing with a
+report and fixing it are the same button, so a reviewer who reads two hundred
+attribution reports in an evening either fixes all two hundred or leaves the
+queue exactly as they found it.
+
+Each move records who made it and when, plus an optional note that is shown to
+other reviewers and never to the reporter.
+
+### Who may do what
+
+| | Report | See own reports | Read the queue | Move a report |
+|---|---|---|---|---|
+| Anonymous | no | no | no | no |
+| Community | yes | yes | no | no |
+| Contributor / Administrator | yes | yes | yes | yes |
+
+The queue additionally requires a session established with a passkey or an
+authenticator code, because the elevated policies carry that requirement — it
+holds the display name of everybody who has reported anything and the text of
+what they wrote.
+
+Opening reporting to the wider community is intended, and is designed to be a
+policy change rather than a rewrite: the per-caller limiter keyed on client
+address, the target-existence check, the bounded free text and the duplicate
+index are all things an anonymous endpoint would need anyway. What would
+genuinely have to be decided then is what a duplicate is measured against and
+what a reporter is called on the queue.
+
+### Untrusted text
+
+Free text is **stored verbatim** — not stripped of markup, not HTML-encoded on
+the way in, not sanitised. Encoding at rest makes a column's contents depend on
+which writer inserted them, double-encodes the moment anything re-encodes on
+output, and mangles the ordinary sentences the field exists to collect. Safety
+comes from escaping at every point of output, which is the only place that knows
+what it is escaping *for*: the API's JSON writer escapes it for JSON, and the
+browser client renders it as a text node.
+
+What is enforced on the way in is bounds rather than shape: at most 1,000
+characters after trimming, refused rather than truncated; no C0/C1 control
+characters beyond tab and newline; and no bidirectional overrides or isolates,
+which reorder how a line renders without changing its bytes. The rest of the
+Unicode format category is deliberately allowed, because a blanket ban would
+reject the zero-width non-joiners that Persian and Hindi need in order to spell
+ordinary words.
+
+### Refusing volume
+
+Two independent limits, because they defend against different attackers.
+
+* **Per caller**, by the rate limiter, keyed on client address and route: ten
+  submissions per ten minutes, and 120 queue reads per minute. This stops one
+  machine flooding the endpoint and does nothing about an attacker with a pool
+  of addresses.
+* **Per account**, in the handler: 50 reports a rolling day and 40 outstanding
+  at once. This is what survives that attacker, and is the half the limiter
+  cannot see — it partitions on the address, which is exactly what such an
+  attacker changes.
+
+On top of both, a filtered unique index refuses a second *outstanding* report of
+the same reason against the same target from the same account. A rate limit
+slows a flood down; this makes one pointless. It is filtered on the outstanding
+states so a decline from a year ago is a judgement rather than a permanent ban.
+
+### Configuration
+
+| Variable | Required | Notes |
+|---|---|---|
+| `ConnectionStrings__Sw5eModeration` | no | PostgreSQL, for the `moderation` schema. `Moderation__ConnectionString` overrides it; the fallbacks are `ConnectionStrings__Sw5e` and then `ConnectionStrings__Sw5eIdentity`, in that order. The migrator resolves it through the same method, so the schema is applied to the database the endpoints write to. |
+| `Flags__RateLimits__SubmitRequests` | no | `10` per ten minutes by default, per client address. |
+| `Flags__RateLimits__ReadRequests` | no | `120` per minute by default. |
+| `Flags__RateLimits__AccountReportsPerDay` | no | `50` by default. |
+| `Flags__RateLimits__AccountOutstandingReports` | no | `40` by default. |
+
+The identity connection is the last fallback so that a deployment serving
+content from files — which has no reason to set `ConnectionStrings__Sw5e` — is
+not broken by the arrival of flagging. There is deliberately **no health check**
+on this store: `/health/ready` must not report the whole deployment unhealthy
+because nobody can file a typo report, when the reference itself is served from
+an entirely different store.
 
 ## Security
 
@@ -480,7 +658,7 @@ below is supplied at run time.
 | `Sw5e__Database__CommandTimeoutSeconds` | `15` | Per-command timeout. Every query the API issues is a single-page read; one that has not answered in fifteen seconds is stuck, not slow. |
 | `Sw5e__Database__MaxRetryCount` | `3` | Retries for transient failures only — a dropped connection, a failover. A constraint violation or a syntax error is never retried. |
 | `Sw5e__Database__ReportPendingMigrations` | `true` | Whether readiness reports a schema behind this build as degraded. |
-| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document. Do not set it in a deployed stack. |
+| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document; never set that in a deployed stack. Set it to `QA` on the QA stack: anything other than `Production` makes [`/api/site/environment`](#which-deployment-this-is) report a test environment, which is what puts the "nothing here is kept" banner on the site. Leave it unset on production — the default is what keeps that banner off the live site, and an empty value counts as unset. |
 | `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development** — the app refuses to start without it. See [Email](#email). |
 | `Email__FromAddress` | unset | The sending mailbox. Required whenever `Email__Provider` is set. |
 | `Email__MailerSend__ApiToken` | unset | **Secret.** Required when the provider is `MailerSend`. Never bake it into the image. |

@@ -29,14 +29,22 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/search")]
     [InlineData("/api/auth/register")]
     [InlineData("/api/auth/email/verify")]
+    [InlineData("/api/auth/email/code")]
+    [InlineData("/api/auth/email/code/verify")]
     [InlineData("/api/auth/passkey/register/begin")]
     [InlineData("/api/auth/passkey/register/complete")]
+    [InlineData("/api/auth/passkey/{credentialId}")]
     [InlineData("/api/auth/passkey/login/begin")]
     [InlineData("/api/auth/passkey/login/complete")]
     [InlineData("/api/auth/mfa/totp/enroll")]
     [InlineData("/api/auth/mfa/totp/verify")]
     [InlineData("/api/auth/logout")]
     [InlineData("/api/auth/me")]
+    [InlineData("/api/flags")]
+    [InlineData("/api/flags/mine")]
+    [InlineData("/api/flags/summary")]
+    [InlineData("/api/flags/{flagId}/status")]
+    [InlineData("/api/site/environment")]
     public async Task Document_DescribesEveryContentRoute(string path)
     {
         var document = await DocumentAsync(factory);
@@ -69,11 +77,15 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
             [
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
+                "getSiteEnvironment",
                 "register", "verifyEmail",
-                "beginPasskeyRegistration", "completePasskeyRegistration",
+                "requestSignInCode", "verifySignInCode",
+                "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
                 "logout", "currentUser", "assignRoles",
+                "raiseFlag", "listOwnFlags",
+                "listFlags", "summariseFlags", "updateFlagStatus",
             ],
             ignoreOrder: true);
     }

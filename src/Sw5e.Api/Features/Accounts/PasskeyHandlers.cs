@@ -1,11 +1,13 @@
 using System.Buffers.Text;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Sw5e.Identity;
 using Sw5e.Identity.Email;
+using Sw5e.Identity.EmailSignIn;
 
 namespace Sw5e.Api.Features.Accounts;
 
@@ -183,6 +185,93 @@ internal static class PasskeyHandlers
             new PasskeyRegisteredResponse(credentialId, passkey.Name, passkey.CreatedAt));
     }
 
+    /// <summary>Removes one of the signed-in account's passkeys.</summary>
+    /// <remarks>
+    /// <para>
+    /// The counterpart to enrolment, and the reason the account area is worth
+    /// having: a reader who loses a device needs to be able to cut it off
+    /// without asking anybody. It requires a full session — an enrolment ticket
+    /// is permission to add a credential after proving mailbox control, and
+    /// letting it also remove one would turn an intercepted recovery link into
+    /// a way to strip an account of the credentials it already had.
+    /// </para>
+    /// <para>
+    /// The last credential is never removed; see
+    /// <see cref="AccountProblems.LastCredential"/>. Note that this is checked
+    /// against the account's own list rather than against a count held
+    /// anywhere, so two concurrent removals cannot both believe they are not
+    /// the last one and empty the account between them — the second one reads a
+    /// list of one and refuses.
+    /// </para>
+    /// </remarks>
+    public static async Task<Results<Ok<PasskeyRemovedResponse>, ProblemHttpResult>> RemoveAsync(
+        string credentialId,
+        HttpContext context,
+        UserManager<Sw5eUser> users,
+        IAccountEmailSender email,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+
+        if (await users.GetUserAsync(context.User) is not { } user)
+        {
+            return AccountProblems.NotAuthenticated;
+        }
+
+        // The identifier arrives base64url, the way WebAuthn spells it. Anything
+        // that is not is not a credential this account holds, and saying so is
+        // the same answer as not finding it.
+        if (!Base64Url.IsValid(credentialId) ||
+            Base64Url.DecodeFromChars(credentialId) is not { Length: > 0 } wanted)
+        {
+            return AccountProblems.NoSuchCredential;
+        }
+
+        var passkeys = await users.GetPasskeysAsync(user);
+
+        var passkey = passkeys.FirstOrDefault(
+            candidate => CryptographicOperations.FixedTimeEquals(candidate.CredentialId, wanted));
+
+        if (passkey is null)
+        {
+            return AccountProblems.NoSuchCredential;
+        }
+
+        if (passkeys.Count == 1)
+        {
+            logger.LogInformation(
+                "Refused to remove the only passkey on account {UserId}.", user.Id);
+
+            return AccountProblems.LastCredential;
+        }
+
+        var removed = await users.RemovePasskeyAsync(user, passkey.CredentialId);
+
+        if (!removed.Succeeded)
+        {
+            logger.LogError(
+                "Could not remove a passkey from account {UserId}: {Errors}",
+                user.Id,
+                string.Join("; ", removed.Errors.Select(error => error.Code)));
+
+            return AccountProblems.NoSuchCredential;
+        }
+
+        // To the address on file, not to whoever is holding the browser. Losing
+        // a credential is as strong a takeover signal as gaining one, and this
+        // is the message that lets the real owner notice somebody else pruning
+        // their account.
+        await email.SendSecurityNoticeAsync(
+            new AccountEmailRecipient(user.Email!, user.DisplayName),
+            "A passkey was removed from your account.",
+            cancellationToken);
+
+        logger.LogInformation("Removed a passkey from account {UserId}.", user.Id);
+
+        return TypedResults.Ok(PasskeyRemovedResponse.Removed);
+    }
+
     public static async Task<IResult> BeginLoginAsync(
         HttpContext context,
         IPasskeyHandler<Sw5eUser> passkeys,
@@ -213,7 +302,9 @@ internal static class PasskeyHandlers
         SignInManager<Sw5eUser> signIn,
         IPasskeyHandler<Sw5eUser> passkeys,
         AccountStateCookies state,
-        ILoggerFactory loggerFactory)
+        EmailSignInCodeService codes,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
 
@@ -272,16 +363,23 @@ internal static class PasskeyHandlers
 
         if (await users.GetTwoFactorEnabledAsync(user))
         {
-            await StorePendingTwoFactorAsync(context, users, user);
+            await AccountSessions.StorePendingTwoFactorAsync(context, users, user);
             logger.LogInformation("Account {UserId} passed a passkey assertion and is awaiting a second factor.", user.Id);
             return TypedResults.Ok(SignInResponse.MfaRequired);
         }
 
-        // isPersistent is false, always. A session that outlives the browser is
-        // a session that outlives the person walking away from the machine, and
-        // this platform has nothing so tedious to sign into that it is worth
-        // it. The sliding eight-hour window covers a working day.
-        await signIn.SignInAsync(user, isPersistent: false);
+        // Stamped as a passkey sign-in, which is what lets an elevated role
+        // actually be used. See Sw5eClaims and AccountSessions.
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod);
+
+        // Any sign-in code still sitting in this account's mailbox is now a
+        // live credential nobody is waiting on. Somebody who asked for one,
+        // gave up, and reached for their passkey instead should not leave a
+        // working way in behind them.
+        if (users.NormalizeEmail(user.Email) is { } normalized)
+        {
+            await codes.DiscardAsync(normalized, cancellationToken);
+        }
 
         // A successful sign-in clears the counter, so a locked-out account that
         // recovers does not stay one failure away from being locked again.
@@ -289,33 +387,8 @@ internal static class PasskeyHandlers
 
         logger.LogInformation("Account {UserId} signed in with a passkey.", user.Id);
 
-        return TypedResults.Ok(SignInResponse.Authenticated(await AccountProfile.DescribeAsync(users, user)));
-    }
-
-    /// <summary>
-    /// Records that an account has passed its first factor and is waiting on
-    /// its second.
-    /// </summary>
-    /// <remarks>
-    /// The shape of this principal is not arbitrary: it is what
-    /// <c>SignInManager.TwoFactorAuthenticatorSignInAsync</c> reads back, so
-    /// the scheme and the claim type have to match the framework's exactly for
-    /// the second half of the sign-in to find it. It carries the account
-    /// identifier and nothing else — no roles, no name — because it is not an
-    /// identity yet, and anything authorization could act on has no business
-    /// being in it.
-    /// </remarks>
-    private static async Task StorePendingTwoFactorAsync(
-        HttpContext context,
-        UserManager<Sw5eUser> users,
-        Sw5eUser user)
-    {
-        var identity = new ClaimsIdentity(IdentityConstants.TwoFactorUserIdScheme);
-        identity.AddClaim(new Claim(ClaimTypes.Name, await users.GetUserIdAsync(user)));
-
-        await context.SignInAsync(
-            IdentityConstants.TwoFactorUserIdScheme,
-            new ClaimsPrincipal(identity));
+        return TypedResults.Ok(
+            await AccountProfile.DescribeSignInAsync(users, user, Sw5eClaims.PasskeyMethod));
     }
 
     /// <summary>

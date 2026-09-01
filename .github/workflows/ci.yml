@@ -173,6 +173,35 @@ jobs:
             exit 1
           fi
 
+          # The published image, told nothing about which environment it is,
+          # must report production.
+          #
+          # This is the only place that claim can be checked against the artifact
+          # that actually ships. The site's "this is a test environment, nothing
+          # here is kept" banner is drawn from this endpoint and from nothing
+          # else, because the web tier is static prerendered HTML promoted from
+          # QA to production unchanged and has no way to know where it is
+          # running. So a default that slipped to non-production would put that
+          # banner on the live site, on every page, and the unit tests would stay
+          # green throughout: they exercise the decision, not the image, and the
+          # image is where an appsettings default or a stray ENV line would do
+          # the damage.
+          #
+          # Note what is deliberately absent from the `docker run` above: there
+          # is no ASPNETCORE_ENVIRONMENT. That is the point of asserting here.
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8080/api/site/environment > environment.json
+          cat environment.json
+          echo
+
+          if [ "$(jq -r '.isProduction' environment.json)" != "true" ]; then
+            echo "::error::The image reports a non-production environment when" \
+              "nothing told it which environment it is. A deployment that" \
+              "forgets one variable would show a test-environment banner on the" \
+              "live site."
+            exit 1
+          fi
+
           # A root-run container would defeat the point of the USER line.
           uid=$(docker exec sw5e-api-smoke id -u)
           echo "Container UID: $uid"

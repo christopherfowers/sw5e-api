@@ -79,6 +79,17 @@ internal static class AdministrationHandlers
             return AccountProblems.Invalid("Those roles could not be revoked.");
         }
 
+        var elevated = requested.Contains(Sw5eRoles.Contributor) ||
+                       requested.Contains(Sw5eRoles.Administrator);
+
+        // A passkey or an authenticator app. Either satisfies the requirement,
+        // because either proves possession of something during sign-in; a
+        // mailbox does not, which is why an emailed code is not on this list.
+        var hasSecondFactor =
+            target.TwoFactorEnabled || (await users.GetPasskeysAsync(target)).Count > 0;
+
+        var awaitingSecondFactor = elevated && !hasSecondFactor;
+
         if (toGrant.Length > 0 || toRevoke.Length > 0)
         {
             // Rotating the stamp is what makes a revocation take effect on a
@@ -98,17 +109,38 @@ internal static class AdministrationHandlers
 
             // The account finds out from the platform rather than by noticing.
             // A silent privilege change is one nobody can dispute.
+            //
+            // When the new role cannot be used yet, the message says so and
+            // says what to do about it. The alternative — the ordinary notice —
+            // would leave somebody who has just been made a contributor to
+            // discover on their own that the contributor tools answer 403, and
+            // the most likely conclusion they would draw is that the grant did
+            // not happen.
             await email.SendSecurityNoticeAsync(
                 new AccountEmailRecipient(target.Email!, target.DisplayName),
-                "The permissions on your account were changed by an administrator.",
+                awaitingSecondFactor
+                    ? "The permissions on your account were changed by an administrator. " +
+                      "Before you can use them you need to add a passkey or an authenticator " +
+                      "app: roles that let you publish content require one, and your account " +
+                      "does not have either yet. Both are set up from your account settings."
+                    : "The permissions on your account were changed by an administrator.",
                 cancellationToken);
+        }
+
+        if (awaitingSecondFactor)
+        {
+            logger.LogWarning(
+                "Account {TargetId} holds an elevated role with no passkey and no authenticator, " +
+                "so it cannot use it until one is enrolled.",
+                target.Id);
         }
 
         var roles = await users.GetRolesAsync(target);
 
         return TypedResults.Ok(new AccountRolesResponse(
             target.Id,
-            [.. roles.OrderBy(role => role, StringComparer.Ordinal)]));
+            [.. roles.OrderBy(role => role, StringComparer.Ordinal)],
+            awaitingSecondFactor));
     }
 
     private static bool TryReadRoles(

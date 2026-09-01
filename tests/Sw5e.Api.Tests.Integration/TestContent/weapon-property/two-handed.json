@@ -1,0 +1,6 @@
+{
+  "key": "two-handed",
+  "name": "Two-Handed",
+  "contentSet": "core",
+  "description": "A weapon with this property requires two hands to use."
+}

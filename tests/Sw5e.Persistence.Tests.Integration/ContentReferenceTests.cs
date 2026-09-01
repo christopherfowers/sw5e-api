@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Sw5e.Infrastructure.Persistence.Content;
 
@@ -13,8 +13,10 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// database rather than in files, so it is the part with the most to get wrong.
 /// The fixture is built so that every interesting case is present: a link by
 /// slug, a link by display name, a link whose target has not been written, a
-/// link whose target type does not exist as a content type at all, and a link
-/// buried in a prose sentence beside conditions that are not links.
+/// link whose target type does not exist as a content type at all, a link
+/// buried in a prose sentence beside conditions that are not links, and a
+/// printed clause whose target type depends on the linking document's own
+/// category.
 /// </remarks>
 public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTest(fixture)
 {
@@ -24,7 +26,7 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
 
     /// <summary>
     /// Every item that declares a source gets an edge to it, and every one of
-    /// those resolves, because both sources are in the fixture.
+    /// those resolves, because all three sources are in the fixture.
     /// </summary>
     /// <remarks>
     /// The count is asserted exactly. "At least one source edge" would pass
@@ -43,21 +45,26 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
             .Include(reference => reference.FromItem)
             .ToListAsync();
 
-        // Fifteen of the nineteen fixture documents declare a sourceKey. The
-        // two sources do not have one of their own, and neither feature does:
-        // the feature schema has no sourceKey field at all.
-        sourceEdges.Count.ShouldBe(15);
+        // Thirty of the fifty-one fixture documents declare a sourceKey. The
+        // twenty-one that do not are the three sources, which are the
+        // provenance rather than carrying one; the deliberately nameless
+        // background that never gets imported; the attribution types, which are
+        // about this site rather than about a book; and the two property
+        // glossaries and the reference tables, because the archive records no
+        // book for them and naming one would be a fabricated citation rather
+        // than a missing one.
+        sourceEdges.Count.ShouldBe(30);
         sourceEdges.ShouldAllBe(edge => edge.ResolvedItemId != null);
         sourceEdges.ShouldAllBe(edge => edge.TargetKind == ContentReferenceTargetKind.Key);
 
         sourceEdges.Select(edge => edge.FromItem!.ContentType).Distinct()
                    .OrderBy(type => type, StringComparer.Ordinal)
-                   .ShouldBe(["archetype", "background", "equipment", "feat", "monster", "power", "species"]);
-
-        (await database.ContentReferences.CountAsync(
-            reference => reference.Relation == "source" &&
-                         reference.FromItem!.ContentType == "feature"))
-            .ShouldBe(0);
+                   .ShouldBe([
+                       "archetype", "background", "class", "class-improvement",
+                       "enhanced-item", "equipment", "feat", "feature",
+                       "lightsaber-form", "maneuver", "monster", "power", "rule",
+                       "species", "weapon-focus"
+                   ]);
     }
 
     /// <summary>
@@ -97,31 +104,45 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     }
 
     /// <summary>
-    /// An archetype names its class, and there is no class content type. The
-    /// edge is still recorded.
+    /// Two different types name their class the same way, and both edges land
+    /// on the same class row.
     /// </summary>
     /// <remarks>
-    /// This is the case a foreign key to <c>content_item</c> would have made
-    /// unimportable. The set of classes the corpus refers to is currently
-    /// knowable only from these edges, and it is what tells whoever authors the
-    /// class type what has to be in it. An importer that dropped unresolvable
-    /// references would import this archetype without complaint and lose that
-    /// information silently.
+    /// This edge used to be the corpus's only record that classes existed at
+    /// all: it was recorded and left dangling, because nothing had authored the
+    /// class type yet. Now that a class is a real item, the same rule has to
+    /// resolve rather than merely record — and it has to do so from an
+    /// archetype and from a class improvement alike, since the class page is
+    /// the only route to either of them.
     /// </remarks>
     [DockerFact]
-    public async Task Import_RecordsAnArchetypesClassEvenThoughNoClassTypeExists()
+    public async Task Import_ResolvesAnArchetypeAndAnImprovementToTheSameClass()
     {
         await Database.ImportAsync();
 
         await using var database = Database.CreateContext();
 
-        var edge = await database.ContentReferences.SingleAsync(
-            reference => reference.Relation == "class");
+        var edges = await database.ContentReferences
+            .Include(reference => reference.ResolvedItem)
+            .Where(reference => reference.Relation == "class")
+            .OrderBy(reference => reference.Id)
+            .ToListAsync();
 
-        edge.TargetType.ShouldBe("class");
-        edge.TargetIdentifier.ShouldBe("Guardian");
-        edge.ResolvedItemId.ShouldBeNull();
-        edge.JsonPath.ShouldBe("$.className");
+        edges.Count.ShouldBe(2);
+
+        foreach (var edge in edges)
+        {
+            edge.TargetType.ShouldBe("class");
+            edge.TargetIdentifier.ShouldBe("Guardian");
+            edge.JsonPath.ShouldBe("$.className");
+            edge.ResolvedItem.ShouldNotBeNull();
+            edge.ResolvedItem!.ItemKey.ShouldBe("guardian");
+            edge.ResolvedItem.ContentType.ShouldBe("class");
+        }
+
+        // Both edges resolve to one row, which is what makes "everything that
+        // belongs to the guardian" a single query rather than a name match.
+        edges.Select(edge => edge.ResolvedItemId).Distinct().Count().ShouldBe(1);
     }
 
     /// <summary>
@@ -168,8 +189,10 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     {
         var result = await Database.ImportAsync();
 
-        // Three in the fixture: the archetype's class, the power that requires
-        // a power nobody has written, and the background's third feat option.
+        // Three in the fixture: the power that requires a power nobody has
+        // written, the background's third feat option, and the bowcaster's
+        // reload property, whose glossary entry is deliberately absent so that
+        // an unresolved property clause is covered too.
         result.ReferencesUnresolved.ShouldBe(3);
 
         result.Warnings.ShouldContain(
@@ -177,6 +200,51 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
 
         result.Warnings.ShouldContain(
             warning => warning.Contains("Ace Pilot") && warning.Contains("$.featOptions[2].name"));
+    }
+
+    /// <summary>
+    /// A maneuver declares two different edges to other maneuvers, and they are
+    /// not the same edge written twice.
+    /// </summary>
+    /// <remarks>
+    /// The prerequisite is the gate and names the tier immediately below;
+    /// <c>improves</c> names the base maneuver the chain hangs off. For a third
+    /// tier those are different documents — Administer Aid (Greater) requires
+    /// Administer Aid (Improved) and improves Administer Aid — so an extractor
+    /// that treated one as a synonym for the other would publish a chain that
+    /// skips a tier. The fixture holds Riposte and Riposte (Improved), where
+    /// the two edges happen to agree, which is why the assertions check the
+    /// relations separately rather than counting edges.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_RecordsBothAManeuversGateAndTheManeuverItUpgrades()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        var edges = await database.ContentReferences
+            .Include(reference => reference.FromItem)
+            .Include(reference => reference.ResolvedItem)
+            .Where(reference => reference.FromItem!.ItemKey == "riposte-improved")
+            .ToListAsync();
+
+        var gate = edges.Single(edge => edge.Relation == "prerequisiteManeuver");
+        gate.TargetType.ShouldBe("maneuver");
+        gate.TargetIdentifier.ShouldBe("Riposte");
+        gate.ResolvedItem!.ItemKey.ShouldBe("riposte");
+
+        var upgrade = edges.Single(edge => edge.Relation == "improvesManeuver");
+        upgrade.JsonPath.ShouldBe("$.improves");
+        upgrade.TargetIdentifier.ShouldBe("Riposte");
+        upgrade.ResolvedItem!.ItemKey.ShouldBe("riposte");
+
+        // The base maneuver has neither, and a maneuver with no prerequisite
+        // must not produce an edge to a maneuver called "" or to itself.
+        (await database.ContentReferences.CountAsync(
+            reference => reference.FromItem!.ItemKey == "riposte" &&
+                         reference.Relation != "source"))
+            .ShouldBe(0);
     }
 
     /// <summary>
@@ -248,6 +316,133 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     }
 
     /// <summary>
+    /// Every shape of printed property clause is read back to the property's
+    /// name.
+    /// </summary>
+    /// <remarks>
+    /// The bowcaster is in the fixture because its five clauses are the whole
+    /// grammar in one row: a bare name ("two-handed"), a numeric argument
+    /// ("burst 4", "reload 4", "strength 13") and a parenthesised one ("power
+    /// cell (range 50/200)"). The last is the case that kept this rule
+    /// unwritten for so long — taking the leading token yields "power", which
+    /// names nothing — so it is asserted by name rather than only counted.
+    /// Reload's glossary entry is left out of the fixture on purpose: without a
+    /// clause that dangles, this would pass against an extractor that quietly
+    /// dropped anything it could not resolve.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_ReadsThePropertyNameOutOfEveryShapeOfPrintedClause()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        var edges = await database.ContentReferences
+            .Where(reference => reference.Relation == "property" &&
+                                reference.FromItem!.ItemKey == "bowcaster")
+            .Include(reference => reference.ResolvedItem)
+            .OrderBy(reference => reference.Ordinal)
+            .ToListAsync();
+
+        edges.Select(edge => edge.TargetIdentifier)
+             .ShouldBe(["burst", "power cell", "reload", "strength", "two-handed"]);
+
+        edges.Select(edge => edge.JsonPath)
+             .ShouldBe([
+                 "$.properties[0]", "$.properties[1]", "$.properties[2]",
+                 "$.properties[3]", "$.properties[4]",
+             ]);
+
+        edges.ShouldAllBe(edge => edge.TargetType == "weapon-property");
+        edges.ShouldAllBe(edge => edge.TargetKind == ContentReferenceTargetKind.Name);
+
+        // Printed clauses are lower case and glossary names are title case, so
+        // resolving at all is the case-insensitive join doing its job.
+        edges.Select(edge => edge.ResolvedItem?.ItemKey)
+             .ShouldBe(["burst", "power-cell", null, "strength", "two-handed"]);
+    }
+
+    /// <summary>
+    /// A name published in both glossaries resolves to the one the item's
+    /// category names.
+    /// </summary>
+    /// <remarks>
+    /// Interlocking, silent, strength and versatile appear in the weapon and
+    /// the armour glossary with different rules, so an extractor that emitted a
+    /// single "property" target type would resolve "strength 13" to whichever
+    /// row it met first and tell a player wearing battle armour that their
+    /// blaster kicks. Both Strength entries are in the fixture, which is what
+    /// makes this a real test rather than a lookup that could only have found
+    /// one answer.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_ResolvesASharedPropertyNameThroughTheItemsOwnCategory()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        (await database.ContentItems.CountAsync(
+            item => item.ItemKey == "strength" &&
+                    (item.ContentType == "weapon-property" || item.ContentType == "armor-property")))
+            .ShouldBe(2, "both glossaries must hold a Strength entry for this to prove anything");
+
+        var armour = await database.ContentReferences
+            .Where(reference => reference.Relation == "property" &&
+                                reference.FromItem!.ItemKey == "battle-armor")
+            .Include(reference => reference.ResolvedItem)
+            .OrderBy(reference => reference.Ordinal)
+            .ToListAsync();
+
+        armour.Select(edge => edge.TargetIdentifier).ShouldBe(["bulky", "strength"]);
+        armour.ShouldAllBe(edge => edge.TargetType == "armor-property");
+        armour.ShouldAllBe(edge => edge.ResolvedItem!.ContentType == "armor-property");
+
+        var weapon = await database.ContentReferences
+            .Include(reference => reference.ResolvedItem)
+            .SingleAsync(reference => reference.Relation == "property" &&
+                                      reference.FromItem!.ItemKey == "bowcaster" &&
+                                      reference.TargetIdentifier == "strength");
+
+        weapon.ResolvedItem!.ContentType.ShouldBe("weapon-property");
+    }
+
+    /// <summary>
+    /// Property edges come only from rows that print properties, and only ever
+    /// point into one of the two glossaries.
+    /// </summary>
+    /// <remarks>
+    /// The combat suit is armour with no printed properties, so it must
+    /// contribute nothing — an extractor that emitted an edge per item rather
+    /// than per clause would show up here and nowhere else. The totals are then
+    /// asserted across the whole corpus, because a target type is a column
+    /// queries filter on: if a clause ever produced an edge into some third
+    /// type, this is the assertion that names it.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_EmitsPropertyEdgesOnlyForRowsThatPrintThem()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        (await database.ContentReferences.CountAsync(
+            reference => reference.Relation == "property" &&
+                         reference.FromItem!.ItemKey == "combat-suit"))
+            .ShouldBe(0, "the combat suit's row prints no properties");
+
+        var byType = await database.ContentReferences
+            .Where(reference => reference.Relation == "property")
+            .GroupBy(reference => reference.TargetType)
+            .Select(group => new { Type = group.Key, Count = group.Count() })
+            .ToListAsync();
+
+        byType.OrderBy(row => row.Type, StringComparer.Ordinal)
+              .Select(row => $"{row.Type}={row.Count}")
+              .ShouldBe(["armor-property=2", "weapon-property=7"]);
+    }
+
+    /// <summary>
     /// The graph is traversable backwards, which is what the print pipeline
     /// needs: given a publication, collect everything printed in it.
     /// </summary>
@@ -275,7 +470,19 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
             .OrderBy(identity => identity)
             .ToListAsync();
 
-        printedThere.ShouldBe(["monster/womp-rat", "power/mind-shatter", "species/zabrak"]);
+        // Every document in the fixture that names ec as its source, whatever
+        // type it is. The enhanced items and the variant rule are here because
+        // the Expanded Content supplement really does print them, which is the
+        // point of traversing the edge rather than trusting a type list.
+        printedThere.ShouldBe([
+            "class-improvement/guardian-multiclass-improvement",
+            "enhanced-item/cryo-cell-average",
+            "enhanced-item/ghostfire-crystal",
+            "monster/womp-rat",
+            "power/mind-shatter",
+            "rule/aging",
+            "species/zabrak",
+        ]);
     }
 
     /// <summary>

@@ -289,11 +289,27 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Key = "class",
+                            DisplayName = "Class",
+                            PluralName = "Classes",
+                            RouteSegment = "classes",
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            Key = "class-improvement",
+                            DisplayName = "Class improvement",
+                            PluralName = "Class improvements",
+                            RouteSegment = "class-improvements",
+                            SortOrder = 4
+                        },
+                        new
+                        {
                             Key = "archetype",
                             DisplayName = "Archetype",
                             PluralName = "Archetypes",
                             RouteSegment = "archetypes",
-                            SortOrder = 3
+                            SortOrder = 5
                         },
                         new
                         {
@@ -301,7 +317,7 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             DisplayName = "Feature",
                             PluralName = "Features",
                             RouteSegment = "features",
-                            SortOrder = 4
+                            SortOrder = 6
                         },
                         new
                         {
@@ -309,7 +325,7 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             DisplayName = "Feat",
                             PluralName = "Feats",
                             RouteSegment = "feats",
-                            SortOrder = 5
+                            SortOrder = 7
                         },
                         new
                         {
@@ -317,7 +333,55 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             DisplayName = "Power",
                             PluralName = "Powers",
                             RouteSegment = "powers",
-                            SortOrder = 6
+                            SortOrder = 8
+                        },
+                        new
+                        {
+                            Key = "maneuver",
+                            DisplayName = "Maneuver",
+                            PluralName = "Maneuvers",
+                            RouteSegment = "maneuvers",
+                            SortOrder = 9
+                        },
+                        new
+                        {
+                            Key = "fighting-style",
+                            DisplayName = "Fighting Style",
+                            PluralName = "Fighting Styles",
+                            RouteSegment = "fighting-styles",
+                            SortOrder = 10
+                        },
+                        new
+                        {
+                            Key = "fighting-mastery",
+                            DisplayName = "Fighting Mastery",
+                            PluralName = "Fighting Masteries",
+                            RouteSegment = "fighting-masteries",
+                            SortOrder = 11
+                        },
+                        new
+                        {
+                            Key = "lightsaber-form",
+                            DisplayName = "Lightsaber Form",
+                            PluralName = "Lightsaber Forms",
+                            RouteSegment = "lightsaber-forms",
+                            SortOrder = 12
+                        },
+                        new
+                        {
+                            Key = "weapon-focus",
+                            DisplayName = "Weapon Focus",
+                            PluralName = "Weapon Focuses",
+                            RouteSegment = "weapon-focuses",
+                            SortOrder = 13
+                        },
+                        new
+                        {
+                            Key = "weapon-supremacy",
+                            DisplayName = "Weapon Supremacy",
+                            PluralName = "Weapon Supremacies",
+                            RouteSegment = "weapon-supremacies",
+                            SortOrder = 14
                         },
                         new
                         {
@@ -325,7 +389,31 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             DisplayName = "Equipment",
                             PluralName = "Equipment",
                             RouteSegment = "equipment",
-                            SortOrder = 7
+                            SortOrder = 15
+                        },
+                        new
+                        {
+                            Key = "enhanced-item",
+                            DisplayName = "Enhanced item",
+                            PluralName = "Enhanced items",
+                            RouteSegment = "enhanced-items",
+                            SortOrder = 16
+                        },
+                        new
+                        {
+                            Key = "weapon-property",
+                            DisplayName = "Weapon property",
+                            PluralName = "Weapon properties",
+                            RouteSegment = "weapon-properties",
+                            SortOrder = 17
+                        },
+                        new
+                        {
+                            Key = "armor-property",
+                            DisplayName = "Armor property",
+                            PluralName = "Armor properties",
+                            RouteSegment = "armor-properties",
+                            SortOrder = 18
                         },
                         new
                         {
@@ -333,7 +421,95 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             DisplayName = "Monster",
                             PluralName = "Monsters",
                             RouteSegment = "monsters",
-                            SortOrder = 8
+                            SortOrder = 19
+                        },
+                        new
+                        {
+                            Key = "starship-base-size",
+                            DisplayName = "Starship Base Size",
+                            PluralName = "Starship Base Sizes",
+                            RouteSegment = "starship-base-sizes",
+                            SortOrder = 20
+                        },
+                        new
+                        {
+                            Key = "starship-deployment",
+                            DisplayName = "Starship Deployment",
+                            PluralName = "Starship Deployments",
+                            RouteSegment = "starship-deployments",
+                            SortOrder = 21
+                        },
+                        new
+                        {
+                            Key = "starship-equipment",
+                            DisplayName = "Starship Equipment",
+                            PluralName = "Starship Equipment",
+                            RouteSegment = "starship-equipment",
+                            SortOrder = 22
+                        },
+                        new
+                        {
+                            Key = "starship-modification",
+                            DisplayName = "Starship Modification",
+                            PluralName = "Starship Modifications",
+                            RouteSegment = "starship-modifications",
+                            SortOrder = 23
+                        },
+                        new
+                        {
+                            Key = "starship-venture",
+                            DisplayName = "Starship Venture",
+                            PluralName = "Starship Ventures",
+                            RouteSegment = "starship-ventures",
+                            SortOrder = 24
+                        },
+                        new
+                        {
+                            Key = "starship-rule",
+                            DisplayName = "Starship Rule",
+                            PluralName = "Starship Rules",
+                            RouteSegment = "starship-rules",
+                            SortOrder = 25
+                        },
+                        new
+                        {
+                            Key = "rule",
+                            DisplayName = "Rule",
+                            PluralName = "Rules",
+                            RouteSegment = "rules",
+                            SortOrder = 26
+                        },
+                        new
+                        {
+                            Key = "reference-table",
+                            DisplayName = "Reference table",
+                            PluralName = "Reference tables",
+                            RouteSegment = "reference-tables",
+                            SortOrder = 27
+                        },
+                        new
+                        {
+                            Key = "credit-category",
+                            DisplayName = "Credit category",
+                            PluralName = "Credit categories",
+                            RouteSegment = "credit-categories",
+                            SortOrder = 28
+                        },
+                        new
+                        {
+                            Key = "credit",
+                            DisplayName = "Credit",
+                            PluralName = "Credits",
+                            RouteSegment = "credits",
+                            SortOrder = 29
+                        },
+                        new
+                        {
+                            Key = "asset-credit",
+                            DisplayName = "Asset credit",
+                            PluralName = "Asset credits",
+                            RouteSegment = "asset-credits",
+                            SortOrder = 30
                         });
                 });
 

@@ -38,6 +38,71 @@ public sealed class ContentItemEndpointTests(ContentApiFactory factory)
         body.Text("name").ShouldBe("Player's Handbook");
     }
 
+    /// <summary>
+    /// An enhanced item comes back whole, with the fields that make it a type
+    /// of its own rather than a variant of equipment.
+    /// </summary>
+    /// <remarks>
+    /// The published contract is that the body is the document exactly as its
+    /// JSON Schema defines it, so the assertion is on the schema's own field
+    /// names. The absences matter as much as the values: an enhanced item has
+    /// no price and no weight, which is precisely why folding these 1,918 rows
+    /// into equipment would have made eleven of that type's fields conditional.
+    /// </remarks>
+    [Fact]
+    public async Task Item_ReturnsAnEnhancedItemWithItsRarityAndAttunement()
+    {
+        var response = await factory.CreateClient()
+            .GetAsync("/api/content/enhanced-items/ghostfire-crystal");
+        var body = await JsonResponse.ReadAsync(response);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.Text("type").ShouldBe("enhanced-item");
+        body.Text("name").ShouldBe("Ghostfire Crystal");
+
+        var data = body.GetProperty("data");
+
+        data.Text("itemType").ShouldBe("itemModification");
+        data.Text("rarity").ShouldBe("legendary");
+        data.GetProperty("requiresAttunement").GetBoolean().ShouldBeFalse();
+        data.Text("subtype").ShouldBe("lightweapon");
+
+        data.TryGetProperty("costInCredits", out _).ShouldBeFalse();
+        data.TryGetProperty("weight", out _).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// A rule comes back as the whole passage, not as a summary of one.
+    /// </summary>
+    /// <remarks>
+    /// A chapter is reproduced whole rather than split into a document per
+    /// heading, because the scrape did not preserve a heading hierarchy
+    /// reliably enough to split on and because searching one page for a
+    /// half-remembered rule is the thing readers do with it. The length check
+    /// is what says the body survived the round trip rather than being
+    /// truncated to the projected summary.
+    /// </remarks>
+    [Fact]
+    public async Task Item_ReturnsARuleChapterInFull()
+    {
+        var response = await factory.CreateClient()
+            .GetAsync("/api/content/rules/phb-using-ability-scores");
+        var body = await JsonResponse.ReadAsync(response);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.Text("name").ShouldBe("Using Ability Scores");
+
+        var data = body.GetProperty("data");
+
+        data.Text("ruleType").ShouldBe("chapter");
+        data.GetProperty("chapterNumber").GetInt32().ShouldBe(7);
+
+        var text = data.Text("body");
+
+        text.Length.ShouldBeGreaterThan(30_000);
+        text.ShouldContain("saving throw proficiencies");
+    }
+
     [Fact]
     public async Task Item_ReturnsNotFoundForAnAbsentKey()
     {

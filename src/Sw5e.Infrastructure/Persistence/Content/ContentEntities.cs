@@ -1,4 +1,4 @@
-namespace Sw5e.Infrastructure.Persistence.Content;
+﻿namespace Sw5e.Infrastructure.Persistence.Content;
 
 /// <summary>
 /// One row of the content type registry, mirrored into the database.
@@ -45,7 +45,8 @@ public sealed class ContentTypeRow
 /// <b>Why one table with a jsonb body rather than a table per content type.</b>
 /// </para>
 /// <para>
-/// The nine SW5e content types have almost nothing in common below the surface.
+/// The fourteen SW5e content types have almost nothing in common below the
+/// surface.
 /// A species carries <c>traits[]</c>, <c>abilityScoreIncreaseOptions[]</c> and a
 /// block of markdown lore; a monster carries a stat block with nested action,
 /// legendary action and spellcasting structures; equipment carries a different
@@ -118,7 +119,7 @@ public sealed class ContentItemRow
     /// belongs where the predicate can reach it without a join. The same value
     /// is <em>also</em> written as a reference row, which is what makes
     /// "everything published in the Player's Handbook" answerable across all
-    /// nine types at once.
+    /// fourteen types at once.
     /// </remarks>
     public string? SourceKey { get; set; }
 

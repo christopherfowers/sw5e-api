@@ -40,7 +40,7 @@ public sealed class PasskeyAuthenticationTests(PostgresFixture postgres) : IAsyn
 
         var body = await me.ReadJsonAsync();
         body.GetProperty("email").GetString().ShouldBe(account.EmailAddress);
-        body.GetProperty("passkeyCount").GetInt32().ShouldBe(1);
+        body.GetProperty("passkeys").GetArrayLength().ShouldBe(1);
         body.GetProperty("twoFactorEnabled").GetBoolean().ShouldBeFalse();
 
         // The default role, granted at registration. Without it, authorization

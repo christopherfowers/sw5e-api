@@ -8,7 +8,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Sw5e.Identity.Authorization;
 using Sw5e.Identity.Email;
+using Sw5e.Identity.EmailSignIn;
+using Sw5e.Identity.TwoFactor;
 
 namespace Sw5e.Identity;
 
@@ -64,6 +67,15 @@ public static class Sw5eIdentityServiceCollectionExtensions
         // attempt to send throws rather than pretending it delivered. See
         // UnconfiguredAccountEmailSender for why a no-op would be a bug.
         services.TryAddScoped<IAccountEmailSender, UnconfiguredAccountEmailSender>();
+
+        // Issues and redeems the emailed sign-in codes. Scoped, because it
+        // holds the request's DbContext.
+        services.AddScoped<EmailSignInCodeService>();
+
+        // Every clock in this assembly is read through TimeProvider, so a test
+        // can move the acceptance window of an authenticator code or the expiry
+        // of an emailed one without waiting for real minutes to pass.
+        services.TryAddSingleton(TimeProvider.System);
 
         if (options.InitializeDatabaseAtStartup)
         {
@@ -175,7 +187,21 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // Supplies the authenticator (TOTP) provider used for two-factor
             // enrolment and verification, and the data-protection token
             // provider behind email verification and recovery.
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+
+            // Replaces the authenticator provider that line just registered,
+            // under the same name, so that every existing caller —
+            // VerifyTwoFactorTokenAsync during enrolment,
+            // TwoFactorAuthenticatorSignInAsync during sign-in — resolves to
+            // this one without being changed. Registering under a new name
+            // instead would leave the framework's provider in place as a
+            // second, differently-behaved way to satisfy the same check.
+            //
+            // The only difference is that the acceptance window becomes a
+            // configured value instead of a constant compiled into an internal
+            // framework type. See Sw5eAuthenticatorTokenProvider.
+            .AddTokenProvider<Sw5eAuthenticatorTokenProvider>(
+                TokenOptions.DefaultAuthenticatorProvider);
 
         // Applies to the email verification and recovery tokens.
         services.Configure<DataProtectionTokenProviderOptions>(
@@ -236,17 +262,41 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // exist here, which a fetch() client sees as a successful
             // navigation to nowhere. Answer with the status codes the contract
             // promises instead.
-            cookie.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
-            };
+            //
+            // The body matters as much as the status. Setting the status alone
+            // produces a 401 with no content type and no payload, which is
+            // indistinguishable — to a client that decides what happened by
+            // looking at the body — from a reverse proxy answering while the
+            // API is not mounted. A browser client that made that mistake would
+            // tell every signed-out reader the service was unreachable instead
+            // of offering them a way to sign in. Every other refusal in this
+            // API is a problem document, so these two are as well.
+            cookie.Events.OnRedirectToLogin = context => WriteProblemAsync(
+                context.HttpContext,
+                StatusCodes.Status401Unauthorized,
+                "Authentication required",
+                "This request requires a signed-in account.");
 
+            // Two different refusals wear the same status code, and telling
+            // them apart is the difference between a page that says "you cannot
+            // do this" and one that says "sign in with your passkey and you
+            // can". Both are facts about the caller's own session, so neither
+            // discloses anything: an account already knows how it signed in.
             cookie.Events.OnRedirectToAccessDenied = context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return Task.CompletedTask;
-            };
+                context.HttpContext.User.Identity?.IsAuthenticated == true &&
+                !Sw5eClaims.HasStrongAuthentication(context.HttpContext.User)
+                    ? WriteProblemAsync(
+                        context.HttpContext,
+                        StatusCodes.Status403Forbidden,
+                        "Stronger sign-in required",
+                        "This action needs a passkey or an authenticator app. Sign in again " +
+                        "using one of those, or enrol one first if the account has neither.",
+                        StrongAuthenticationRequired)
+                    : WriteProblemAsync(
+                        context.HttpContext,
+                        StatusCodes.Status403Forbidden,
+                        "Forbidden",
+                        "This account may not perform that action.");
 
             cookie.Events.OnRedirectToLogout = context =>
             {
@@ -378,8 +428,68 @@ public static class Sw5eIdentityServiceCollectionExtensions
             && string.Equals(origin.Authority, request.Host.Value, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Writes an RFC 9457 problem document for a refusal raised by the
+    /// authentication handler rather than by an endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Routed through <see cref="IProblemDetailsService"/> so these two answers
+    /// are shaped by the same configuration, and carry the same trace
+    /// identifier, as every refusal an endpoint produces. Falling back to a
+    /// bare status code if the service is not registered keeps this from being
+    /// the reason a request fails.
+    /// </remarks>
+    /// <summary>
+    /// The machine-readable reason on a refusal that a stronger sign-in would
+    /// have satisfied.
+    /// </summary>
+    /// <remarks>
+    /// A stable string the browser application branches on, so that the copy in
+    /// this file can be reworded without silently changing what the front end
+    /// does about it.
+    /// </remarks>
+    public const string StrongAuthenticationRequired = "strong-authentication-required";
+
+    private static async Task WriteProblemAsync(
+        HttpContext context,
+        int statusCode,
+        string title,
+        string detail,
+        string? code = null)
+    {
+        context.Response.StatusCode = statusCode;
+
+        if (context.RequestServices.GetService<IProblemDetailsService>() is not { } problems)
+        {
+            return;
+        }
+
+        var problem = new ProblemDetailsContext
+        {
+            HttpContext = context,
+            ProblemDetails =
+            {
+                Status = statusCode,
+                Title = title,
+                Detail = detail,
+            },
+        };
+
+        if (code is not null)
+        {
+            problem.ProblemDetails.Extensions["code"] = code;
+        }
+
+        await problems.WriteAsync(problem);
+    }
+
     private static void AddAuthorizationPolicies(IServiceCollection services)
     {
+        // Decides the requirement the two elevated policies below add. A
+        // singleton because it holds nothing and reads nothing but the
+        // principal it is handed.
+        services.AddSingleton<IAuthorizationHandler, StrongAuthenticationHandler>();
+
         services.AddAuthorizationBuilder()
             // Deny by default, for mapped endpoints only. See
             // MappedEndpointsRequireAuthorizationRequirement for both halves of
@@ -393,11 +503,19 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // anonymous callers.
             .AddPolicy(Sw5ePolicies.SignedIn, policy => policy
                 .RequireAuthenticatedUser())
+            // Both elevated policies additionally require that the session was
+            // established with a passkey or an authenticator code. An emailed
+            // one-time code is enough to reach your own account and not enough
+            // to change what everybody else reads. See
+            // StrongAuthenticationRequirement for why this is checked against
+            // the session rather than against what the account has enrolled.
             .AddPolicy(Sw5ePolicies.Contribute, policy => policy
                 .RequireAuthenticatedUser()
-                .RequireRole(Sw5eRoles.Contributor, Sw5eRoles.Administrator))
+                .RequireRole(Sw5eRoles.Contributor, Sw5eRoles.Administrator)
+                .AddRequirements(new StrongAuthenticationRequirement()))
             .AddPolicy(Sw5ePolicies.Administer, policy => policy
                 .RequireAuthenticatedUser()
-                .RequireRole(Sw5eRoles.Administrator));
+                .RequireRole(Sw5eRoles.Administrator)
+                .AddRequirements(new StrongAuthenticationRequirement()));
     }
 }

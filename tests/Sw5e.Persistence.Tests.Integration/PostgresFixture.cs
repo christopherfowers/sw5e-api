@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,6 +6,7 @@ using Npgsql;
 using Sw5e.Domain.Content;
 using Sw5e.Infrastructure.Persistence;
 using Sw5e.Infrastructure.Persistence.Content;
+using Sw5e.Infrastructure.Persistence.Moderation;
 using Testcontainers.PostgreSql;
 
 namespace Sw5e.Persistence.Tests.Integration;
@@ -163,6 +164,14 @@ public sealed class ContentDatabase : IAsyncDisposable
         services.AddSw5eContentImporter();
         services.AddDatabaseContentStore();
 
+        // The moderation schema, registered here for the same reason the
+        // migrator registers it: `migrate` and `all` bring both schemas up, and
+        // a provider holding only one of them cannot run the command the
+        // deployment runs. It resolves ConnectionStrings:Sw5e above, so it
+        // lands in this test's own database in a schema of its own — which is
+        // also what a single-database deployment gets.
+        services.AddSw5eModeration(configuration);
+
         _services = services.BuildServiceProvider();
     }
 
@@ -256,15 +265,39 @@ public static class ContentFixture
     public static IReadOnlyDictionary<string, int> ExpectedCounts { get; } =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
-            ["source"] = 2,
+            // Three books, because a weapon focus is published in Wretched
+            // Hives and an item whose source is missing from the fixture would
+            // make every source edge in the graph tests resolve except one.
+            ["source"] = 3,
             ["species"] = 4,
             ["background"] = 1,
+            ["class"] = 1,
+            ["class-improvement"] = 1,
             ["archetype"] = 1,
             ["feature"] = 2,
             ["feat"] = 3,
             ["power"] = 3,
-            ["equipment"] = 2,
+            ["equipment"] = 4,
+            ["enhanced-item"] = 2,
+            ["weapon-property"] = 6,
+            ["armor-property"] = 2,
             ["monster"] = 1,
+            ["rule"] = 2,
+            ["reference-table"] = 2,
+
+            // Three of the six combat-option types, chosen for the shapes they
+            // exercise rather than for coverage of the list: a maneuver chain
+            // (Riposte and the tier that improves it) for a type whose
+            // documents reference each other, a lightsaber form for one whose
+            // prose lives inside an array rather than in a field, and a weapon
+            // focus for one that carries a benefit list.
+            ["maneuver"] = 3,
+            ["lightsaber-form"] = 1,
+            ["weapon-focus"] = 1,
+
+            ["credit-category"] = 2,
+            ["credit"] = 3,
+            ["asset-credit"] = 2,
         };
 
     /// <summary>Total valid documents in the fixture.</summary>

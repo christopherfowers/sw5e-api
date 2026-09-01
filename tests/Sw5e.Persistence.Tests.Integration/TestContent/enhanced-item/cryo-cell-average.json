@@ -1,0 +1,11 @@
+{
+  "key": "cryo-cell-average",
+  "name": "Cryo Cell (Average)",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "itemType": "consumable",
+  "rarity": "premium",
+  "requiresAttunement": false,
+  "subtype": "ammunition",
+  "description": "You have a +1 bonus to attack and damage rolls made with this enhanced cryo cell. This bonus is in addition to any bonuses granted by the weapon. Once the cryo cell is depleted, it no longer gives a bonus. Additionally, the loaded weapon deals cold damage instead of its normal damage type, and when you hit with a shot the creature must make a DC 16 Constitution saving throw. On a failed save, the creature takes 1d4 cold damage and gains 1 slowed level until the end of its next turn. On a successful save, a creature takes half damage and isn't slowed. If this damage reduces a creature to 0 hit points, that creature is frozen in carbonite for 1 hour."
+}

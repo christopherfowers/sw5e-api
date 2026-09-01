@@ -1,3 +1,5 @@
+using Sw5e.Domain.Content;
+
 namespace Sw5e.Api.Features.Content;
 
 /// <summary>
@@ -44,7 +46,16 @@ internal static class ContentRequestLimits
     public const int MaxSearchLimit = 25;
 
     /// <summary>Most content types one search request may name explicitly.</summary>
-    public const int MaxSearchTypes = 9;
+    /// <remarks>
+    /// Derived from the registry rather than written down. The cap exists to
+    /// stop a caller sending an unbounded list, not to be a number in its own
+    /// right, and asking for every type at once is a legitimate request — so
+    /// the only correct value is however many types there are. Held as a
+    /// constant it silently became a refusal of a valid search the moment a
+    /// type was added, and the type that broke it would not be the type whose
+    /// pull request was blamed.
+    /// </remarks>
+    public static int MaxSearchTypes => ContentTypeRegistry.All.Count;
 
     /// <summary>
     /// How long a content response may be reused. The corpus changes when the

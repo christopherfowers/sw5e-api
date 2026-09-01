@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace Sw5e.Infrastructure.Content;
@@ -16,14 +16,41 @@ namespace Sw5e.Infrastructure.Content;
 internal static class ContentProjection
 {
     /// <summary>Longest summary line kept, in characters.</summary>
+    /// <remarks>
+    /// Unchanged by the arrival of the rule type, whose summary field is a
+    /// whole chapter of Markdown. <see cref="PlainText.Truncate"/> cuts it to
+    /// this length on a word boundary exactly as it does a two-sentence species
+    /// lore paragraph, so a chapter's row reads as its opening line. The
+    /// flattening of the full body that precedes the cut is the one cost, and
+    /// it is paid once per document when the index is built rather than per
+    /// request.
+    /// </remarks>
     private const int MaxSummaryLength = 200;
 
     /// <summary>
-    /// Cap on the harvested search text per item. Monster stat blocks are the
-    /// largest documents in the corpus and still fit comfortably; the cap only
-    /// exists so a malformed or hostile file cannot inflate the index.
+    /// Cap on the harvested search text per item.
     /// </summary>
-    private const int MaxSearchTextLength = 16_000;
+    /// <remarks>
+    /// <para>
+    /// Sized to the corpus, not to a round number: the longest rule chapter is
+    /// roughly 460,000 characters, and a rule exists precisely so a reader can
+    /// find a half-remembered passage inside it. A cap below the longest
+    /// legitimate document does not protect anything — it silently drops most
+    /// of the rules corpus out of the index, and the symptom is a search that
+    /// returns nothing and looks exactly like a passage that was never written.
+    /// So the cap is set past the largest real document and left there; what it
+    /// still does is bound a malformed or hostile file, which is all it was
+    /// ever for.
+    /// </para>
+    /// <para>
+    /// It is also a real bound now. <see cref="Harvest"/> used to stop
+    /// <em>recursing</em> once the buffer was full but still appended whatever
+    /// string it was already looking at, so one oversized field passed through
+    /// whole and the cap could be overshot by the entire length of that field.
+    /// The remaining budget is applied to each appended run instead.
+    /// </para>
+    /// </remarks>
+    private const int MaxSearchTextLength = 512_000;
 
     private sealed record TypeProjection(
         string NameField,
@@ -45,6 +72,18 @@ internal static class ContentProjection
                 "name",
                 ["lore"],
                 ["feature.name", "skillProficiencies"]),
+            // A class is scanned by what it plays like and what it costs to
+            // multiclass into, so the primary ability, the hit die and the
+            // casting ratio are the facets; the level table is not one, because
+            // nothing filters on a whole table.
+            ["class"] = new(
+                "name",
+                ["summary", "lore"],
+                ["primaryAbility", "hitPoints.dieFaces", "casterType", "casterRatio"]),
+            ["class-improvement"] = new(
+                "name",
+                ["description"],
+                ["className", "improvementType", "prerequisite"]),
             ["archetype"] = new(
                 "name",
                 ["description"],
@@ -61,14 +100,159 @@ internal static class ContentProjection
                 "name",
                 ["description"],
                 ["powerType", "level", "forceAlignment", "range", "duration", "concentration"]),
+
+            // The combat options. What a reader filters each of these lists on
+            // is different, which is the whole reason they are six types: a
+            // maneuver list is scanned for its list and its die cost, a weapon
+            // focus list for the weapon group it applies to, and the two
+            // Formfighting entries are the only styles anyone filters for a
+            // prerequisite at all.
+            ["maneuver"] = new(
+                "name",
+                ["description"],
+                ["maneuverType", "superiorityDice", "prerequisite", "improves"]),
+            ["fighting-style"] = new(
+                "name",
+                ["description"],
+                ["prerequisite"]),
+            ["fighting-mastery"] = new(
+                "name",
+                ["description"],
+                ["prerequisite"]),
+
+            // A form has no top-level prose: its rules text is split into the
+            // effect that fires as the form is adopted and the one that holds
+            // while it is worn. The first of those is what a one-line summary
+            // should show, which is why the path runs through the array.
+            ["lightsaber-form"] = new(
+                "name",
+                ["effects.description"],
+                ["prerequisite"]),
+
+            ["weapon-focus"] = new(
+                "name",
+                ["description"],
+                ["weaponGroup"]),
+            ["weapon-supremacy"] = new(
+                "name",
+                ["description"],
+                ["weaponGroup"]),
             ["equipment"] = new(
                 "name",
                 ["description"],
                 ["category", "costInCredits", "weight", "weaponClassification", "armorClassification"]),
+
+            // Enhanced items are the largest type in the corpus by an order of
+            // magnitude — 1,918 documents — and nothing in them is a price, so
+            // the fields below are the only way a reader narrows the list to
+            // something they can read. rarity is the ladder the game places
+            // loot on, itemType says what a reader has to own before the item
+            // is usable, requiresAttunement is a slot a character sheet counts,
+            // and subtype names the equipment or body slot the item attaches
+            // to. prerequisite is projected for the same reason a feat's is: it
+            // is the condition a reader checks before deciding the row is
+            // relevant to them.
+            ["enhanced-item"] = new(
+                "name",
+                ["description"],
+                ["rarity", "itemType", "requiresAttunement", "subtype", "prerequisite"]),
+
+            // No facets at all, deliberately. Either glossary entry is four
+            // fields — key, name, contentSet and the rules text — and the first
+            // three are already columns on every row, so anything listed here
+            // could only repeat what the row carries. A facet that duplicates a
+            // column is worse than none: it is a second copy of the same value
+            // for a client to disagree with, and it makes a filter bar offer a
+            // control that narrows nothing.
+            ["weapon-property"] = new("name", ["description"], []),
+            ["armor-property"] = new("name", ["description"], []),
+
             ["monster"] = new(
                 "name",
                 ["flavorText", "sectionText"],
                 ["size", "types", "alignment", "challengeRating", "experiencePoints"]),
+
+            // Starship types. The facets are the columns a reader scans a
+            // shipyard list by, which is a different question per type: what a
+            // modification costs in slots (its grade) and what upgrades it
+            // continues (its type), what mounting a weapon needs, what rank a
+            // venture is gated behind. `savingThrows` earns a facet on base
+            // sizes because it is the only proficiency a hull is born with.
+            ["starship-base-size"] = new(
+                "name",
+                ["lore"],
+                ["savingThrows", "modifications.baseModificationSlots"]),
+            ["starship-deployment"] = new(
+                "name",
+                ["role"],
+                ["role"]),
+            ["starship-equipment"] = new(
+                "name",
+                ["description"],
+                [
+                    "category",
+                    "costInCredits",
+                    "weapon.mounting",
+                    "weapon.weaponSize",
+                    "hyperdriveClass",
+                ]),
+            ["starship-modification"] = new(
+                "name",
+                ["description"],
+                ["modificationType", "grade"]),
+            ["starship-venture"] = new(
+                "name",
+                ["description"],
+                []),
+            ["starship-rule"] = new(
+                // Chapters are titled, not named, exactly as sources are.
+                "title",
+                ["body"],
+                ["chapterNumber"]),
+
+            // The summary comes from the body, which for a chapter is up to
+            // 460,000 characters of Markdown; MaxSummaryLength cuts it to an
+            // opening line like every other type's. ruleType is the one field
+            // that changes how a passage is read — a chapter is a sequence, a
+            // variant is a switch a table turns on — and chapterNumber orders a
+            // table of contents. Neither identifies a rule: the archive numbers
+            // a preface -2 and a changelog 99, and two chapters of Wretched
+            // Hives share the number 1.
+            ["rule"] = new(
+                "name",
+                ["body"],
+                ["ruleType", "chapterNumber"]),
+
+            // subject is the only thing thirty otherwise unrelated tables have
+            // to group by, and grouping is the whole of what a list of them can
+            // offer. The body is the table itself, so the summary line is its
+            // first row flattened — thin, but a caption plus a subject is what
+            // a reader actually picks from.
+            ["reference-table"] = new(
+                "name",
+                ["body"],
+                ["subject"]),
+            ["credit-category"] = new(
+                "title",
+                ["description"],
+                ["order"]),
+            // A credit's contribution is its summary line because it is the
+            // part worth reading: "for the epic cover and SW5e logo" says what
+            // somebody did, whereas their category alone says only that they
+            // were involved. Category is a facet so credits can be filtered
+            // into their groups without the caller knowing the key format.
+            ["credit"] = new(
+                "name",
+                ["contribution"],
+                ["categoryKey", "order"]),
+            // Asset credits are keyed by the picture, so the facets are what
+            // identify the picture and how it may be shown. Artist is a facet
+            // rather than only a display field so that "everything by this
+            // artist" is answerable once the citations start being filled in.
+            ["asset-credit"] = new(
+                "assetKey",
+                ["provenance", "basisNote"],
+                ["assetGroup", "assetKey", "status", "artist", "workTitle", "basis"]),
         };
 
     /// <summary>
@@ -157,7 +341,9 @@ internal static class ContentProjection
 
     private static void Harvest(JsonElement element, string? propertyName, StringBuilder builder)
     {
-        if (builder.Length >= MaxSearchTextLength)
+        var remaining = MaxSearchTextLength - builder.Length;
+
+        if (remaining <= 0)
         {
             return;
         }
@@ -190,7 +376,17 @@ internal static class ContentProjection
 
                 if (text.Length > 0)
                 {
-                    builder.Append(text).Append('\n');
+                    // Clamped to what is left of the budget rather than
+                    // appended whole. Without this the cap bounds the number of
+                    // fields harvested and not the size of the result, which is
+                    // the opposite of what a cap on a hostile document has to
+                    // do.
+                    builder.Append(text.AsSpan(0, Math.Min(text.Length, remaining)));
+
+                    if (builder.Length < MaxSearchTextLength)
+                    {
+                        builder.Append('\n');
+                    }
                 }
 
                 break;
@@ -202,12 +398,38 @@ internal static class ContentProjection
         }
     }
 
+    /// <summary>
+    /// Walks a dotted path into a document.
+    /// </summary>
+    /// <remarks>
+    /// A segment applied to an array resolves against that array's first
+    /// element. This exists for the types whose prose is a list rather than a
+    /// field — a lightsaber form's <c>effects</c> — and first is the right
+    /// element rather than an arbitrary one: these lists are stored in printed
+    /// order, so the first entry is the one the books lead with and the one a
+    /// single-line summary should show. An empty array resolves to nothing,
+    /// which is the same outcome as a missing field and is handled the same
+    /// way by both callers.
+    /// </remarks>
     private static bool TryResolve(JsonElement body, string path, out JsonElement result)
     {
         result = body;
 
         foreach (var segment in path.Split('.'))
         {
+            if (result.ValueKind == JsonValueKind.Array)
+            {
+                var first = result.EnumerateArray();
+
+                if (!first.MoveNext())
+                {
+                    result = default;
+                    return false;
+                }
+
+                result = first.Current;
+            }
+
             if (result.ValueKind != JsonValueKind.Object ||
                 !result.TryGetProperty(segment, out result))
             {

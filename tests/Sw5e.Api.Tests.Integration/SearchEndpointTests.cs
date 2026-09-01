@@ -182,6 +182,78 @@ public sealed class SearchEndpointTests(ContentApiFactory factory)
         species.GetProperty("totalMatches").GetInt32().ShouldBe(5);
     }
 
+    /// <summary>
+    /// A phrase 35,000 characters into a chapter is findable.
+    /// </summary>
+    /// <remarks>
+    /// This is the case the rule type exists for: a reader half-remembers a
+    /// passage and searches for it. The phrase below sits about 35,000
+    /// characters into the fixture chapter, well past the 16,000-character
+    /// ceiling the search index used to carry, and the chapter is not split
+    /// into per-heading documents — so an index that truncated the body would
+    /// return nothing here and look exactly like a passage that was never
+    /// written.
+    /// </remarks>
+    [Fact]
+    public async Task Search_FindsAPassageDeepInsideARuleChapter()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/search?q=saving%20throw%20proficiencies"));
+
+        var hit = body.Array("groups")
+            .Single(group => group.Text("type") == "rule")
+            .Array("results")
+            .Single();
+
+        hit.GetProperty("item").Text("key").ShouldBe("phb-using-ability-scores");
+        hit.Text("matchedIn").ShouldBe("text");
+        hit.Text("snippet").ShouldContain("saving throw proficiencies");
+    }
+
+    /// <summary>
+    /// A glossary entry is findable by the name an equipment row prints, which
+    /// is the lookup the whole type exists to answer.
+    /// </summary>
+    [Fact]
+    public async Task Search_FindsAPropertyGlossaryEntryByItsPrintedName()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/search?q=power%20cell"));
+
+        var hit = body.Array("groups")
+            .Single(group => group.Text("type") == "weapon-property")
+            .Array("results")
+            .Single();
+
+        hit.GetProperty("item").Text("key").ShouldBe("power-cell");
+        hit.Text("matchedIn").ShouldBe("name");
+    }
+
+    /// <summary>
+    /// A word that appears only inside a markdown table is searchable.
+    /// </summary>
+    /// <remarks>
+    /// Reference tables are nothing but a pipe table, so if the flattening
+    /// dropped cell boundaries instead of collapsing them to spaces, the first
+    /// and last words of adjacent cells would be fused into tokens no reader
+    /// would ever type. "Comfortable" is a cell of its own in the lifestyle
+    /// table and appears nowhere else in the fixture.
+    /// </remarks>
+    [Fact]
+    public async Task Search_FindsAWordThatIsAWholeCellOfAMarkdownTable()
+    {
+        var body = await JsonResponse.ReadAsync(
+            await factory.CreateClient().GetAsync("/api/search?q=comfortable"));
+
+        var hit = body.Array("groups")
+            .Single(group => group.Text("type") == "reference-table")
+            .Array("results")
+            .Single();
+
+        hit.GetProperty("item").Text("key").ShouldBe("lifestyle-expenses");
+        hit.Text("matchedIn").ShouldBe("text");
+    }
+
     [Fact]
     public async Task Search_RestrictsToTheRequestedTypes()
     {
@@ -189,6 +261,54 @@ public sealed class SearchEndpointTests(ContentApiFactory factory)
             await factory.CreateClient().GetAsync("/api/search?q=kinetic&types=monster"));
 
         body.Array("groups").Select(group => group.Text("type")).ShouldBe(["monster"]);
+    }
+
+    /// <summary>
+    /// Naming every registered type is a request the API must accept, because
+    /// it asks for exactly what an unfiltered search already returns.
+    /// </summary>
+    /// <remarks>
+    /// The bound on the parameter is the size of the registry, so this is the
+    /// test that fails if the two ever part company — which is what a
+    /// hard-coded count would guarantee the first time a type was added. The
+    /// paired over-limit case keeps the bound from being no bound at all.
+    /// </remarks>
+    [Fact]
+    public async Task Search_AcceptsEveryRegisteredTypeAtOnceAndRefusesOneMore()
+    {
+        var client = factory.CreateClient();
+
+        var registry = await JsonResponse.ReadAsync(await client.GetAsync("/api/content-types"));
+        var keys = registry.Array("types").Select(type => type.Text("key")).ToArray();
+
+        // A floor rather than an exact count. Content types arrive from several
+        // work streams at once, and an exact number here would mean every one
+        // of them editing this line — which is a merge conflict, not a test.
+        // What this assertion is for is the pairing below: the endpoint has to
+        // accept as many types as the registry actually holds, whatever that
+        // number has grown to, and refuse one more.
+        keys.Length.ShouldBeGreaterThanOrEqualTo(20);
+
+        // Named explicitly, because "twenty or more" would still pass if the
+        // five types this branch adds had quietly failed to register.
+        keys.ShouldContain("enhanced-item");
+        keys.ShouldContain("weapon-property");
+        keys.ShouldContain("armor-property");
+        keys.ShouldContain("rule");
+        keys.ShouldContain("reference-table");
+
+        var all = await client.GetAsync($"/api/search?q=core&types={string.Join(',', keys)}");
+
+        all.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // One name past the limit. It repeats a type rather than inventing one,
+        // so a 400 here can only be the count and not an unknown-type refusal.
+        var overLimit = await client.GetAsync(
+            $"/api/search?q=core&types={string.Join(',', keys)},{keys[0]}");
+        var problem = await JsonResponse.ReadAsync(overLimit);
+
+        overLimit.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.Text("title").ShouldBe("Too many content types");
     }
 
     [Fact]

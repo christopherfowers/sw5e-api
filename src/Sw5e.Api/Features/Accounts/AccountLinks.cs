@@ -33,7 +33,30 @@ namespace Sw5e.Api.Features.Accounts;
 internal static class AccountLinks
 {
     /// <summary>The path on the browser application that handles a verification link.</summary>
-    private const string VerifyPath = "account/verify";
+    /// <remarks>
+    /// <para>
+    /// This must match a route the site actually serves, and it is not a free
+    /// choice. It used to read <c>account/verify</c>, which the site does not
+    /// serve at all: the browser application prerenders a fixed list of paths
+    /// and answers anything else with its not-found page, so every verification
+    /// and recovery link this service ever sent led nowhere. Nothing caught it,
+    /// because the two repositories were tested separately and neither test
+    /// suite knew what the other side's route table said.
+    /// </para>
+    /// <para>
+    /// It also could not have lived under <c>/account</c> even if that route had
+    /// existed. Everything below that path is behind the site's session guard,
+    /// and the entire point of this link is that it is opened by somebody who
+    /// has no session and no credential yet — a brand-new account whose only
+    /// proof of anything is the message in their inbox.
+    /// </para>
+    /// <para>
+    /// The route is listed in the site's prerender configuration and in
+    /// <c>docs/account-api-contract.md</c>. Changing it here means changing it
+    /// there.
+    /// </para>
+    /// </remarks>
+    private const string VerifyPath = "verify-email";
 
     public static string VerifyEmail(Sw5eIdentityOptions options, string emailAddress, string token)
     {

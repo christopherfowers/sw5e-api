@@ -122,14 +122,109 @@ internal sealed record TotpVerifyRequest(string? Code);
 /// </param>
 internal sealed record TotpEnabledResponse(string Status, IReadOnlyList<string> RecoveryCodes);
 
+/// <summary>One of the account's registered passkeys.</summary>
+/// <param name="Id">
+/// The credential identifier, base64url, exactly as WebAuthn spells it
+/// everywhere else. It is what a revocation request names.
+/// </param>
+/// <param name="Name">
+/// The label the account holder gave the device, or null if they gave none.
+/// Cosmetic, chosen by the account holder, and never trusted for anything.
+/// </param>
+/// <remarks>
+/// There is deliberately no "last used" timestamp. The framework's passkey
+/// record does not keep one, and a field invented here would either be a lie or
+/// a second write on the sign-in path for the sake of a caption.
+/// </remarks>
+internal sealed record PasskeySummary(string Id, string? Name, DateTimeOffset CreatedAt);
+
 /// <summary>Who the caller is.</summary>
+/// <param name="Passkeys">
+/// The account's credentials, rather than a count of them.
+/// </param>
+/// <remarks>
+/// This used to be a count, on the reasoning that the identifiers were not
+/// needed by anything. Revocation changed that: an account area that can only
+/// add passkeys and never remove one leaves somebody who has lost a device with
+/// no way to cut it off, and removing one means being able to name it. The
+/// identifiers are not secret — the authenticator and the browser both hold
+/// them already — and they are only ever disclosed to the account holder.
+/// </remarks>
+/// <param name="AuthenticationMethod">
+/// How this session was established: <c>passkey</c>, <c>totp</c> or
+/// <c>email</c>. Null only for a session issued before the field existed.
+/// </param>
+/// <param name="StrongAuthentication">
+/// Whether that method counts as a second factor. Derived from
+/// <paramref name="AuthenticationMethod"/> and sent anyway, so the front end
+/// never has to keep its own copy of which methods qualify.
+/// </param>
+/// <param name="SecondFactorRequired">
+/// Whether this account's roles oblige it to sign in with a passkey or an
+/// authenticator app. True for Contributor and Administrator, false for
+/// everybody else. It says nothing about whether the obligation is currently
+/// met; the passkey list and the two-factor flag above answer that.
+/// </param>
 internal sealed record CurrentUserResponse(
     Guid Id,
     string Email,
     string DisplayName,
     IReadOnlyList<string> Roles,
     bool TwoFactorEnabled,
-    int PasskeyCount);
+    IReadOnlyList<PasskeySummary> Passkeys,
+    string? AuthenticationMethod,
+    bool StrongAuthentication,
+    bool SecondFactorRequired);
+
+/// <summary>Asks for a one-time code to be emailed.</summary>
+/// <param name="Email">The address to send it to.</param>
+internal sealed record SignInCodeRequest(string? Email);
+
+/// <summary>
+/// The only answer the code request ever gives.
+/// </summary>
+/// <param name="ResendAfterSeconds">
+/// How long the front end should wait before re-enabling its resend control.
+/// A fixed value read from configuration, deliberately not computed from what
+/// this address has recently been sent — a countdown that varied would tell an
+/// unauthenticated caller whether somebody had just asked for a code for that
+/// address.
+/// </param>
+/// <param name="ExpiresInSeconds">
+/// How long a code lasts, for the copy on the entry screen. Also a fixed
+/// configured value, and also not a fact about any particular code.
+/// </param>
+internal sealed record SignInCodeRequestedResponse(
+    string Status,
+    string Message,
+    int ResendAfterSeconds,
+    int ExpiresInSeconds)
+{
+    /// <summary>How many digits a code has.</summary>
+    public const int CodeLength = 6;
+
+    public static SignInCodeRequestedResponse For(Sw5e.Identity.Sw5eIdentityOptions options) => new(
+        "pending",
+        "If that address can be signed in to, a code is on its way. Check the inbox, " +
+        "including the spam folder.",
+        (int)options.EmailSignInCodeResendCooldown.TotalSeconds,
+        (int)options.EmailSignInCodeLifetime.TotalSeconds);
+}
+
+/// <summary>Redeems an emailed code.</summary>
+/// <param name="Email">
+/// The address the code was sent to. Required, and checked: the address is part
+/// of what the stored hash covers, so a code issued for one address cannot be
+/// redeemed against another.
+/// </param>
+/// <param name="Code">The digits from the message.</param>
+internal sealed record SignInCodeVerifyRequest(string? Email, string? Code);
+
+/// <summary>Confirms that a passkey is no longer registered.</summary>
+internal sealed record PasskeyRemovedResponse(string Status)
+{
+    public static PasskeyRemovedResponse Removed { get; } = new("removed");
+}
 
 /// <summary>Replaces the set of roles held by one account.</summary>
 /// <param name="Roles">
@@ -142,4 +237,21 @@ internal sealed record AssignRolesRequest(
     [property: JsonPropertyName("roles")] IReadOnlyList<string>? Roles);
 
 /// <summary>The roles an account holds after an administrative change.</summary>
-internal sealed record AccountRolesResponse(Guid UserId, IReadOnlyList<string> Roles);
+/// <param name="AwaitingSecondFactor">
+/// True when the account now holds an elevated role and has neither a passkey
+/// nor an authenticator app, so it cannot yet use what it has been given.
+/// </param>
+/// <remarks>
+/// That last field is the difference between a grant that works and one that
+/// looks like it worked. Contributor and Administrator can only be exercised
+/// from a session established with a passkey or an authenticator code, so
+/// granting one to somebody who has neither hands them a role and no way to
+/// use it. Rather than refuse the grant — which would make the administrator's
+/// action fail for a reason about somebody else's device — or quietly relax the
+/// rule, the grant succeeds, the account is emailed and told to enrol, and this
+/// flag lets the administrator see the same thing on screen.
+/// </remarks>
+internal sealed record AccountRolesResponse(
+    Guid UserId,
+    IReadOnlyList<string> Roles,
+    bool AwaitingSecondFactor);

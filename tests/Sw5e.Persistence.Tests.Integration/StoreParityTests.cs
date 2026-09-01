@@ -139,14 +139,17 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     }
 
     /// <summary>
-    /// Ordering by a field two thirds of the corpus does not have.
+    /// Ordering by a field the rows being ordered do not have.
     /// </summary>
     /// <remarks>
     /// Nulls are where the two stores are most likely to part company. .NET has
     /// no opinion about where a null sorts and the file-backed store supplies
     /// one; PostgreSQL has a default that differs between ascending and
-    /// descending. Features carry neither a source nor a content set, so
-    /// ordering the whole catalogue by either puts the two side by side.
+    /// descending. Sources are the rows to try it on: a book is the provenance
+    /// rather than carrying one, so neither field is ever set on one, and that
+    /// is a property of what a source is rather than a gap somebody might fill.
+    /// This used to order features instead, which held while the feature schema
+    /// had no source field and stopped holding the moment it gained one.
     /// </remarks>
     [DockerTheory]
     [InlineData(ContentSortField.SourceKey, SortDirection.Ascending)]
@@ -158,7 +161,7 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
         SortDirection direction)
     {
         var query = new ContentListQuery(
-            Resolve("feature"), null, null, null, sortBy, direction, 1, 25);
+            Resolve("source"), null, null, null, sortBy, direction, 1, 25);
 
         var fromFile = await FileStore.ListAsync(query);
         var fromDatabase = await Database.Repository.ListAsync(query);
@@ -166,8 +169,9 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
         fromDatabase.Items.Select(item => item.Key)
                     .ShouldBe(fromFile.Items.Select(item => item.Key));
 
-        // The fixture's features are the rows with no value at all, so this
-        // case would be vacuous if they had one.
+        // Every row being ordered has no value at all in either field, which is
+        // what makes this the null case rather than a sort with a few gaps.
+        fromFile.Items.ShouldNotBeEmpty();
         fromFile.Items.ShouldAllBe(item => item.SourceKey == null && item.ContentSet == null);
     }
 
