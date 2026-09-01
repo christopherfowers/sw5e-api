@@ -225,10 +225,53 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
 
         root.GetProperty("types").EnumerateArray().Select(type => type.GetString())
             .ShouldBe(["beast"]);
+    }
 
-        // The empty array must survive as an empty array rather than becoming
-        // null or disappearing.
-        root.GetProperty("languages").GetArrayLength().ShouldBe(0);
+    /// <summary>
+    /// An empty collection survives as an empty collection rather than becoming
+    /// null or disappearing.
+    /// </summary>
+    /// <remarks>
+    /// Over an edited copy of the fixture rather than over the fixture itself,
+    /// because no schema in the content repository permits an empty array —
+    /// every one of them carries <c>minItems</c>, on the grounds that an empty
+    /// list and an unfinished document look the same to a reader. So a document
+    /// with one cannot be committed, and the exporter refuses to write one. The
+    /// property is still worth pinning: it is a property of jsonb and of the
+    /// importer, not of today's schemas, and the first schema to allow an empty
+    /// list should not be the thing that discovers it.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_KeepsAnEmptyCollectionAsAnEmptyCollection()
+    {
+        using var corpus = TempCorpus.FromFixture();
+
+        var path = corpus.PathTo("monster", "womp-rat");
+
+        // Line endings are normalised before the edit so the match does not
+        // depend on how git checked the fixture out.
+        var text = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var emptied = text.Replace(
+            "\"languages\": [\n    \"None\"\n  ]", "\"languages\": []", StringComparison.Ordinal);
+
+        emptied.ShouldNotBe(
+            text, "the fixture's womp rat no longer holds the array this test empties");
+
+        File.WriteAllText(path, emptied);
+
+        await Database.ImportAsync(corpus.Root);
+
+        await using var database = Database.CreateContext();
+
+        var monster = await database.ContentItems.SingleAsync(
+            item => item.ContentType == "monster" && item.ItemKey == "womp-rat");
+
+        using var document = System.Text.Json.JsonDocument.Parse(monster.Body);
+
+        document.RootElement.GetProperty("languages").ValueKind
+                .ShouldBe(System.Text.Json.JsonValueKind.Array);
+
+        document.RootElement.GetProperty("languages").GetArrayLength().ShouldBe(0);
     }
 
     /// <summary>
