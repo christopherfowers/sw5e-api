@@ -147,4 +147,28 @@ public sealed class ContentFlagRow
     /// on output.
     /// </remarks>
     public string? ReviewerNote { get; set; }
+
+    /// <summary>
+    /// The content revision that put the reported problem right, when one did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is what closes the loop the review queue opened. Until now a
+    /// reviewer could accept a report and then had nowhere to go: agreeing that
+    /// a picture is uncredited and recording that it has been credited were the
+    /// same button, backed by nothing. With authoring in place, resolving a
+    /// report can name the revision that did it, so "this was fixed" becomes a
+    /// claim someone can follow to a diff rather than an assertion in a note.
+    /// </para>
+    /// <para>
+    /// Deliberately not a foreign key, and deliberately a bare identifier
+    /// rather than a navigation. Moderation is its own schema and may be its own
+    /// database — the whole reason it does not carry an FK to the reporter's
+    /// account either — so a constraint reaching into the content schema would
+    /// either not exist or would weld the two together. The store checks the
+    /// revision is real before writing it; nothing downstream assumes it still
+    /// is.
+    /// </para>
+    /// </remarks>
+    public long? ResolvedByRevisionId { get; set; }
 }

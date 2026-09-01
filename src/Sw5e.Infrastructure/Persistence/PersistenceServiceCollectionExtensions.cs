@@ -6,6 +6,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Sw5e.Domain.Content;
+using Sw5e.Infrastructure.Content;
 using Sw5e.Infrastructure.Persistence.Content;
 
 namespace Sw5e.Infrastructure.Persistence;
@@ -150,6 +151,50 @@ public static class PersistenceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IContentRepository, DbContentRepository>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the authoring store and the schema validator that guards it.
+    /// </summary>
+    /// <param name="services">The container.</param>
+    /// <param name="schemaRootPath">
+    /// Directory holding one subdirectory per content type, each with its
+    /// versioned JSON Schema documents.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="AddDatabaseContentStore"/> because reading the
+    /// catalogue out of PostgreSQL and letting people write to it are different
+    /// decisions with different blast radii. A deployment can serve content from
+    /// the database while authoring is still off.
+    /// </para>
+    /// <para>
+    /// Never registered for the file-backed store. That store reads a volume
+    /// mounted read-only and builds its index once at start-up, so a write
+    /// against it could neither land nor be seen. The endpoints resolve this
+    /// service optionally and answer 503 when it is missing, which is an honest
+    /// "not here" rather than a 404 that would say the feature does not exist.
+    /// </para>
+    /// <para>
+    /// The validator is a singleton: it compiles each schema once and caches it,
+    /// and building a fresh one per request would recompile all 31 on every
+    /// write.
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddContentAuthoring(
+        this IServiceCollection services,
+        string schemaRootPath)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaRootPath);
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IContentSchemaValidator>(
+            _ => new ContentSchemaValidator(schemaRootPath));
+
+        services.AddScoped<IContentAuthoringStore, DbContentAuthoringStore>();
 
         return services;
     }

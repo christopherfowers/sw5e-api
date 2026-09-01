@@ -2,6 +2,25 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sw5e.Domain\Sw5e.Domain.csproj" />
+
+    <!-- The content repository's own schema project, consumed as source through
+         the `external/sw5e-database` submodule rather than copied in here.
+
+         Validation has to happen in two places: that repository's CI checks the
+         whole corpus on every pull request, and this API checks each document a
+         contributor writes. Those two answers must never differ, because a
+         document the API accepts and CI later rejects is a corpus that has
+         already been degraded by the time anyone finds out. A second
+         implementation of the same JSON Schema evaluation — even a faithful one
+         copied line for line — is precisely how they come to differ: the
+         evaluation options drift, or a schema draft is upgraded on one side
+         only, and nothing fails until the corpus is already wrong.
+
+         Referencing the one implementation makes divergence impossible rather
+         than merely unlikely. The cost is that a clone of this repository has to
+         initialise its submodules; see CONTRIBUTING.md. -->
+    <ProjectReference
+        Include="..\..\external\sw5e-database\src\Sw5e.Database.Schemas\Sw5e.Database.Schemas.csproj" />
   </ItemGroup>
 
   <ItemGroup>

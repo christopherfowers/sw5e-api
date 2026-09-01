@@ -1,0 +1,4 @@
+[submodule "external/sw5e-database"]
+	path = external/sw5e-database
+	url = https://github.com/christopherfowers/sw5e-database.git
+	branch = main

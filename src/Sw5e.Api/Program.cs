@@ -134,6 +134,30 @@ if (string.Equals(contentStore, "database", StringComparison.OrdinalIgnoreCase))
     // touching any of this.
     builder.Services.AddSw5ePersistence(builder.Configuration);
     builder.Services.AddDatabaseContentStore();
+
+    // Content authoring, registered here and only here.
+    //
+    // A write has to land somewhere it will be read from, and on the
+    // file-backed store neither half of that holds: the content volume is
+    // mounted read-only in every deployment, and the index is built once at
+    // start-up and never reloaded, so even a write that somehow reached the
+    // disk would stay invisible until the process restarted. Registering
+    // authoring only alongside the database store means a file-backed
+    // deployment cannot half-support it; the endpoints resolve the store
+    // optionally and answer 503 saying exactly that.
+    //
+    // Content:SchemaPath points at the JSON Schemas the write path validates
+    // against — the same documents the content repository's CI checks the whole
+    // corpus with, evaluated by the same validator, which is why they are
+    // consumed through a submodule rather than copied. Relative paths resolve
+    // against the content root, and the image ships them beside the
+    // application.
+    var configuredSchemaPath = builder.Configuration["Content:SchemaPath"] ?? "schemas";
+
+    builder.Services.AddContentAuthoring(
+        Path.IsPathRooted(configuredSchemaPath)
+            ? configuredSchemaPath
+            : Path.Combine(builder.Environment.ContentRootPath, configuredSchemaPath));
 }
 else if (string.Equals(contentStore, "file", StringComparison.OrdinalIgnoreCase))
 {
@@ -260,6 +284,15 @@ app.MapSiteEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
 app.MapFlagEndpoints();
+
+// Authoring: drafting, publishing, history and revert.
+//
+// Mapped unconditionally even though the store behind it is registered only for
+// the database content store. One route table in every deployment means a
+// client gets the same answer shape everywhere, and an operator who has not
+// enabled authoring gets a 503 that says so rather than a 404 that reads like a
+// wrong URL.
+app.MapAuthoringEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

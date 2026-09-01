@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sw5e.Infrastructure.Persistence.Moderation;
@@ -11,9 +12,11 @@ using Sw5e.Infrastructure.Persistence.Moderation;
 namespace Sw5e.Infrastructure.Persistence.Moderation.Migrations
 {
     [DbContext(typeof(Sw5eModerationDbContext))]
-    partial class Sw5eModerationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260901161143_FlagResolvedByRevision")]
+    partial class FlagResolvedByRevision
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

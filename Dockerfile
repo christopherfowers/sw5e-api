@@ -21,10 +21,27 @@ COPY src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj src/Sw5e.Infrastructure/
 COPY src/Sw5e.Email/Sw5e.Email.csproj src/Sw5e.Email/
 COPY src/Sw5e.Identity/Sw5e.Identity.csproj src/Sw5e.Identity/
 COPY src/Sw5e.Migrator/Sw5e.Migrator.csproj src/Sw5e.Migrator/
+# The content repository's schema project, referenced as a submodule so that the
+# validator gating an authored write is literally the one that gates the corpus
+# in CI over there. See src/Sw5e.Infrastructure/Sw5e.Infrastructure.csproj.
+#
+# A build context without the submodule populated fails here rather than later:
+# `git clone` without `--recurse-submodules` leaves an empty directory, this
+# COPY finds no csproj, and the restore stops. That is the intended failure —
+# silently dropping the reference would produce an image whose write path
+# validated nothing.
+COPY external/sw5e-database/src/Sw5e.Database.Schemas/Sw5e.Database.Schemas.csproj \
+     external/sw5e-database/src/Sw5e.Database.Schemas/
 RUN dotnet restore src/Sw5e.Api/Sw5e.Api.csproj \
  && dotnet restore src/Sw5e.Migrator/Sw5e.Migrator.csproj
 
 COPY src/ src/
+COPY external/sw5e-database/src/Sw5e.Database.Schemas/ external/sw5e-database/src/Sw5e.Database.Schemas/
+
+# The schema documents themselves. Not compiled into anything — they are read
+# from disk at run time — so they are carried through this stage only to be
+# copied into the runtime image below.
+COPY external/sw5e-database/schemas/ external/sw5e-database/schemas/
 
 # Deliberately neither trimmed nor ReadyToRun.
 #
@@ -97,6 +114,16 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 WORKDIR /app
 COPY --from=build /app ./
+
+# The JSON Schemas the write path validates against, from the same submodule
+# commit as the validator that evaluates them. Baked in rather than mounted:
+# they are part of the application's contract, not deployment data, and an image
+# whose schemas could be swapped underneath it would be an image whose
+# validation could be silently weakened.
+#
+# Content:SchemaPath defaults to "schemas" relative to the content root, which
+# is this directory.
+COPY --from=build /src/external/sw5e-database/schemas/ ./schemas/
 
 EXPOSE 8080
 
