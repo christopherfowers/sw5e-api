@@ -160,9 +160,18 @@ internal static class FlagHandlers
             FlagWire.NameOf(flag.Reason),
             reporter.Id);
 
+        // 201 with the stored report and no Location header. There is no route
+        // that serves one report on its own — a reporter reads theirs at
+        // /api/flags/mine and a reviewer reads the queue — so a Location would
+        // name an address nothing answers, which is worse than omitting it. The
+        // body already carries everything a caller could have fetched from one.
         return TypedResults.Created(
-            $"/api/flags/{flag.Id}",
-            Describe(flag, new FlagAccountResponse(reporter.Id, reporter.DisplayName), null, includeReviewerNote: false));
+            (string?)null,
+            Describe(
+                flag,
+                new FlagAccountResponse(reporter.Id, reporter.DisplayName),
+                reviewer: null,
+                includeReviewerNote: false));
     }
 
     /* ------------------------------------------------------- your own reports */
