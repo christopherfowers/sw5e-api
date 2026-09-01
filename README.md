@@ -31,7 +31,7 @@ probe. In development, the OpenAPI document is served at `/openapi/v1.json`.
 | `Sw5e.Domain` | Content graph model and rules |
 | `Sw5e.Infrastructure` | Content persistence and search, plus the `moderation` schema behind content flagging |
 | `Sw5e.Identity` | Accounts, roles, passkeys, and their own DbContext and schema |
-| `Sw5e.Migrator` | Deploy-time job: applies the content and moderation migrations, then imports content |
+| `Sw5e.Migrator` | Deploy-time job: applies the content and moderation migrations, then imports content. Also exports the published catalogue back out as the content repository holds it |
 | `Sw5e.Email` | Email abstraction and provider adapters |
 
 Endpoints are organized as vertical feature slices under `Features/`. Each
@@ -327,7 +327,11 @@ an exit code:
 dotnet run --project src/Sw5e.Migrator -- migrate   # apply migrations only
 dotnet run --project src/Sw5e.Migrator -- import    # load content only
 dotnet run --project src/Sw5e.Migrator -- all       # both, in that order
+dotnet run --project src/Sw5e.Migrator -- export --output ../sw5e-database/content
 ```
+
+`export` is deliberately not part of `all`: `all` is what a deploy runs, in a
+container with no checkout to write to and nobody watching.
 
 `migrate` applies two schemas: `content` and `moderation`. They are separate
 contexts with separate migration histories so each can be authored and reviewed
@@ -345,7 +349,9 @@ docker run --rm --entrypoint dotnet \
 ```
 
 Exit codes: `0` success, `1` a command failed, `2` the command was not
-recognised.
+recognised, `3` `export --check` found the database and the tree disagreeing.
+The last is its own code because a disagreement is not a fault — it is the
+normal state of a repository nobody has exported into since somebody published.
 
 Because nothing migrates on startup, a deploy that ships new code and forgets
 the migrator would otherwise be discovered by a user. `GET /health/ready`
@@ -380,6 +386,77 @@ that type alone — an unmounted volume and an emptied corpus are
 indistinguishable from inside the importer, and the first is far more likely.
 The migrator turns "found nothing at all" into a non-zero exit so the deploy
 stops rather than publishing an empty catalogue.
+
+### The exporter
+
+Content used to move in one direction. A pull request against `sw5e-database`,
+an image, a deploy, and the importer loaded it into PostgreSQL. Authoring
+reversed that for everything edited through the site: those documents exist only
+as rows, and `sw5e-database` — still the seed, still what the published content
+image carries — drifts away from them silently, until somebody rebuilds that
+image and reverts the community's work with nothing in the process saying so.
+
+`export` is the other direction.
+
+```bash
+# The whole catalogue, into a checkout of the content repository.
+dotnet run --project src/Sw5e.Migrator -- export --output ../sw5e-database/content
+
+# Has anything been published since the last export? Writes nothing; exits 3 if so.
+dotnet run --project src/Sw5e.Migrator -- export --output ../sw5e-database/content --check
+
+# One type, or one document, for a targeted diff.
+dotnet run --project src/Sw5e.Migrator -- export --output ../sw5e-database/content \
+  --type monster --key rancor-adult
+```
+
+**What "published" means.** The catalogue table, and nothing else. A draft lives
+in a different table precisely so that it is not part of the catalogue, so
+excluding drafts is not a filter the exporter applies — it is a consequence of
+reading the same rows the read path serves. A revert is a write to the catalogue
+like any other, so a reverted document exports as whatever it was reverted to.
+Neither needed a special case, which is the argument for reading the catalogue
+rather than replaying the revision log.
+
+**It produces a working tree and stops.** It does not commit and it does not
+push. Writing files needs a path; committing needs an identity to attribute the
+change to, and pushing needs a credential with write access to the content
+repository, held by a process that already holds the whole catalogue. Neither
+buys anything a scheduled job running `git commit` beside this one does not —
+the review happens in a pull request either way — and the credential is a real
+thing to get wrong. If that job is ever built, what it needs is a deploy key or
+an app installation scoped to `sw5e-database` alone, and a committer identity
+that is visibly a bot rather than a person; that is a decision to make on its
+own, not a side effect of an exporter.
+
+**Byte-for-byte, or it is worthless.** PostgreSQL stores each document as
+`jsonb`, which keeps the values and discards the text: member order,
+indentation and whitespace are gone by the time a row is read back. So the file
+is derived, not remembered, and it is derived by `CanonicalContent` — from the
+content repository, through the submodule, the same way `SchemaValidator` is,
+because two implementations of one byte-exact format drift exactly the way two
+validators would. `ContentCorpusRoundTripTests` imports all 7,877 committed
+documents, exports them again, and requires every file to match what is
+committed; `ExportFormatSensitivityTests` establishes that the comparison would
+have caught a writer that changed member order, indentation, line endings, the
+trailing newline or the escaping.
+
+**Every document is validated on the way out.** The importer does not validate
+against the JSON Schemas — it loads whatever the corpus holds — and a row can
+also be written by a migration or by hand. The content repository's CI validates
+every document on every pull request, so an export that emitted one it rejects
+would produce a branch that cannot be merged, discovered by whoever opened the
+pull request rather than by whoever ran the export. A failure stops the run
+before anything is written.
+
+**When the database and the repository disagree**, which is the normal state
+between a publish and an export, `--check` names every document and exits `3`
+without writing. Run it again without `--check` to produce the tree, look at
+`git status`, and open a pull request. Two things the export will not do on its
+own: it never empties a whole content type, because a type the catalogue holds
+nothing for is what a half-applied migration looks like and is far more likely
+than somebody withdrawing every monster; and `--key` switches pruning off
+entirely, because a single-document export has no opinion about any other file.
 
 ### Health
 

@@ -334,6 +334,62 @@ jobs:
           jq -e '.data.traits | length > 0' wookiee.json > /dev/null
           jq -e '.data.homeworld == "Kashyyyk"' wookiee.json > /dev/null
 
+      # The other direction, from the same image. The integration tests already
+      # prove the exporter reproduces the committed corpus; what only this step
+      # can prove is that the command is in the published image, that the
+      # schemas it needs to order and validate documents were baked in beside
+      # it, and that it can write to a mounted volume as the non-root user the
+      # image runs as. A Dockerfile that stopped copying the schemas would pass
+      # every test and fail the first time anybody ran an export.
+      - name: Export the catalogue back out of the image
+        run: |
+          set -euo pipefail
+
+          connection="Host=sw5e-db;Port=5432;Database=sw5e;Username=sw5e;Password=ci-only-not-a-secret"
+
+          mkdir -p exported
+          chmod 0777 exported
+
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --volume "$PWD/exported:/export" \
+            sw5e-api:ci Sw5e.Migrator.dll export --output /export
+
+          written=$(find exported -name '*.json' | wc -l)
+
+          # How many documents the catalogue actually holds, taken from an
+          # import over the corpus it was loaded from rather than from a number
+          # written down here. Counting the fixture's files instead would count
+          # the deliberately invalid one the importer skips.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll import 2>&1 | tee import.txt
+
+          catalogued=$(grep -oE '[0-9]+ unchanged' import.txt | head -1 | grep -oE '[0-9]+')
+          echo "exported $written document(s) from a catalogue of $catalogued"
+
+          if [ -z "$catalogued" ] || [ "$catalogued" -lt 1 ]; then
+            echo "::error::could not determine how many documents the catalogue holds"
+            exit 1
+          fi
+
+          if [ "$written" -ne "$catalogued" ]; then
+            echo "::error::exported $written documents from a catalogue of $catalogued"
+            exit 1
+          fi
+
+          # Exporting again into the tree it just wrote must find nothing to do.
+          # An export that reported changes every run would be useless for
+          # deciding whether there is a pull request worth opening — and this is
+          # the only place that is checked against a volume the container wrote
+          # to itself rather than against a checkout.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --volume "$PWD/exported:/export" \
+            sw5e-api:ci Sw5e.Migrator.dll export --output /export --check
+
       - name: Container logs
         if: always()
         run: |

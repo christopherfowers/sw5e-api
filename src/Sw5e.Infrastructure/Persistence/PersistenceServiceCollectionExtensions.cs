@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Sw5e.Database.Schemas;
 using Sw5e.Domain.Content;
 using Sw5e.Infrastructure.Content;
 using Sw5e.Infrastructure.Persistence.Content;
@@ -208,12 +209,73 @@ public static class PersistenceServiceCollectionExtensions
         }
 
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IContentSchemaValidator>(
-            _ => new ContentSchemaValidator(schemaRootPath));
+        AddSchemas(services, schemaRootPath);
 
         services.AddScoped<IContentAuthoringStore, DbContentAuthoringStore>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers the exporter, which writes the published catalogue back out as
+    /// the content repository holds it.
+    /// </summary>
+    /// <param name="services">The container.</param>
+    /// <param name="schemaRootPath">
+    /// Directory holding one subdirectory per content type, each with its
+    /// versioned JSON Schema documents.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="AddContentAuthoring"/> for the same reason
+    /// authoring is separate from the read store: the migrator wants to export
+    /// without serving anything, and a web process has no business writing to a
+    /// checkout. Only the migrator registers this.
+    /// </para>
+    /// <para>
+    /// The schemas are needed twice over — once to order a document's members,
+    /// which is what makes the output byte-stable, and once to refuse to write
+    /// a document the content repository's CI would reject.
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddSw5eContentExporter(
+        this IServiceCollection services,
+        string schemaRootPath)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaRootPath);
+
+        if (!Directory.Exists(schemaRootPath))
+        {
+            throw new InvalidOperationException(
+                $"No schema directory exists at '{schemaRootPath}'. The exporter needs the " +
+                "schemas both to order each document's members and to refuse to write one the " +
+                "content repository would reject. Set Content__SchemaPath.");
+        }
+
+        AddSchemas(services, schemaRootPath);
+        services.AddScoped<ContentExporter>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the one schema repository, and the two things built on it.
+    /// </summary>
+    /// <remarks>
+    /// One instance, shared. Each <see cref="SchemaRepository"/> compiles and
+    /// caches all 31 schemas separately, so a second one is both wasted work
+    /// and — more importantly — a second answer to "which directory are the
+    /// schemas in", which is exactly the kind of thing that is only ever
+    /// noticed once a deployment has been validating against the wrong ones.
+    /// </remarks>
+    private static void AddSchemas(IServiceCollection services, string schemaRootPath)
+    {
+        services.TryAddSingleton(_ => new SchemaRepository(schemaRootPath));
+        services.TryAddSingleton<IContentSchemaValidator>(
+            provider => new ContentSchemaValidator(provider.GetRequiredService<SchemaRepository>()));
+        services.TryAddSingleton(
+            provider => new CanonicalContent(provider.GetRequiredService<SchemaRepository>()));
     }
 
     /// <summary>
