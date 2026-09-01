@@ -73,6 +73,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
                 "register", "verifyEmail",
+                "requestSignInCode", "verifySignInCode",
                 "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",
                 "enrollTotp", "verifyTotp",
