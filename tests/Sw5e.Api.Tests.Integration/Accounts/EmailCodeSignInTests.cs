@@ -375,6 +375,38 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
     }
 
     [Fact]
+    public async Task ConcurrentRequestsForOneAddressStillOnlySendOnce()
+    {
+        // The budget check is a read followed by a write, and a read followed
+        // by a write is a race unless something serialises it. Twelve requests
+        // arriving together would otherwise each count nothing recent, each
+        // conclude there was room, and each insert — turning a budget of three
+        // into a dozen messages in somebody's inbox, which is the exact abuse
+        // the budget exists to stop.
+        //
+        // Sequential tests cannot see this. Only concurrency can.
+        var client = _factory.CreateBrowserClient();
+        var account = await EstablishAsync(client, "code-concurrent");
+        await client.PostAsync("/api/auth/logout", content: null);
+
+        var callers = Enumerable.Range(0, 12)
+            .Select(_ => _factory.CreateBrowserClient())
+            .ToArray();
+
+        var responses = await Task.WhenAll(
+            callers.Select(caller => RequestCodeAsync(caller, account.EmailAddress)));
+
+        // All accepted, because the answer never varies.
+        responses.ShouldAllBe(response => response.StatusCode == HttpStatusCode.Accepted);
+
+        // Exactly one message. The first request through the lock issues; the
+        // other eleven find themselves inside the resend cooldown.
+        _factory.Email
+            .CountOf(AccountMessageKind.SignInCode, account.EmailAddress)
+            .ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ANewerCodeDoesNotResurrectAnOlderOne()
     {
         var client = _factory.CreateBrowserClient();

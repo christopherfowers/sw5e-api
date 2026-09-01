@@ -118,6 +118,26 @@ public sealed class EmailSignInCodeService(
     {
         var now = timeProvider.GetUtcNow();
 
+        // Everything below is one transaction holding an advisory lock on this
+        // address, and it has to be, because the budget check that follows is a
+        // read followed by a write. Two requests for the same address arriving
+        // together would otherwise both count two recent codes, both conclude
+        // there was room for a third, and both insert one — which is a budget
+        // of three that delivers four messages, and a limit an attacker with a
+        // handful of addresses to send from can simply outrun.
+        //
+        // The lock is per address rather than table-wide, so requests for
+        // different addresses never wait on each other, and it is released when
+        // the transaction ends whether that is by commit or by the connection
+        // dropping. See LockKeyFor for why the key is derived here rather than
+        // with PostgreSQL's hashtext.
+        await using var transaction = await database.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        await database.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock({LockKeyFor(normalizedEmail)})",
+            cancellationToken);
+
         // Housekeeping first, and scoped to this one address so it stays a
         // small indexed delete rather than a table sweep. Rows outlive their
         // usefulness by the length of the budget window and no longer: the
@@ -141,6 +161,10 @@ public sealed class EmailSignInCodeService(
         // budget stops the same thing spread over an afternoon.
         if (recent.Count > 0 && recent[0] > now - _options.EmailSignInCodeResendCooldown)
         {
+            // Committed rather than rolled back: the prune above did real work
+            // that is worth keeping, and there is nothing here to undo.
+            await transaction.CommitAsync(cancellationToken);
+
             logger.LogInformation(
                 "Declined a sign-in code for an address inside its resend cooldown.");
             return EmailSignInCodeIssue.Throttled;
@@ -148,6 +172,8 @@ public sealed class EmailSignInCodeService(
 
         if (recent.Count >= _options.EmailSignInCodesPerAddress)
         {
+            await transaction.CommitAsync(cancellationToken);
+
             logger.LogInformation(
                 "Declined a sign-in code for an address that has spent its budget of {Budget}.",
                 _options.EmailSignInCodesPerAddress);
@@ -171,6 +197,7 @@ public sealed class EmailSignInCodeService(
         });
 
         await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         // Note what is absent from this line, and from every other line in this
         // file: the code. A log that carried it would be a credential store
@@ -342,6 +369,26 @@ public sealed class EmailSignInCodeService(
         RandomNumberGenerator.GetInt32(0, 1_000_000)
             .ToString(CultureInfo.InvariantCulture)
             .PadLeft(6, '0');
+
+    /// <summary>
+    /// The advisory lock key for one address.
+    /// </summary>
+    /// <remarks>
+    /// Derived here rather than with PostgreSQL's <c>hashtext</c> for two
+    /// reasons: <c>hashtext</c> is an internal function with no compatibility
+    /// promise across major versions, and computing the key in the application
+    /// keeps the lock's meaning readable in this file rather than in a SQL
+    /// string. A collision between two different addresses costs one of them a
+    /// brief wait and nothing else, so eight bytes of SHA-256 is far more than
+    /// the situation needs.
+    /// </remarks>
+    private static long LockKeyFor(string normalizedEmail)
+    {
+        Span<byte> digest = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(normalizedEmail), digest);
+
+        return System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(digest);
+    }
 
     private static byte[] Hash(string normalizedEmail, string code, byte[] salt) =>
         Rfc2898DeriveBytes.Pbkdf2(
