@@ -95,26 +95,7 @@ namespace Sw5e.Identity.Migrations
             // search_path is pinned inside the function so that the definition
             // cannot be made to resolve a different pg_catalog by a caller who
             // controls their own search path.
-            migrationBuilder.Sql("""
-                CREATE FUNCTION identity.administrative_action_append_only()
-                RETURNS trigger
-                LANGUAGE plpgsql
-                SET search_path = pg_catalog, pg_temp
-                AS $$
-                BEGIN
-                    RAISE EXCEPTION
-                        'identity."AdministrativeActions" is append-only; % is not permitted', TG_OP
-                        USING ERRCODE = 'restrict_violation';
-                END;
-                $$;
-                """);
-
-            migrationBuilder.Sql("""
-                CREATE TRIGGER administrative_action_append_only
-                BEFORE UPDATE OR DELETE ON identity."AdministrativeActions"
-                FOR EACH ROW
-                EXECUTE FUNCTION identity.administrative_action_append_only();
-                """);
+            // MUTATION: the administrative log is no longer append-only.
         }
 
         /// <inheritdoc />

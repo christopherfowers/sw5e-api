@@ -211,8 +211,7 @@ public static class Sw5eIdentityServiceCollectionExtensions
         // gate every route in — a passkey assertion, an emailed code, and the
         // authenticator step that can follow either — already passes through.
         // See SuspensionAwareUserConfirmation.
-        services.Replace(ServiceDescriptor
-            .Scoped<IUserConfirmation<Sw5eUser>, SuspensionAwareUserConfirmation>());
+        // MUTATION: a suspended account can sign in again.
 
         // Applies to the email verification and recovery tokens.
         services.Configure<DataProtectionTokenProviderOptions>(
@@ -334,7 +333,7 @@ public static class Sw5eIdentityServiceCollectionExtensions
             cookie.Events.OnValidatePrincipal = async context =>
             {
                 await SecurityStampValidator.ValidatePrincipalAsync(context);
-                await AccountSuspension.RejectSuspendedAsync(context);
+                // MUTATION: suspension no longer ends a live session.
             };
         });
 
