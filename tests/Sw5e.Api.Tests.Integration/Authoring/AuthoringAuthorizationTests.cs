@@ -199,19 +199,32 @@ public sealed class AuthoringAuthorizationTests(PostgresFixture postgres) : IAsy
     [Fact]
     public async Task AWriteWithoutAnOriginIsRefused()
     {
-        // Same session, same role, same body. The only difference is that the
-        // request carries neither Origin nor Sec-Fetch-Site, which is what a
-        // form on somebody else's site produces. For a cookie-authenticated API
-        // this is the CSRF defence.
+        // One client, one session, one role. The Origin header is dropped
+        // partway through, so the only difference between the request that is
+        // allowed and the one that is refused is the header a browser always
+        // sends and a cross-site form cannot forge. For a cookie-authenticated
+        // API that is the CSRF defence.
+        //
+        // It has to be the same authenticated client rather than a second,
+        // originless one: authorization runs ahead of the endpoint filter, so
+        // an unauthenticated caller is refused with 401 before the cross-site
+        // check is ever reached, and a test written that way would pass with
+        // the filter deleted.
         var client = _factory.CreateBrowserClient();
         await FlagFlow.SignInWithRoleAsync(_factory, client, "csrf-author", Sw5eRoles.Contributor);
 
-        var originless = _factory.CreateOriginlessClient();
+        var control = AuthoringFlow.NewKey("csrfok");
+
+        (await AuthoringFlow.SaveDraftAsync(
+                client, control, AuthoringFlow.Valid(control, "Same Site", "Stored.")))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        client.DefaultRequestHeaders.Remove("Origin");
 
         var key = AuthoringFlow.NewKey("csrf");
 
         var response = await AuthoringFlow.SaveDraftAsync(
-            originless, key, AuthoringFlow.Valid(key, "Cross Site", "Should never be stored."));
+            client, key, AuthoringFlow.Valid(key, "Cross Site", "Should never be stored."));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
