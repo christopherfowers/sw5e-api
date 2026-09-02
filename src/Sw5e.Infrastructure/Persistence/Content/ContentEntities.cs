@@ -194,6 +194,27 @@ public sealed class ContentItemRow
     /// <summary><see cref="SearchText"/> lowercased, for the same reason.</summary>
     public required string SearchTextLower { get; set; }
 
+    /// <summary>
+    /// Just the headings in the document's prose, lowercased, one per line.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="SearchTextLower"/> so that search can score a
+    /// heading above a sentence. Without it every free-text match sat in one
+    /// tier and the results came back ordered by nothing more meaningful than
+    /// the alphabet within whichever content type happened to have the most
+    /// hits — "difficult terrain" returned twenty-nine class features before
+    /// the rules chapter that has a section named after the phrase.
+    /// </para>
+    /// <para>
+    /// Only the lowercased form is stored. The other columns keep a
+    /// cased copy because it is what a snippet is cut from; a heading match
+    /// reports the heading itself as its evidence, and the reader is shown the
+    /// document's own name for the section rather than a window into prose.
+    /// </para>
+    /// </remarks>
+    public required string HeadingTextLower { get; set; }
+
     /// <summary>When the row was first imported.</summary>
     public DateTimeOffset CreatedAt { get; set; }
 

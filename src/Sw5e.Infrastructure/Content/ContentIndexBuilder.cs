@@ -256,6 +256,7 @@ internal static class ContentIndexBuilder
         var contentSet = ReadStringOrNull(body, "contentSet");
 
         var searchText = ContentProjection.SearchText(body);
+        var headingText = ContentProjection.HeadingText(body);
 
         failure = null;
 
@@ -273,6 +274,7 @@ internal static class ContentIndexBuilder
             SearchText = searchText,
             NameLower = name.ToLowerInvariant(),
             SearchTextLower = searchText.ToLowerInvariant(),
+            HeadingTextLower = headingText.ToLowerInvariant(),
         };
     }
 

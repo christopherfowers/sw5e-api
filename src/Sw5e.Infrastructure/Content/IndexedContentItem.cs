@@ -49,6 +49,15 @@ internal sealed class IndexedContentItem
 
     public required string SearchTextLower { get; init; }
 
+    /// <summary>
+    /// The document's markdown headings, lowercased, one per line.
+    /// </summary>
+    /// <remarks>
+    /// Carried separately from <see cref="SearchTextLower"/> so search can rank
+    /// a heading above a sentence. See <c>ContentProjection.HeadingText</c>.
+    /// </remarks>
+    public required string HeadingTextLower { get; init; }
+
     private ContentSummary? _summaryRow;
 
     /// <summary>

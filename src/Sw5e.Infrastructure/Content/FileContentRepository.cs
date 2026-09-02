@@ -279,6 +279,22 @@ public sealed class FileContentRepository : IContentRepository
 
         var textIndex = item.SearchTextLower.IndexOf(phrase, StringComparison.Ordinal);
 
+        // A heading, before the prose around it. The two stores have to agree
+        // on which tier a document lands in or the same query ranks differently
+        // depending on which one is configured, so this mirrors the ladder in
+        // DbContentRepository exactly: 35, between a display field and the body.
+        if (item.HeadingTextLower.Contains(phrase, StringComparison.Ordinal))
+        {
+            return Hit(
+                item,
+                SearchMatchField.Heading,
+                null,
+                textIndex >= 0
+                    ? PlainText.Snippet(item.SearchText, textIndex, phrase.Length, SnippetWindow)
+                    : string.Empty,
+                35);
+        }
+
         if (textIndex >= 0)
         {
             return Hit(

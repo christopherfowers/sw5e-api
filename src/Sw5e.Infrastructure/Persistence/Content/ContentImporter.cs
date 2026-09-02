@@ -427,6 +427,7 @@ public sealed class ContentImporter(
             Version = item.Version,
             NameLower = item.NameLower,
             SearchTextLower = item.SearchTextLower,
+            HeadingTextLower = item.HeadingTextLower,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -448,6 +449,7 @@ public sealed class ContentImporter(
         row.SearchText = item.SearchText;
         row.NameLower = item.NameLower;
         row.SearchTextLower = item.SearchTextLower;
+        row.HeadingTextLower = item.HeadingTextLower;
         row.Version = item.Version;
         row.UpdatedAt = now;
     }

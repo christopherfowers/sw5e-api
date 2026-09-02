@@ -16,6 +16,17 @@ public enum SearchMatchField
     /// <summary>A short type-specific display field, such as a monster's type or an item's category.</summary>
     Facet,
 
+    /// <summary>A heading inside the document's prose.</summary>
+    /// <remarks>
+    /// Worth telling apart from <see cref="Text"/> because it is a much
+    /// stronger signal about what a document is about. Somebody typing a phrase
+    /// that a section is named after wants that section, not the places that
+    /// mention it in passing — and before this existed, "difficult terrain"
+    /// returned twenty-nine class features before the rules chapter with a
+    /// section of that name.
+    /// </remarks>
+    Heading,
+
     /// <summary>The body prose: rules text, lore or flavour.</summary>
     Text,
 }

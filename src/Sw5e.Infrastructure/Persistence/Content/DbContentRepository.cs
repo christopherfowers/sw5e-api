@@ -449,6 +449,9 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                 position(@phrase IN i.name_lower)        AS name_pos,
                 position(@phrase IN i.item_key)          AS key_pos,
                 position(@phrase IN i.search_text_lower) AS text_pos,
+                -- Headings are scored above the prose around them; see the
+                -- ladder below and ContentProjection.HeadingText.
+                position(@phrase IN i.heading_text_lower) AS heading_pos,
                 position(@first_token IN i.search_text_lower) AS token_pos,
                 length(i.search_text)                    AS text_length,
                 -- Ordered under the C collation so the field reported as the
@@ -481,6 +484,12 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                     i.name_lower        LIKE @pattern
                  OR i.item_key          LIKE @pattern
                  OR i.search_text_lower LIKE @pattern
+                 -- Almost always redundant, because a heading's words are part
+                 -- of the prose this harvests from. Not quite always: the
+                 -- search text is capped, so a heading past the cap is in one
+                 -- column and not the other, and a document is not going to be
+                 -- unfindable by its own section title over a size limit.
+                 OR i.heading_text_lower LIKE @pattern
                  OR EXISTS (
                         SELECT 1
                         FROM jsonb_each_text(i.facets) AS f
@@ -497,8 +506,9 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                     WHEN m.name_pos > 0           THEN 2
                     WHEN m.key_pos > 0            THEN 3
                     WHEN m.facet_key IS NOT NULL  THEN 4
-                    WHEN m.text_pos > 0           THEN 5
-                    ELSE 6
+                    WHEN m.heading_pos > 0        THEN 5
+                    WHEN m.text_pos > 0           THEN 6
+                    ELSE 7
                 END AS tier
             FROM matched AS m
         ),
@@ -512,17 +522,25 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                         + 10.0 * length(@phrase) / GREATEST(length(s.name_lower), 1)
                     WHEN 3 THEN 55.0
                     WHEN 4 THEN 40.0
-                    WHEN 5 THEN 25.0
+                    -- Below a curated display field, which is a structured
+                    -- statement about what a document is, and above the prose,
+                    -- which is only somewhere the words appear.
+                    WHEN 5 THEN 35.0
+                    WHEN 6 THEN 25.0
                     ELSE 10.0
                 END AS score,
+                -- A heading match still quotes the prose around the phrase, and
+                -- can: a heading's words are part of the text this cuts from.
                 CASE s.tier
                     WHEN 5 THEN s.text_pos
-                    WHEN 6 THEN s.token_pos
+                    WHEN 6 THEN s.text_pos
+                    WHEN 7 THEN s.token_pos
                     ELSE 0
                 END AS snippet_pos,
                 CASE s.tier
                     WHEN 5 THEN length(@phrase)
-                    WHEN 6 THEN length(@first_token)
+                    WHEN 6 THEN length(@phrase)
+                    WHEN 7 THEN length(@first_token)
                     ELSE 0
                 END AS snippet_length
             FROM scored AS s
@@ -743,14 +761,22 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                 Type, ItemKey, Name, SourceKey, ContentSet, Summary, ReadFacets(Facets));
 
             // Tiers 1 and 2 are name matches, 3 the slug, 4 a display field,
-            // and 5 and 6 the body prose. The snippet is whatever the reader
-            // needs to see to understand the match: the value that matched for
-            // the first four, and the phrase in context for the last two.
+            // 5 a heading, and 6 and 7 the body prose. The snippet is whatever
+            // the reader needs to see to understand the match: the value that
+            // matched for the first four, and the phrase in context for the
+            // rest — including a heading, whose words are part of the prose the
+            // window is cut from.
             return Tier switch
             {
                 1 or 2 => new SearchHit(item, SearchMatchField.Name, null, Name, Score),
                 3 => new SearchHit(item, SearchMatchField.Key, null, ItemKey, Score),
                 4 => new SearchHit(item, SearchMatchField.Facet, FacetKey, FacetValue ?? string.Empty, Score),
+                5 => new SearchHit(
+                    item,
+                    SearchMatchField.Heading,
+                    null,
+                    PlainText.Snippet(SnippetText, SnippetOffset, SnippetLength, SnippetWindow),
+                    Score),
 
                 // Cut here rather than in SQL so the snippet is produced by the
                 // same function the file-backed store uses. The fetched window

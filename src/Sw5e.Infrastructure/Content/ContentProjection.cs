@@ -339,6 +339,116 @@ internal static class ContentProjection
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Just the headings in the document's prose, one per line.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kept apart from <see cref="SearchText"/> so that search can tell the two
+    /// apart, and it very much has to. Every match for "difficult terrain" used
+    /// to land in the same tier, so the results came back ordered by nothing
+    /// more meaningful than the alphabet inside whichever content type happened
+    /// to have the most hits: twenty-nine class features first, and the rules
+    /// chapter with a section literally titled "Difficult Terrain" fifth.
+    /// </para>
+    /// <para>
+    /// A heading is a much stronger signal than a sentence. Somebody who types
+    /// a phrase that a section is named after wants that section, not the
+    /// twenty-nine places that mention it in passing.
+    /// </para>
+    /// <para>
+    /// Headings are found with the same rule the browser's markdown parser
+    /// uses — one to six hashes, whitespace, text, on a trimmed line — and that
+    /// dialect has no fenced code blocks, so a line scan finds exactly the
+    /// headings that will be rendered. The two live in different repositories;
+    /// if the parser ever learns about fences, this has to learn with it.
+    /// </para>
+    /// </remarks>
+    public static string HeadingText(JsonElement body)
+    {
+        var builder = new StringBuilder();
+        HarvestHeadings(body, builder);
+        return builder.ToString();
+    }
+
+    private static void HarvestHeadings(JsonElement element, StringBuilder builder)
+    {
+        if (builder.Length >= MaxSearchTextLength)
+        {
+            return;
+        }
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    HarvestHeadings(property.Value, builder);
+                }
+
+                break;
+
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    HarvestHeadings(item, builder);
+                }
+
+                break;
+
+            case JsonValueKind.String:
+                AppendHeadings(element.GetString(), builder);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /// <summary>Appends every markdown heading in one string value.</summary>
+    private static void AppendHeadings(string? value, StringBuilder builder)
+    {
+        if (string.IsNullOrEmpty(value) || !value.Contains('#', StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        foreach (var line in value.Split('\n'))
+        {
+            var trimmed = line.Trim();
+
+            if (trimmed.Length < 2 || trimmed[0] != '#')
+            {
+                continue;
+            }
+
+            var hashes = 0;
+            while (hashes < trimmed.Length && trimmed[hashes] == '#')
+            {
+                hashes += 1;
+            }
+
+            // One to six hashes, and whitespace after them. "#hashtag" is not a
+            // heading and neither is a row of sevens.
+            if (hashes is < 1 or > 6 ||
+                hashes >= trimmed.Length ||
+                !char.IsWhiteSpace(trimmed[hashes]))
+            {
+                continue;
+            }
+
+            var text = PlainText.Flatten(trimmed[hashes..].Trim());
+
+            if (text.Length == 0 || builder.Length >= MaxSearchTextLength)
+            {
+                continue;
+            }
+
+            builder.Append(text.AsSpan(0, Math.Min(text.Length, MaxSearchTextLength - builder.Length)));
+            builder.Append('\n');
+        }
+    }
+
     private static void Harvest(JsonElement element, string? propertyName, StringBuilder builder)
     {
         var remaining = MaxSearchTextLength - builder.Length;
