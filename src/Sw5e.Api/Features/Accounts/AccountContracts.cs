@@ -176,6 +176,36 @@ internal sealed record CurrentUserResponse(
     bool StrongAuthentication,
     bool SecondFactorRequired);
 
+/// <summary>
+/// A proof-of-work challenge, to be solved and sent back with the request it
+/// pays for.
+/// </summary>
+/// <param name="Salt">
+/// Thirty-two hex characters. The client hashes <c>{salt}:{counter}</c> for
+/// increasing counters until the digest opens with <paramref name="Difficulty"/>
+/// zero bits.
+/// </param>
+/// <param name="Difficulty">
+/// Leading zero <em>bits</em>, not hex characters. A client that counts
+/// characters will solve four times too little or sixteen times too much.
+/// </param>
+/// <param name="ExpiresAt">
+/// ISO-8601. A string rather than a <see cref="DateTimeOffset"/>, and the one
+/// field in this API that is deliberately not a date on the wire: it is covered
+/// by <paramref name="Signature"/>, so it has to come back exactly as it was
+/// sent, and a client that parses and re-formats it will produce a different
+/// string and be refused. Echo it verbatim.
+/// </param>
+/// <param name="Signature">
+/// Proves the server issued this challenge. Opaque to the client, which must
+/// return it unchanged.
+/// </param>
+internal sealed record ChallengeResponse(
+    string Salt,
+    int Difficulty,
+    string ExpiresAt,
+    string Signature);
+
 /// <summary>Asks for a one-time code to be emailed.</summary>
 /// <param name="Email">The address to send it to.</param>
 internal sealed record SignInCodeRequest(string? Email);

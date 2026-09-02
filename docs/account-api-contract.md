@@ -45,6 +45,64 @@ Short-lived server-written state also travels in HttpOnly cookies:
 
 ---
 
+## `GET /api/auth/challenge` — 200
+
+Anonymous. Answers on every deployment, whether or not a solution is currently
+required, so the client has one code path rather than two.
+
+```json
+{
+  "salt": "9f2c1e0b7a4d5386c1f0b29e4d7a6853",
+  "difficulty": 18,
+  "expiresAt": "2026-08-30T19:52:11.1234567+00:00",
+  "signature": "3f7c...64 hex characters..."
+}
+```
+
+`salt` is 32 hex characters. `difficulty` is leading zero **bits**, not hex
+characters — a client that counts characters solves sixteen times too much or
+four times too little. `expiresAt` and `signature` are opaque and MUST be echoed
+back byte for byte: both are covered by the signature, so a client that parses
+the date and re-formats it produces a different string and every solution it
+sends is refused.
+
+**Solving.** Find the smallest non-negative integer `counter` such that
+`SHA-256(UTF8("{salt}:{counter}"))` opens with `difficulty` zero bits. A
+challenge is good exactly once and expires; fetch a fresh one per request, and
+never cache the response.
+
+**Sending.** Five request headers, on the guarded endpoints below:
+
+| Header | Value |
+|---|---|
+| `X-Sw5e-Challenge-Salt` | `salt`, verbatim |
+| `X-Sw5e-Challenge-Difficulty` | `difficulty`, as a decimal integer |
+| `X-Sw5e-Challenge-Expires` | `expiresAt`, verbatim |
+| `X-Sw5e-Challenge-Signature` | `signature`, verbatim |
+| `X-Sw5e-Challenge-Counter` | the counter, as a plain non-negative decimal integer — no sign, no separators, no spaces |
+
+**Guarded endpoints:** `POST /api/auth/register` and `POST /api/auth/email/code`.
+Where the challenge is switched on, a request without a valid, unspent solution
+is refused with a **403**:
+
+```json
+{
+  "status": 403,
+  "title": "Challenge required",
+  "detail": "This request must carry a solved proof-of-work challenge. ...",
+  "code": "challenge-required"
+}
+```
+
+Branch on `code`. This is not a 429 and must not be treated as one: a 429 means
+stop and come back later, while this means solve a fresh challenge and retry
+straight away. Every cause — no solution, a wrong counter, an expired challenge,
+a salt already spent, a challenge issued before the difficulty was raised — is
+this same document, and the right response to all of them is identical.
+
+Where the challenge is switched off the guarded endpoints ignore these headers
+entirely, including malformed ones, so a client may always send them.
+
 ## `POST /api/auth/register` — 202
 
 Request: `{ "email": string, "displayName": string }`

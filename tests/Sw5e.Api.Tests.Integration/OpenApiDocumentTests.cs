@@ -27,6 +27,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
     [InlineData("/api/content/{type}")]
     [InlineData("/api/content/{type}/{key}")]
     [InlineData("/api/search")]
+    [InlineData("/api/auth/challenge")]
     [InlineData("/api/auth/register")]
     [InlineData("/api/auth/email/verify")]
     [InlineData("/api/auth/email/code")]
@@ -83,7 +84,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "listContentTypes", "listContent", "getContentItem", "searchContent",
                 "HealthThroughProxy",
                 "getSiteEnvironment",
-                "register", "verifyEmail",
+                "issueChallenge", "register", "verifyEmail",
                 "requestSignInCode", "verifySignInCode",
                 "beginPasskeyRegistration", "completePasskeyRegistration", "removePasskey",
                 "beginPasskeyLogin", "completePasskeyLogin",

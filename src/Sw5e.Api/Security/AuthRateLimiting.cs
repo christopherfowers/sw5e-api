@@ -37,11 +37,24 @@ public sealed class AuthRateLimitOptions
 
     /// <summary>
     /// Requests allowed per window against the remaining account endpoints —
-    /// challenge generation, the current-user probe, sign-out.
+    /// the WebAuthn ceremony openers, the proof-of-work challenge, the
+    /// current-user probe, sign-out.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// These cost work but do not reward guessing, so the budget exists to cap
     /// resource consumption rather than to slow an attack down.
+    /// </para>
+    /// <para>
+    /// "Challenge" is two different things on this API and this budget covers
+    /// both, so it is worth naming them rather than leaving a reader to guess
+    /// which was meant. The WebAuthn challenges from
+    /// <c>passkey/register/begin</c> and <c>passkey/login/begin</c> are a
+    /// replay defence inside a credential ceremony; the proof-of-work challenge
+    /// from <c>GET /challenge</c> is an anti-abuse toll paid before an
+    /// unrelated request. Neither is a credential and neither rewards a guess,
+    /// which is why they share a budget at all.
+    /// </para>
     /// </remarks>
     public int StandardRequests { get; set; } = 120;
 
