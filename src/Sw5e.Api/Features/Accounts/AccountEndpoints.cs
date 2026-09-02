@@ -38,6 +38,7 @@ internal static class AccountEndpoints
             // applied at the group so a route added later cannot forget it.
             .AddEndpointFilter<CrossSiteRequestFilter>();
 
+        MapChallenge(group);
         MapRegistration(group);
         MapEmailCodes(group);
         MapPasskeys(group);
@@ -47,6 +48,37 @@ internal static class AccountEndpoints
         MapAdministration(group);
 
         return routes;
+    }
+
+    /// <summary>
+    /// The proof-of-work challenge the two expensive anonymous endpoints
+    /// require.
+    /// </summary>
+    /// <remarks>
+    /// Anonymous by necessity: the callers who need one are by definition
+    /// people without an account. On the standard budget rather than a tighter
+    /// one because the endpoint stores nothing and costs an HMAC, so the budget
+    /// is there to cap consumption rather than to slow an attack — and because
+    /// throttling it below what an honest client needs would make the gate
+    /// refuse the people it is supposed to admit.
+    /// </remarks>
+    private static void MapChallenge(RouteGroupBuilder group)
+    {
+        group.MapGet("/challenge", ChallengeHandlers.Issue)
+             .WithName("issueChallenge")
+             .WithSummary("Get a proof-of-work challenge.")
+             .WithDescription(
+                 "Returns a salt, a difficulty in leading zero bits, an expiry and a signature. " +
+                 "The client finds the smallest counter for which SHA-256 of `{salt}:{counter}` " +
+                 "opens with that many zero bits, and sends the whole challenge back with the " +
+                 "counter in the X-Sw5e-Challenge-* headers on /register or /email/code. Echo " +
+                 "expiresAt and signature verbatim — both are covered by the signature and a " +
+                 "re-formatted date will not verify. A challenge is good once and expires; " +
+                 "fetch a fresh one per request.")
+             .Produces<ChallengeResponse>()
+             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+             .AllowAnonymous()
+             .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
     }
 
     private static void MapRegistration(RouteGroupBuilder group)
@@ -59,12 +91,23 @@ internal static class AccountEndpoints
                  "the address already has an account. A free address is registered and sent a " +
                  "verification link; an address that already belongs to a verified account is " +
                  "sent a passkey recovery link instead, because refusing would confirm to a " +
-                 "stranger that the account exists. Either way the response is the same 202.")
+                 "stranger that the account exists. Either way the response is the same 202. " +
+                 "Where the proof-of-work challenge is switched on, this route requires one: " +
+                 "see GET /api/auth/challenge, and expect a 403 with code challenge-required " +
+                 "if the solution is missing, stale or already spent.")
              .Produces<RegisterResponse>(StatusCodes.Status202Accepted)
              .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .AllowAnonymous()
-             .RequireRateLimiting(AuthRateLimiting.SensitivePolicy);
+             .RequireRateLimiting(AuthRateLimiting.SensitivePolicy)
+
+             // One of the two anonymous routes a stranger can use to make this
+             // platform spend something — here, a row in the identity store and
+             // an outbound message. The limiter caps how fast any one caller
+             // can do that; this caps how cheaply anybody can, wherever they
+             // are coming from.
+             .AddEndpointFilter<ProofOfWorkChallengeFilter>();
 
         group.MapPost("/email/verify", RegistrationHandlers.VerifyEmailAsync)
              .WithName("verifyEmail")
@@ -98,12 +141,25 @@ internal static class AccountEndpoints
                  "there is nothing here. Refusing to send to the second, or answering it " +
                  "differently, would turn this endpoint into a way to test whether a given " +
                  "person has an account. Rate limited per caller here and per address in the " +
-                 "handler; the throttled case answers 202 as well.")
+                 "handler; the throttled case answers 202 as well. Where the proof-of-work " +
+                 "challenge is switched on, this route requires one: see GET /api/auth/challenge, " +
+                 "and expect a 403 with code challenge-required if the solution is missing, " +
+                 "stale or already spent.")
              .Produces<SignInCodeRequestedResponse>(StatusCodes.Status202Accepted)
              .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status403Forbidden)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
              .AllowAnonymous()
-             .RequireRateLimiting(AuthRateLimiting.EmailCodePolicy);
+             .RequireRateLimiting(AuthRateLimiting.EmailCodePolicy)
+
+             // The other one, and the more attractive of the two: this route
+             // ends in a message delivered to a mailbox the caller named, so an
+             // unguarded one is a mail cannon that costs the operator sending
+             // reputation as well as money. The per-caller budget is already
+             // the tightest on the platform and still cannot see an attacker
+             // spread across a botnet; the challenge is the part that charges
+             // each of those requests individually.
+             .AddEndpointFilter<ProofOfWorkChallengeFilter>();
 
         group.MapPost("/email/code/verify", EmailCodeHandlers.VerifyAsync)
              .WithName("verifySignInCode")

@@ -144,6 +144,37 @@ internal static class AccountProblems
         statusCode: StatusCodes.Status409Conflict,
         extensions: new Dictionary<string, object?> { ["code"] = "last-credential" });
 
+    /// <summary>
+    /// The request reached an endpoint that charges anonymous callers for the
+    /// work it does, without a solved proof-of-work challenge.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately distinguishable from the limiter's 429, and that is the
+    /// whole reason it carries a <c>code</c>. The two refusals ask the client
+    /// for opposite things: a 429 means stop and come back later, while this
+    /// means do some arithmetic and try again immediately. A client that cannot
+    /// tell them apart either backs off from a request it could have completed
+    /// in a second, or retries into a limiter it should have respected.
+    /// </para>
+    /// <para>
+    /// 403 rather than 400, because there is nothing wrong with the request:
+    /// it is well-formed and the server understood it perfectly, and is
+    /// declining to act on it until the caller has paid. Nothing here says
+    /// which check failed — a missing solution, a stale one and a replayed one
+    /// all get this same document — because the only useful next step is the
+    /// same in every case, and itemising them would be free tuning feedback for
+    /// somebody probing the mechanism.
+    /// </para>
+    /// </remarks>
+    public static ProblemHttpResult ChallengeRequired => TypedResults.Problem(
+        title: "Challenge required",
+        detail:
+            "This request must carry a solved proof-of-work challenge. Ask " +
+            "/api/auth/challenge for one, solve it, and send the solution with the request.",
+        statusCode: StatusCodes.Status403Forbidden,
+        extensions: new Dictionary<string, object?> { ["code"] = "challenge-required" });
+
     /// <summary>The named account does not exist. Administrative routes only.</summary>
     /// <remarks>
     /// Distinguishable from success on purpose, and safe because every route

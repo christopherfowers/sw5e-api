@@ -202,6 +202,18 @@ builder.Services.AddSw5eIdentity(builder.Configuration);
 builder.Services.AddScoped<AccountStateCookies>();
 builder.Services.AddSw5eAuthRateLimiting(builder.Configuration);
 
+// The proof-of-work challenge in front of registration and the emailed sign-in
+// code. Self-hosted, with no third party involved and nothing loaded from
+// anywhere else: the site's content security policy names no external host at
+// all, so a hosted captcha would mean widening it, and widening it is the one
+// change that turns "a script from this origin, and nothing else" into a
+// standing exception somebody else controls.
+//
+// Off unless a deployment sets Auth:Challenge:Enabled and a secret. Enabled
+// without a usable secret is a startup failure rather than a warning — see
+// AddSw5eProofOfWork for why failing to start is the kinder outcome.
+builder.Services.AddSw5eProofOfWork(builder.Configuration);
+
 // Content flagging: the reports readers raise against the reference.
 //
 // Registered unconditionally, and separately from the content store, because

@@ -125,7 +125,8 @@ every account this platform creates.
 
 | Endpoint | Who may call it |
 |---|---|
-| `POST /api/auth/register` | anyone |
+| `GET /api/auth/challenge` | anyone |
+| `POST /api/auth/register` | anyone, with a solved challenge where one is required |
 | `POST /api/auth/email/verify` | anyone, with the token from the emailed link |
 | `POST /api/auth/passkey/register/begin` | a signed-in account, or a verified address inside its enrolment window |
 | `POST /api/auth/passkey/register/complete` | as above |
@@ -133,6 +134,7 @@ every account this platform creates.
 | `POST /api/auth/passkey/login/complete` | anyone |
 | `POST /api/auth/mfa/totp/enroll` | a signed-in account |
 | `POST /api/auth/mfa/totp/verify` | a signed-in account enrolling, or a caller awaiting a second factor |
+| `POST /api/auth/email/code` | anyone, with a solved challenge where one is required |
 | `POST /api/auth/logout` | anyone |
 | `GET /api/auth/me` | a signed-in account |
 | `GET /api/auth/admin/users` | an administrator |
@@ -141,6 +143,34 @@ every account this platform creates.
 | `PUT /api/auth/admin/users/{userId}/suspension` | an administrator |
 | `DELETE /api/auth/admin/users/{userId}` | an administrator |
 | `GET /api/auth/admin/audit` | an administrator |
+
+### Proof of work in front of the expensive anonymous endpoints
+
+Two routes can be reached by a stranger and cause this platform to spend
+something: `POST /api/auth/register` writes an account, and
+`POST /api/auth/email/code` sends a message to an address the caller named. Rate
+limiting already caps how fast one caller can do either. It cannot see an
+attacker who has spread a thousand requests across a thousand addresses, because
+every one of them sits inside its own budget.
+
+So those two routes can additionally require a **self-hosted proof-of-work
+challenge**. `GET /api/auth/challenge` returns a salt, a difficulty in leading
+zero bits, an expiry and an HMAC signature over the three. The client finds the
+smallest counter for which `SHA-256("{salt}:{counter}")` opens with that many
+zero bits, and repeats the challenge back with the counter in the
+`X-Sw5e-Challenge-*` headers. Nothing is stored when a challenge is issued — the
+signature is what makes it trustworthy — and a salt is accepted exactly once.
+
+Nothing is loaded from anywhere else, and no third party is involved. The site's
+content security policy names no external host at all, and a hosted captcha
+would mean widening it permanently in favour of somebody else's script.
+
+Honestly stated: this raises the price of mass signups. It does not stop a
+determined attacker, who can buy CPU, and it does not stop a human solver farm
+at all. It sits **on top of** the rate limits, which are unchanged.
+
+Off unless `Auth__Challenge__Enabled` is set along with a secret; enabled
+without a usable secret is a startup failure.
 
 ### The one way in
 
@@ -328,6 +358,10 @@ to account.
 | `Identity__BootstrapAdministratorEmail` | no | See above. |
 | `Auth__RateLimits__SensitiveAttempts` | no | Attempts per window against a guessable endpoint. `20` per five minutes by default, per client address **and** per endpoint. |
 | `Auth__RateLimits__StandardRequests` | no | `120` per minute by default. |
+| `Auth__Challenge__Enabled` | no | Off by default. Turns on the proof-of-work challenge in front of `POST /api/auth/register` and `POST /api/auth/email/code`. |
+| `Auth__Challenge__Secret` | **when enabled** | SECRET. The HMAC key challenges are signed with, at least 32 characters. There is no default and there never will be: a signing key in a public repository is a published one, and the API refuses to start rather than pretend. |
+| `Auth__Challenge__Difficulty` | no | Leading zero **bits**, `18` by default, and rejected at startup outside 8–24. Each bit doubles the work; 18 is well under a second on a phone. |
+| `Auth__Challenge__Lifetime` | no | `00:10:00` by default. How long an issued challenge stays spendable. |
 
 The identity tables live in their own `identity` schema, created by the
 migration in `Sw5e.Identity`. Apply it before serving traffic:
