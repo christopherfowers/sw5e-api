@@ -74,6 +74,28 @@ internal static class AccountProblems
         statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>
+    /// A re-authentication ceremony could not be completed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="PasskeyFailed"/> only because that one says
+    /// "could not be registered", which is the wrong sentence to show somebody
+    /// who was confirming a credential they already hold.
+    /// </para>
+    /// <para>
+    /// One answer for every cause — no challenge in flight, an expired one, a
+    /// signature that did not verify, and a credential belonging to a different
+    /// account. The last of those is the interesting one, and it is deliberately
+    /// not distinguished: telling a caller that their credential is valid but
+    /// attached to somebody else is telling them something about somebody else.
+    /// </para>
+    /// </remarks>
+    public static ProblemHttpResult ReauthenticationFailed => TypedResults.Problem(
+        title: "Confirmation failed",
+        detail: "That could not be confirmed. Start again.",
+        statusCode: StatusCodes.Status400BadRequest);
+
+    /// <summary>
     /// The request body did not describe something the endpoint could act on.
     /// </summary>
     /// <remarks>
