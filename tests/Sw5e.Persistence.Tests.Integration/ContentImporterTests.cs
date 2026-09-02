@@ -1,5 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
+using Sw5e.Infrastructure.Content;
 
 namespace Sw5e.Persistence.Tests.Integration;
 
@@ -82,6 +86,100 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
         var after = await SnapshotAsync();
 
         after.ShouldBe(before);
+    }
+
+    /// <summary>
+    /// A document's version depends on how it is projected, not only on what it
+    /// says.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The importer decides whether to rewrite a row by comparing versions, so
+    /// a version that is only a hash of the document makes a projection change
+    /// invisible: the same bytes produce a different row, the hash does not
+    /// move, and every unchanged document keeps a row built by the old rules.
+    /// </para>
+    /// <para>
+    /// It happened. Harvesting Markdown headings into their own column imported
+    /// cleanly against a database that had been running for days, reported
+    /// "175 updated, 7,702 unchanged", and left the new column empty on 7,876
+    /// of 7,877 rows. The tier that reads it did nothing, and every test here
+    /// passed, because tests import into an empty database where every document
+    /// is an insert and no version is ever compared.
+    /// </para>
+    /// <para>
+    /// Asserted against the bare document hash rather than against a pinned
+    /// value, so that this keeps meaning the same thing when the fixture
+    /// changes. A pinned hash would have to be edited whenever anything moved,
+    /// and a test that is routinely edited to make it pass stops being read.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void TheVersionOfADocumentCoversTheProjectionAsWellAsTheDocument()
+    {
+        using var document = JsonDocument.Parse("""{"key":"x","name":"X"}""");
+
+        var version = ContentIndexBuilder.ComputeVersionFor(document.RootElement);
+
+        var documentOnly = Convert.ToHexStringLower(
+            SHA256.HashData(Encoding.UTF8.GetBytes(document.RootElement.GetRawText())))[..16];
+
+        version.ShouldNotBe(documentOnly,
+            "the version is a hash of the document alone, so a projection change " +
+            "cannot invalidate a row the document did not touch");
+
+        // And it is still a version: same shape, and stable across calls.
+        version.Length.ShouldBe(16);
+        version.ShouldBe(ContentIndexBuilder.ComputeVersionFor(document.RootElement));
+    }
+
+    /// <summary>
+    /// Rows written under an earlier projection are rewritten, not skipped.
+    /// </summary>
+    /// <remarks>
+    /// The mechanism the test above protects, exercised through the importer:
+    /// every row is left holding a version from a projection that no longer
+    /// exists, and the next import has to notice. Blanking the harvested column
+    /// as well means the assertion is about the row being rebuilt rather than
+    /// about a counter being incremented.
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_RewritesRowsLeftByAnEarlierProjection()
+    {
+        await Database.ImportAsync();
+
+        int withHeadings;
+
+        await using (var database = Database.CreateContext())
+        {
+            withHeadings = await database.ContentItems
+                .CountAsync(item => item.HeadingTextLower != "");
+        }
+
+        withHeadings.ShouldBeGreaterThan(0,
+            "the fixture has no headings at all, so this cannot detect losing them");
+
+        // What a database looks like after a release that changed the
+        // projection: rows built by the old rules, carrying old versions.
+        await using (var database = Database.CreateContext())
+        {
+            await database.ContentItems.ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.HeadingTextLower, "")
+                .SetProperty(item => item.Version, "old-projection"));
+        }
+
+        var result = await Database.ImportAsync();
+
+        result.Unchanged.ShouldBe(0, "rows from an earlier projection were skipped");
+        result.Updated.ShouldBe(ContentFixture.ExpectedTotal);
+
+        await using (var database = Database.CreateContext())
+        {
+            var rebuilt = await database.ContentItems
+                .CountAsync(item => item.HeadingTextLower != "");
+
+            rebuilt.ShouldBe(withHeadings);
+        }
     }
 
     [DockerFact]

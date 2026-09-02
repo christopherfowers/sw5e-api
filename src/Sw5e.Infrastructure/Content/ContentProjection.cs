@@ -15,6 +15,42 @@ namespace Sw5e.Infrastructure.Content;
 /// </remarks>
 internal static class ContentProjection
 {
+    /// <summary>
+    /// Bumped whenever a document's stored row is derived differently, even
+    /// though the document itself has not changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A row's version is a hash of the document, and the importer skips any
+    /// item whose version it already holds. That is right for content edits and
+    /// wrong for everything else: when the projection changes, every document
+    /// in the corpus produces a different row from the same bytes, and a hash
+    /// of the bytes alone cannot tell. The importer skips all of them and the
+    /// change reaches only whichever documents happened to be edited in the
+    /// same release.
+    /// </para>
+    /// <para>
+    /// This is not hypothetical. Harvesting Markdown headings into their own
+    /// column shipped, imported cleanly against a database that had been up for
+    /// days, reported "175 updated, 7,702 unchanged" — and left the new column
+    /// empty on 7,876 of 7,877 rows, because those documents had not changed.
+    /// The tier that reads it was inert, and every test passed, because tests
+    /// import into an empty database where every row is an insert.
+    /// </para>
+    /// <para>
+    /// Mixing this into the version fixes it in the direction that is also
+    /// correct for callers. The version is the ETag, and a projection change
+    /// genuinely changes the response — a client holding the old one is holding
+    /// something stale, and should be told so.
+    /// </para>
+    /// <para>
+    /// <b>Bump this when changing anything that turns a document into a row:</b>
+    /// the name, summary or facet fields below, the heading harvest, the search
+    /// text, or the cap on any of them.
+    /// </para>
+    /// </remarks>
+    internal const string Version = "2-headings";
+
     /// <summary>Longest summary line kept, in characters.</summary>
     /// <remarks>
     /// Unchanged by the arrival of the rule type, whose summary field is a
