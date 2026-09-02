@@ -36,7 +36,7 @@ internal static class RegistrationHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         // Input shape is validated and rejected loudly, because a malformed
         // address is not a fact about whether an account exists. The moment the
@@ -159,7 +159,7 @@ internal static class RegistrationHandlers
         AccountStateCookies state,
         ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (!AccountInput.TryReadEmail(request.Email, out var emailAddress, out var problem))
         {

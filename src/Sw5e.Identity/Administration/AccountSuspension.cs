@@ -135,6 +135,12 @@ public static class AccountSuspension
 
         await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
 
+        // Logged under the API's account category rather than this assembly's
+        // own, so that an operator turning the account routes up gets this
+        // with them — it is the same story, told from one layer down. The
+        // literal cannot be Sw5e.Api.LogCategories.Accounts because the
+        // dependency runs the other way; if that constant is ever renamed,
+        // this is the one place that has to be renamed with it.
         services.GetService<ILoggerFactory>()
             ?.CreateLogger("Sw5e.Api.Accounts")
             .LogWarning(

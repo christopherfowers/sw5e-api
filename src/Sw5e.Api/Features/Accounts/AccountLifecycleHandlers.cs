@@ -46,7 +46,7 @@ internal static class AccountLifecycleHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (request?.Suspended is not { } suspended)
         {
@@ -252,7 +252,7 @@ internal static class AccountLifecycleHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (await users.FindByIdAsync(userId.ToString()) is not { } target)
         {

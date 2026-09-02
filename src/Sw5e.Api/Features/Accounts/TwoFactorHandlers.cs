@@ -87,7 +87,7 @@ internal static class TwoFactorHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
         var code = AccountInput.NormaliseDigits(request.Code, Rfc6238TimeBasedOneTimePassword.Digits);
 
         if (code is null)

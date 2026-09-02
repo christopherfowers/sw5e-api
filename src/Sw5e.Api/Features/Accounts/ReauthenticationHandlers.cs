@@ -77,7 +77,7 @@ internal static class ReauthenticationHandlers
         AccountStateCookies state,
         ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (await users.GetUserAsync(context.User) is not { } user)
         {
@@ -169,7 +169,7 @@ internal static class ReauthenticationHandlers
         SignInManager<Sw5eUser> signIn,
         ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (await users.GetUserAsync(context.User) is not { } user)
         {
