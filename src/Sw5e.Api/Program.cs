@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Sw5e.Api;
 using Sw5e.Api.Features.Accounts;
 using Sw5e.Api.Features.Content;
 using Sw5e.Api.Features.Health;
@@ -171,7 +172,7 @@ else if (string.Equals(contentStore, "file", StringComparison.OrdinalIgnoreCase)
             ? configured
             : Path.Combine(builder.Environment.ContentRootPath, configured);
 
-        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Api.Content");
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(LogCategories.Content);
         var result = FileContentRepository.Load(rootPath);
 
         // Warnings name files on disk, so they are logged and never returned. A

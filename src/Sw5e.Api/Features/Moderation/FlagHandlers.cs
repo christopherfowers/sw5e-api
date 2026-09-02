@@ -152,7 +152,7 @@ internal static class FlagHandlers
         // the log is where it is counted, and copying user-submitted prose into
         // a log stream that fans out to a shared aggregator is how it ends up
         // rendered somewhere nobody escaped it.
-        loggerFactory.CreateLogger("Sw5e.Api.Moderation").LogInformation(
+        loggerFactory.CreateLogger(LogCategories.Moderation).LogInformation(
             "Flag {FlagId} raised against {TargetType}/{TargetKey} for {Reason} by account {UserId}.",
             flag.Id,
             flag.TargetType,
@@ -526,7 +526,7 @@ internal static class FlagHandlers
             return FlagProblems.AlreadyReported;
         }
 
-        loggerFactory.CreateLogger("Sw5e.Api.Moderation").LogInformation(
+        loggerFactory.CreateLogger(LogCategories.Moderation).LogInformation(
             "Flag {FlagId} moved from {From} to {To} by account {UserId}.",
             flag.Id,
             FlagWire.NameOf(previous),

@@ -30,7 +30,7 @@ internal static class AdministrationHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (!TryReadRoles(request.Roles, out var requested, out var problem))
         {

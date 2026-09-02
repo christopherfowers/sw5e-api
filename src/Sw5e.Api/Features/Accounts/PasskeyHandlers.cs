@@ -90,7 +90,7 @@ internal static class PasskeyHandlers
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         var user = await ResolveEnrollingUserAsync(context, users, state);
 
@@ -212,7 +212,7 @@ internal static class PasskeyHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         if (await users.GetUserAsync(context.User) is not { } user)
         {
@@ -306,7 +306,7 @@ internal static class PasskeyHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         var challenge = state.ReadLoginChallenge(context);
         AccountStateCookies.Clear(context, AccountStateCookies.LoginChallengeCookie);

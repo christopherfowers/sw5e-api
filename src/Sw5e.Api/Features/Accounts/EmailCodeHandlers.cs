@@ -73,7 +73,7 @@ internal static class EmailCodeHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         // Before the branch, never after. From here on every path produces the
         // same response.
@@ -147,7 +147,7 @@ internal static class EmailCodeHandlers
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger("Sw5e.Api.Accounts");
+        var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         // Every refusal below is this same value. A caller learns that it did
         // not work and nothing else — not whether the address exists, not

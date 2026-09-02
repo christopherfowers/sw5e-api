@@ -232,7 +232,7 @@ internal static class AuthoringHandlers
 
         var revision = result.Revision!;
 
-        loggerFactory.CreateLogger("Sw5e.Api.Authoring").LogInformation(
+        loggerFactory.CreateLogger(LogCategories.Authoring).LogInformation(
             "Published {Type}/{Key} as revision {Revision} by account {UserId}.",
             revision.ContentType,
             revision.ItemKey,
@@ -348,7 +348,7 @@ internal static class AuthoringHandlers
             return AuthoringProblems.From(result);
         }
 
-        loggerFactory.CreateLogger("Sw5e.Api.Authoring").LogInformation(
+        loggerFactory.CreateLogger(LogCategories.Authoring).LogInformation(
             "Reverted {Type}/{Key} to revision {Target} by account {UserId}.",
             type,
             key,
