@@ -166,20 +166,38 @@ public enum ContentAuthoringStatus
 /// The revision the operation wrote, when it wrote one. This is what a resolved
 /// flag is pointed at.
 /// </param>
+/// <param name="Violations">
+/// The same failures with the location, keyword and message kept apart, so the
+/// editor can put each one beside the control that caused it. Empty for a
+/// refusal that is not about a value inside the document.
+/// </param>
 public sealed record ContentAuthoringResult(
     ContentAuthoringStatus Status,
     IReadOnlyList<string> Errors,
-    ContentRevisionSummary? Revision)
+    ContentRevisionSummary? Revision,
+    IReadOnlyList<ContentViolation> Violations)
 {
     public static ContentAuthoringResult Succeeded(ContentRevisionSummary? revision = null) =>
-        new(ContentAuthoringStatus.Succeeded, [], revision);
+        new(ContentAuthoringStatus.Succeeded, [], revision, []);
 
+    /// <summary>
+    /// A refusal with reasons but nothing to place them by — a body that would
+    /// not parse, or a type with no schema published.
+    /// </summary>
     public static ContentAuthoringResult Invalid(IReadOnlyList<string> errors) =>
-        new(ContentAuthoringStatus.Invalid, errors, null);
+        new(ContentAuthoringStatus.Invalid, errors, null, []);
+
+    /// <summary>A refusal that knows which value each reason was about.</summary>
+    public static ContentAuthoringResult Invalid(ContentValidation validation) =>
+        new(
+            ContentAuthoringStatus.Invalid,
+            validation.Errors,
+            null,
+            validation.Violations);
 
     public static ContentAuthoringResult NotFound { get; } =
-        new(ContentAuthoringStatus.NotFound, [], null);
+        new(ContentAuthoringStatus.NotFound, [], null, []);
 
     public static ContentAuthoringResult Stale { get; } =
-        new(ContentAuthoringStatus.Stale, [], null);
+        new(ContentAuthoringStatus.Stale, [], null, []);
 }

@@ -120,3 +120,33 @@ public sealed record RevisionResponse(
     long? RevertedFromId,
     DateTimeOffset CreatedAt,
     JsonElement Document);
+
+/// <summary>
+/// One schema failure, published with its parts apart.
+/// </summary>
+/// <param name="InstanceLocation">
+/// A JSON Pointer to the value that failed, empty for the document root. This
+/// is the field that makes the whole thing worth sending: it is what lets an
+/// editor put the error beside the control that caused it.
+/// </param>
+/// <param name="Keyword">
+/// The JSON Schema keyword that rejected the value — <c>required</c>,
+/// <c>pattern</c>, <c>enum</c>. A vocabulary term rather than prose, so a
+/// client can key its own wording off it without reading the message.
+/// </param>
+/// <param name="Message">
+/// The validator's own sentence. Written for somebody debugging a schema
+/// rather than for somebody correcting a rules page, so a client is expected to
+/// prefer its own wording where it has one — and to show this where it does
+/// not, because the validator's sentence is always better than a guess.
+/// </param>
+/// <remarks>
+/// Sent alongside <c>schemaErrors</c> rather than instead of it. Every one of
+/// these has a counterpart line there, in the same order, and the older field
+/// is what a client that predates this reads. See
+/// <see cref="AuthoringProblems.SchemaViolation"/>.
+/// </remarks>
+internal sealed record SchemaViolationDetail(
+    string InstanceLocation,
+    string Keyword,
+    string Message);

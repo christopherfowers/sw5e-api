@@ -65,6 +65,48 @@ public sealed class AuthoringLifecycleTests(PostgresFixture postgres) : IAsyncLi
 
         errors.ShouldNotBeEmpty();
 
+        /*
+          And reported with their parts apart, which is what lets an editor put
+          each one beside the control that caused it.
+
+          Before this field existed the browser recovered the pointer from the
+          line with a regular expression — a guess at a format produced in a
+          different repository, promised by nothing here and asserted by no
+          test. A reworded validator message would have quietly stopped errors
+          landing on fields, and every suite would have stayed green.
+        */
+        var violations = body.GetProperty("schemaViolations").EnumerateArray().ToArray();
+
+        violations.Length.ShouldBe(errors.Length, "every line must have its structured counterpart");
+
+        foreach (var violation in violations)
+        {
+            var location = violation.GetProperty("instanceLocation").GetString();
+            var keyword = violation.GetProperty("keyword").GetString();
+            var message = violation.GetProperty("message").GetString();
+
+            // The keyword may be empty, and that is not a defect.
+            // `additionalProperties: false` is implemented as a false schema,
+            // and a false schema fails with no keyword at all. Requiring one
+            // here would be asserting that the validator invents a name for
+            // something that has none — which is exactly what the front end's
+            // regular expression used to require, and why a property that does
+            // not belong to a content type could not be placed on a field.
+            keyword.ShouldNotBeNull();
+            message.ShouldNotBeNullOrWhiteSpace();
+
+            // Empty for the document root, and a JSON Pointer otherwise.
+            // Anything else is not something a client can place, and placing it
+            // anyway would put an error on an unrelated field.
+            location.ShouldNotBeNull();
+            (location.Length == 0 || location.StartsWith('/')).ShouldBeTrue(
+                $"'{location}' is neither the root nor a JSON Pointer");
+
+            // The two shapes describe the same failures, so a client reading
+            // either one is told the same thing.
+            errors.ShouldContain($"{location}: {keyword} — {message}");
+        }
+
         (await AuthoringFlow.StoredDraftAsync(_factory, key)).ShouldBeNull();
         (await AuthoringFlow.StoredItemAsync(_factory, key)).ShouldBeNull();
         (await AuthoringFlow.StoredRevisionsAsync(_factory, key)).ShouldBeEmpty();
