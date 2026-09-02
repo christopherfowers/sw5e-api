@@ -242,6 +242,77 @@ public sealed class DbContentRepositoryTests(PostgresFixture fixture) : Database
     /// rather than erroring, which is what a caller probing for an injection
     /// point would be looking for.
     /// </remarks>
+    /// <summary>
+    /// A phrase that names a section is a heading match, not a prose match.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The case this tier was added for, and it was found on the deployed site
+    /// rather than here. Searching "difficult terrain" returned one hundred and
+    /// twenty-two matches with the rules chapter — which has a section titled
+    /// "Difficult Terrain" — in fifth place, behind twenty-nine class features
+    /// that mention the phrase in passing. Every hit had landed in the same
+    /// tier, so ranking collapsed to the alphabet inside whichever content type
+    /// happened to have the most matches.
+    /// </para>
+    /// <para>
+    /// "Aging Thresholds" is a heading in the committed fixture and appears
+    /// nowhere else in it, so a document matching on it can only have matched
+    /// through the heading column.
+    /// </para>
+    /// </remarks>
+    [DockerFact]
+    public async Task Search_ReportsAHeadingMatchAsAHeading()
+    {
+        var result = await Database.Repository.SearchAsync(
+            new ContentSearchQuery("aging thresholds", null, 5));
+
+        var hit = result.Groups
+            .Single(group => group.Type == "rule")
+            .Hits.Single(candidate => candidate.Item.Key == "aging");
+
+        hit.MatchedField.ShouldBe(SearchMatchField.Heading);
+
+        // And it still shows the phrase in context. A heading's words are part
+        // of the prose the window is cut from, so there is no reason for this
+        // tier to carry less evidence than the one below it — a result that
+        // asserts a match without showing one makes somebody open the page to
+        // find out whether it was worth opening.
+        hit.Snippet.ShouldNotBeNullOrWhiteSpace();
+        hit.Snippet.ShouldContain("Aging Thresholds", Case.Insensitive);
+    }
+
+    /// <summary>
+    /// A heading outranks prose, and prose still reports itself as prose.
+    /// </summary>
+    /// <remarks>
+    /// Both phrases are in the same document, so nothing about the two
+    /// documents can explain the difference in score: the only thing that
+    /// varies is where the phrase was found.
+    /// </remarks>
+    [DockerFact]
+    public async Task Search_ScoresAHeadingAboveTheProseAroundIt()
+    {
+        var heading = await Database.Repository.SearchAsync(
+            new ContentSearchQuery("aging thresholds", null, 5));
+
+        var prose = await Database.Repository.SearchAsync(
+            new ContentSearchQuery("campaigns might take place", null, 5));
+
+        var byHeading = heading.Groups
+            .Single(group => group.Type == "rule")
+            .Hits.Single(candidate => candidate.Item.Key == "aging");
+
+        var byProse = prose.Groups
+            .Single(group => group.Type == "rule")
+            .Hits.Single(candidate => candidate.Item.Key == "aging");
+
+        byHeading.MatchedField.ShouldBe(SearchMatchField.Heading);
+        byProse.MatchedField.ShouldBe(SearchMatchField.Text);
+
+        byHeading.Score.ShouldBeGreaterThan(byProse.Score);
+    }
+
     [DockerTheory]
     [InlineData("'; DROP TABLE content.content_item; --")]
     [InlineData("' OR 1=1 --")]

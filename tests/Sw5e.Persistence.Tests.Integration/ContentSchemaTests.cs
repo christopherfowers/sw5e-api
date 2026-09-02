@@ -229,6 +229,22 @@ public sealed class ContentSchemaTests(PostgresFixture fixture) : DatabaseTest(f
     [DockerFact]
     public async Task Schema_HasTrigramIndexesOnTheColumnsSubstringSearchScans()
     {
+        var names = await QueryAsync(
+            """
+            SELECT indexname FROM pg_indexes
+            WHERE schemaname = 'content' AND indexname LIKE '%trgm%'
+            ORDER BY indexname
+            """);
+
+        // Named rather than counted. A count says only that somebody added or
+        // removed one; the names say which column stopped being searchable,
+        // which is the thing a reader of a failure needs to know.
+        names.ShouldBe([
+            "ix_content_item_heading_text_trgm",
+            "ix_content_item_name_lower_trgm",
+            "ix_content_item_search_text_trgm",
+        ]);
+
         var definitions = await QueryAsync(
             """
             SELECT indexdef FROM pg_indexes
@@ -236,7 +252,9 @@ public sealed class ContentSchemaTests(PostgresFixture fixture) : DatabaseTest(f
             ORDER BY indexname
             """);
 
-        definitions.Count.ShouldBe(2);
+        // GIN over trigrams is the only index shape that serves a leading
+        // wildcard, and every one of these columns is only ever queried that
+        // way. A b-tree here would be an index the planner never uses.
         definitions.ShouldAllBe(definition => definition.Contains("USING gin"));
         definitions.ShouldAllBe(definition => definition.Contains("gin_trgm_ops"));
     }

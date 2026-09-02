@@ -149,6 +149,7 @@ public sealed record SearchResultResponse(
         SearchMatchField.Name => "name",
         SearchMatchField.Key => "key",
         SearchMatchField.Facet => "facet",
+        SearchMatchField.Heading => "heading",
         _ => "text",
     };
 }

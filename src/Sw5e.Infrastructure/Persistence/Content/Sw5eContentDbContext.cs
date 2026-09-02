@@ -186,6 +186,14 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
             entity.Property(item => item.Version).HasColumnName("version").HasMaxLength(64);
             entity.Property(item => item.NameLower).HasColumnName("name_lower").HasMaxLength(512);
             entity.Property(item => item.SearchTextLower).HasColumnName("search_text_lower");
+
+            // Same "C" collation as the other folded columns: matching is done
+            // on bytes that .NET already lowercased, so the database must not
+            // apply its own locale rules on top.
+            entity.Property(item => item.HeadingTextLower)
+                  .HasColumnName("heading_text_lower")
+                  .UseCollation("C")
+                  .HasDefaultValue(string.Empty);
             entity.Property(item => item.CreatedAt).HasColumnName("created_at");
             entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
 
@@ -233,6 +241,11 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
 
             entity.HasIndex(item => item.SearchTextLower)
                   .HasDatabaseName("ix_content_item_search_text_trgm")
+                  .HasMethod("gin")
+                  .HasOperators("gin_trgm_ops");
+
+            entity.HasIndex(item => item.HeadingTextLower)
+                  .HasDatabaseName("ix_content_item_heading_text_trgm")
                   .HasMethod("gin")
                   .HasOperators("gin_trgm_ops");
 
