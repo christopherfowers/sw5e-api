@@ -426,15 +426,43 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     /// The scoring ladder and the per-type window, in one statement.
     /// </summary>
     /// <remarks>
-    /// The tiers are the file-backed store's, in the same order and with the
-    /// same numbers: an exact name beats a name prefix, which beats a name
-    /// substring, which beats the slug, a display field, the body prose, and
-    /// finally scattered words. Only the strongest tier is reported, because a
-    /// result row has room for one explanation of why it is there.
+    /// The tiers are the file-backed store's and in the same order: an exact
+    /// name beats a name prefix, which beats a name substring, which beats the
+    /// slug, a display field, the body prose, and finally scattered words. Only
+    /// the strongest tier is reported, because a result row has room for one
+    /// explanation of why it is there.
+    /// </remarks>
+    /// <remarks>
+    /// <para>
+    /// The numbers are no longer the file-backed store's, and that is
+    /// deliberate. The three prose tiers are scored as bands here, spread by
+    /// <c>ts_rank</c> over the weighted <c>search_vector</c>, because a flat
+    /// number per tier leaves the ordering to the tiebreak and the tiebreak is
+    /// alphabetical. The file-backed store keeps the flat numbers: PostgreSQL's
+    /// ranking cannot be reimplemented in memory, and pretending otherwise
+    /// would mean either giving up the better ordering or shipping a C# copy
+    /// that claims to agree with it and does not.
+    /// </para>
+    /// <para>
+    /// So the two stores agree on which documents match, which tier each match
+    /// is, what it is grouped under and what it quotes, and they disagree on
+    /// the order of documents inside a prose tier. <c>StoreParityTests</c> says
+    /// exactly that and checks exactly that.
+    /// </para>
     /// </remarks>
     private const string SearchSql =
         """
-        WITH matched AS (
+        WITH query AS (
+            -- websearch_to_tsquery, not to_tsquery or plainto_tsquery.
+            -- to_tsquery raises a syntax error on input it cannot parse, which
+            -- would turn any search containing an ampersand into a 500;
+            -- websearch_to_tsquery has no invalid input, so a caller pasting
+            -- SQL, boolean operators or an unclosed quote gets those characters
+            -- treated as the words they are. It also gives readers quoted
+            -- phrases and OR for free.
+            SELECT websearch_to_tsquery('english', @phrase) AS tsquery
+        ),
+        matched AS (
             SELECT
                 i.content_type,
                 i.item_key,
@@ -454,6 +482,18 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                 position(@phrase IN i.heading_text_lower) AS heading_pos,
                 position(@first_token IN i.search_text_lower) AS token_pos,
                 length(i.search_text)                    AS text_length,
+                -- How much this document is *about* the phrase, as opposed to
+                -- whether the phrase occurs in it. Weights run name, heading,
+                -- body; the fourth entry of the array is the unweighted D class
+                -- and the first is A, because ts_rank reads them backwards.
+                --
+                -- Normalisation 32 is rank/(rank+1), which maps any rank into
+                -- (0, 1). That is what makes the bands below safe: a tier can
+                -- be spread across a range narrower than the gap to the tier
+                -- above it, so ordering by score can never promote a document
+                -- across a tier boundary no matter how strong the match.
+                ts_rank('{0.1, 0.3, 0.6, 1.0}', i.search_vector, q.tsquery, 32)
+                    AS fts_rank,
                 -- Ordered under the C collation so the field reported as the
                 -- explanation is the same one the file-backed store reports.
                 -- jsonb_each_text returns text in the database's default
@@ -475,6 +515,14 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                     LIMIT 1
                 ) AS facet_value
             FROM content.content_item AS i
+            CROSS JOIN query AS q
+            -- Deliberately not widened with `OR i.search_vector @@ q.tsquery`.
+            -- That would find documents the substring ladder cannot — "starship
+            -- shields" matches thirty-four documents as words and none as a
+            -- phrase — but every snippet here is cut at a substring position,
+            -- so those rows would come back with nothing to show for
+            -- themselves. Recall is worth having and is a separate change; it
+            -- needs a headline that can quote a stemmed match.
             WHERE i.content_type = ANY(@types)
               -- No ESCAPE clause: backslash is already PostgreSQL's default
               -- LIKE escape character, and LIKE ALL takes no ESCAPE clause, so
@@ -522,12 +570,30 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
                         + 10.0 * length(@phrase) / GREATEST(length(s.name_lower), 1)
                     WHEN 3 THEN 55.0
                     WHEN 4 THEN 40.0
-                    -- Below a curated display field, which is a structured
-                    -- statement about what a document is, and above the prose,
-                    -- which is only somewhere the words appear.
-                    WHEN 5 THEN 35.0
-                    WHEN 6 THEN 25.0
-                    ELSE 10.0
+                    -- The three prose tiers are bands, not numbers.
+                    --
+                    -- Their floors are what they always were, and the tier
+                    -- ordering is unchanged: a heading still beats body text
+                    -- which still beats scattered words, and a facet at 40
+                    -- still beats the strongest possible heading. What changed
+                    -- is that within a band the documents are now spread by
+                    -- ts_rank instead of sharing one number.
+                    --
+                    -- Sharing one number was the bug. Searching "poison damage"
+                    -- matched a hundred and twelve documents that all scored
+                    -- exactly 25, so the only thing left to order them by was
+                    -- the tiebreak, and the tiebreak is the name: the reader
+                    -- got an alphabetical list. Every band is narrower than the
+                    -- distance to the tier above it, so this reorders within a
+                    -- tier and can never reorder across one.
+                    --
+                    -- Cast because ts_rank returns real: without it the whole
+                    -- CASE becomes double precision, and the reader below asks
+                    -- for a decimal. Score stays numeric, as it has always
+                    -- been, so nothing downstream has to know this changed.
+                    WHEN 5 THEN (35.0 + (4.9 * s.fts_rank))::numeric
+                    WHEN 6 THEN (25.0 + (9.9 * s.fts_rank))::numeric
+                    ELSE       (10.0 + (9.9 * s.fts_rank))::numeric
                 END AS score,
                 -- A heading match still quotes the prose around the phrase, and
                 -- can: a heading's words are part of the text this cuts from.

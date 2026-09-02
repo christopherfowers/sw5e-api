@@ -347,15 +347,43 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     }
 
     /// <summary>
-    /// Search must rank, group, explain and quote identically.
+    /// Search must find, group, explain and quote identically, and rank
+    /// identically wherever both stores are able to.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The phrases below are chosen to reach every tier of the scoring ladder:
     /// an exact name, a name prefix, a name substring, a slug, a display field,
     /// body prose, and a multi-word query whose words appear apart. If any of
     /// them stops reaching its tier, this test starts comparing two stores that
     /// agree because neither found anything, so the tiers are asserted
     /// explicitly below.
+    /// </para>
+    /// <para>
+    /// <b>What the two stores no longer promise, and why.</b> The database
+    /// store spreads the three prose tiers by <c>ts_rank</c> over a weighted
+    /// <c>tsvector</c>; the file-backed store gives every document in a prose
+    /// tier the same number. PostgreSQL's ranking cannot be reimplemented in
+    /// memory, so the choice was to give up the better ordering or to stop
+    /// claiming the two agree about it. Claiming it was the more expensive
+    /// mistake: an assertion that both stores return the same order is exactly
+    /// what would have to be deleted to fix the ordering, and deleting an
+    /// assertion to make a change pass is how a suite stops meaning anything.
+    /// </para>
+    /// <para>
+    /// So this compares everything that must still hold — the same documents,
+    /// under the same groups, with the same totals, the same tier, the same
+    /// named field and the same quoted evidence — and compares order only where
+    /// both stores score flatly and therefore must agree: a name, a slug or a
+    /// display field. Inside a prose tier the sets are compared unordered.
+    /// </para>
+    /// <para>
+    /// The limit is deliberately far above any group in the fixture. A truncated
+    /// group would make this vacuous in the other direction: if the stores
+    /// disagree about the order of a hundred tied documents then they also
+    /// disagree about which five survive a cut, and comparing the survivors
+    /// would report a difference in ranking as a difference in membership.
+    /// </para>
     /// </remarks>
     [DockerTheory]
     [InlineData("wookiee")]
@@ -374,7 +402,7 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     [InlineData("no such phrase anywhere")]
     public async Task Search_ReturnsTheSameGroupsHitsAndSnippetsFromBothStores(string phrase)
     {
-        var query = new ContentSearchQuery(phrase, null, 5);
+        var query = new ContentSearchQuery(phrase, null, Uncut);
 
         var fromFile = await FileStore.SearchAsync(query);
         var fromDatabase = await Database.Repository.SearchAsync(query);
@@ -382,21 +410,63 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
         fromDatabase.Query.ShouldBe(fromFile.Query);
         fromDatabase.TotalMatches.ShouldBe(fromFile.TotalMatches, phrase);
 
-        Describe(fromDatabase).ShouldBe(Describe(fromFile), phrase);
+        // Guards the remark above: if the fixture grows past the limit this
+        // silently becomes a comparison of two truncations.
+        fromFile.Groups.ShouldAllBe(group => group.Hits.Count < Uncut, phrase);
 
-        static List<string> Describe(ContentSearchResult result) =>
-        [
-            .. result.Groups.SelectMany(group => group.Hits.Select(hit =>
-                string.Join('|',
+        // Every document, its tier, its named field and its evidence.
+        Describe(fromDatabase, ordered: false).ShouldBe(
+            Describe(fromFile, ordered: false), phrase);
+
+        // And the order itself, for the tiers where a flat score is all either
+        // store has and the tiebreak is shared.
+        Describe(fromDatabase, ordered: true).ShouldBe(
+            Describe(fromFile, ordered: true), phrase);
+
+        static List<string> Describe(ContentSearchResult result, bool ordered)
+        {
+            var rows = result.Groups.SelectMany(group => group.Hits
+                .Where(hit => RanksFlatlyInBothStores(hit.MatchedField) == ordered)
+                .Select(hit => string.Join('|',
                     group.Type,
                     group.TotalMatches.ToString(),
                     hit.Item.Key,
                     hit.MatchedField.ToString(),
                     hit.MatchedFieldName ?? "<null>",
                     hit.Snippet,
-                    Math.Round(hit.Score, 2).ToString("F2"))))
-        ];
+                    // Compared in the ordered mode only. Where both stores
+                    // score flatly they must still agree on the number itself,
+                    // and dropping that would let the two ladders drift apart
+                    // in the tiers this change did not touch.
+                    ordered ? Math.Round(hit.Score, 2).ToString("F2") : "-")));
+
+            // Order is the assertion in one mode and noise in the other, so the
+            // unordered mode is sorted into a canonical order rather than left
+            // in whichever the store produced.
+            return ordered
+                ? [.. rows]
+                : [.. rows.OrderBy(row => row, StringComparer.Ordinal)];
+        }
     }
+
+    /// <summary>
+    /// Whether both stores score this kind of match with the same flat number,
+    /// and therefore have to agree about where it sorts.
+    /// </summary>
+    /// <remarks>
+    /// A name, a slug and a display field are scored identically in SQL and in
+    /// C#, and both break ties on the same name and key in the same collation.
+    /// A heading or a body match is where the database store applies
+    /// <c>ts_rank</c> and the file-backed store cannot.
+    /// </remarks>
+    private static bool RanksFlatlyInBothStores(SearchMatchField field) =>
+        field is SearchMatchField.Name or SearchMatchField.Key or SearchMatchField.Facet;
+
+    /// <summary>
+    /// A per-type limit larger than any group the fixture can produce, for the
+    /// cases that are about what search found rather than about how it cuts.
+    /// </summary>
+    private const int Uncut = 1000;
 
     /// <summary>
     /// The phrases above genuinely exercise every tier.
