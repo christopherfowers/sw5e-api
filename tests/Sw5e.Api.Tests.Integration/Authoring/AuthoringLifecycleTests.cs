@@ -85,7 +85,14 @@ public sealed class AuthoringLifecycleTests(PostgresFixture postgres) : IAsyncLi
             var keyword = violation.GetProperty("keyword").GetString();
             var message = violation.GetProperty("message").GetString();
 
-            keyword.ShouldNotBeNullOrWhiteSpace();
+            // The keyword may be empty, and that is not a defect.
+            // `additionalProperties: false` is implemented as a false schema,
+            // and a false schema fails with no keyword at all. Requiring one
+            // here would be asserting that the validator invents a name for
+            // something that has none — which is exactly what the front end's
+            // regular expression used to require, and why a property that does
+            // not belong to a content type could not be placed on a field.
+            keyword.ShouldNotBeNull();
             message.ShouldNotBeNullOrWhiteSpace();
 
             // Empty for the document root, and a JSON Pointer otherwise.
