@@ -293,8 +293,7 @@ internal static class ContentIndexBuilder
     /// when nothing had.
     /// </remarks>
     internal static string ComputeVersionFor(JsonElement body) =>
-        Convert.ToHexStringLower(
-            SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(body.GetRawText())))[..16];
+        Hash(System.Text.Encoding.UTF8.GetBytes(body.GetRawText()));
 
     private static string? ReadStringOrNull(JsonElement body, string property) =>
         TryReadString(body, property, out var value) ? value : null;
@@ -322,8 +321,31 @@ internal static class ContentIndexBuilder
     /// exactly what an ETag needs; a timestamp would not survive a redeploy
     /// that rewrites files unchanged.
     /// </summary>
-    private static string ComputeVersion(byte[] bytes) =>
-        Convert.ToHexStringLower(SHA256.HashData(bytes))[..16];
+    private static string ComputeVersion(byte[] bytes) => Hash(bytes);
+
+    /// <summary>
+    /// The version of a document, over its bytes and over the projection that
+    /// turns those bytes into a row.
+    /// </summary>
+    /// <remarks>
+    /// The projection is part of it because the importer decides whether to
+    /// rewrite a row by comparing this value, and a document that is projected
+    /// differently produces a different row from identical bytes. Hashing the
+    /// bytes alone made that change invisible: see
+    /// <see cref="ContentProjection.Version"/> for what it cost.
+    /// </remarks>
+    private static string Hash(ReadOnlySpan<byte> bytes)
+    {
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+        // Length-prefixed rather than simply concatenated, so that a projection
+        // version cannot be confused with the first bytes of a document.
+        digest.AppendData(System.Text.Encoding.UTF8.GetBytes(
+            $"{ContentProjection.Version.Length}:{ContentProjection.Version}"));
+        digest.AppendData(bytes);
+
+        return Convert.ToHexStringLower(digest.GetCurrentHash())[..16];
+    }
 
     private static string ComputeIndexVersion(List<IndexedContentItem> items)
     {
