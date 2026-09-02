@@ -48,7 +48,32 @@ internal static class AuthoringProblems
             });
 
     /// <summary>The document did not conform to its type's schema.</summary>
-    public static ProblemHttpResult SchemaViolation(IReadOnlyList<string> errors) =>
+    /// <remarks>
+    /// <para>
+    /// Two shapes of the same information, and both are sent. <c>schemaErrors</c>
+    /// is one line per failure and is what every existing client reads;
+    /// <c>schemaViolations</c> is the same failures with the location, the
+    /// keyword and the message kept apart.
+    /// </para>
+    /// <para>
+    /// The structured one exists because the editor was reconstructing it. The
+    /// pointer is what lets an error be shown beside the control that caused
+    /// it, and it was being recovered from the line with a regular expression —
+    /// a guess at a format produced in a different repository, promised by
+    /// nothing here. A reworded validator message would have quietly stopped
+    /// errors landing on fields.
+    /// </para>
+    /// <para>
+    /// Both are published rather than one replacing the other, because the
+    /// browser application and this service are deployed as separate images
+    /// and either can be ahead of the other. A client that only knows the lines
+    /// keeps working; one that knows both prefers the structured field. It
+    /// costs a few hundred bytes on a response nobody wanted.
+    /// </para>
+    /// </remarks>
+    public static ProblemHttpResult SchemaViolation(
+        IReadOnlyList<string> errors,
+        IReadOnlyList<ContentViolation> violations) =>
         TypedResults.Problem(
             title: Title,
             detail:
@@ -59,6 +84,12 @@ internal static class AuthoringProblems
             {
                 ["code"] = "schema-violation",
                 ["schemaErrors"] = errors,
+                ["schemaViolations"] = violations
+                    .Select(violation => new SchemaViolationDetail(
+                        violation.InstanceLocation,
+                        violation.Keyword,
+                        violation.Message))
+                    .ToArray(),
             });
 
     /// <summary>No content type by that name.</summary>
@@ -134,7 +165,7 @@ internal static class AuthoringProblems
     /// <summary>Maps a store outcome onto its refusal.</summary>
     public static ProblemHttpResult From(ContentAuthoringResult result) => result.Status switch
     {
-        ContentAuthoringStatus.Invalid => SchemaViolation(result.Errors),
+        ContentAuthoringStatus.Invalid => SchemaViolation(result.Errors, result.Violations),
         ContentAuthoringStatus.NotFound => NotFound,
         ContentAuthoringStatus.Stale => Stale,
         _ => throw new ArgumentOutOfRangeException(

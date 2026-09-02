@@ -89,11 +89,54 @@ public interface IContentSchemaValidator
 /// which constraint fixes it themselves. These strings describe the document
 /// the caller just sent, so they disclose nothing the caller did not supply.
 /// </remarks>
-public sealed record ContentValidation(bool IsValid, IReadOnlyList<string> Errors)
+public sealed record ContentValidation(
+    bool IsValid,
+    IReadOnlyList<string> Errors,
+    IReadOnlyList<ContentViolation> Violations)
 {
     /// <summary>A document that conforms.</summary>
-    public static ContentValidation Valid { get; } = new(true, []);
+    public static ContentValidation Valid { get; } = new(true, [], []);
 
-    /// <summary>A document that does not, with the reasons.</summary>
-    public static ContentValidation Invalid(IReadOnlyList<string> errors) => new(false, errors);
+    /// <summary>
+    /// A document that does not, with the reasons and nothing to place them by.
+    /// </summary>
+    /// <remarks>
+    /// For the refusals that are not about a value inside the document: a body
+    /// that would not parse, a null document, a content type with no schema
+    /// published. None of those belongs beside a control, and inventing a
+    /// location for them would put an error on an unrelated field.
+    /// </remarks>
+    public static ContentValidation Invalid(IReadOnlyList<string> errors) =>
+        new(false, errors, []);
+
+    /// <summary>A document that does not, with the reasons and where each was.</summary>
+    public static ContentValidation Invalid(IReadOnlyList<ContentViolation> violations) =>
+        new(
+            false,
+            [.. violations.Select(violation => violation.Line)],
+            violations);
+}
+
+/// <summary>
+/// One reason a document did not match its schema, with its parts intact.
+/// </summary>
+/// <param name="InstanceLocation">
+/// A JSON Pointer to the value that failed, empty for the document root.
+/// </param>
+/// <param name="Keyword">The JSON Schema keyword that rejected it.</param>
+/// <param name="Message">The validator's own sentence about what was wrong.</param>
+/// <remarks>
+/// The API publishes these so an editor can put each error beside the control
+/// that caused it. Before they existed the same three facts were formatted into
+/// one line and the browser took them back apart with a regular expression — a
+/// guess at a format nothing promised, which a reworded message would have
+/// broken silently.
+/// </remarks>
+public sealed record ContentViolation(string InstanceLocation, string Keyword, string Message)
+{
+    /// <summary>
+    /// The one-line form, which is what <see cref="ContentValidation.Errors"/>
+    /// carries and what every log and command-line caller prints.
+    /// </summary>
+    public string Line => $"{InstanceLocation}: {Keyword} — {Message}";
 }

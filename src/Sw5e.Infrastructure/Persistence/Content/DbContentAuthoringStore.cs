@@ -421,7 +421,7 @@ public sealed class DbContentAuthoringStore(
 
         return validation.IsValid
             ? new PreparedDocument(item, schemaVersion, null)
-            : new PreparedDocument(null, schemaVersion, ContentAuthoringResult.Invalid(validation.Errors));
+            : new PreparedDocument(null, schemaVersion, ContentAuthoringResult.Invalid(validation));
     }
 
     /// <summary>

@@ -109,8 +109,18 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
         {
             var result = _validator.Validate(type.Key, version, node);
 
-            return result.IsValid
-                ? ContentValidation.Valid
+            if (result.IsValid) return ContentValidation.Valid;
+
+            // The structured violations when the validator produced any. It
+            // does for every failure that names a value; the one case with
+            // nothing behind it is a document it rejected without saying which
+            // part was wrong, and that falls through to the lines.
+            return result.Violations.Count > 0
+                ? ContentValidation.Invalid(
+                    [.. result.Violations.Select(violation => new ContentViolation(
+                        violation.InstanceLocation,
+                        violation.Keyword,
+                        violation.Message))])
                 : ContentValidation.Invalid(result.Errors);
         }
         catch (SchemaNotFoundException)
