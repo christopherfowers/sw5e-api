@@ -194,6 +194,38 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
                   .HasColumnName("heading_text_lower")
                   .UseCollation("C")
                   .HasDefaultValue(string.Empty);
+
+            // Maintained by PostgreSQL, not by the importer. Every one of the
+            // three source columns is NOT NULL, so the concatenation cannot
+            // yield null and no coalesce is needed. Weighting the name above a
+            // heading above the body is the whole point: it is what lets the
+            // prose tiers be ordered by how much a document is about the phrase
+            // instead of alphabetically.
+            //
+            // The expression names its text search configuration explicitly.
+            // to_tsvector(text) alone reads default_text_search_config, which
+            // is per-session and therefore not immutable, and PostgreSQL will
+            // refuse it in a generated column. Naming 'english' also means the
+            // index cannot change meaning because a client connected with a
+            // different setting.
+            entity.Property(item => item.SearchVector)
+                  .HasColumnName("search_vector")
+                  .HasComputedColumnSql(
+                      """
+                      setweight(to_tsvector('english', name_lower), 'A') ||
+                      setweight(to_tsvector('english', heading_text_lower), 'B') ||
+                      setweight(to_tsvector('english', search_text_lower), 'D')
+                      """,
+                      stored: true);
+
+            // No GIN index on it, deliberately. A GIN index over a tsvector
+            // serves the @@ operator, and nothing here uses @@: the rows are
+            // still selected by the trigram indexes above, and this column is
+            // only read to rank the rows that were already found. Checked
+            // rather than assumed — the plan for a search is a bitmap scan on
+            // ix_content_item_search_text_trgm and never touches a tsvector
+            // index. An index arrives when recall does, because that is the
+            // change that will query it.
             entity.Property(item => item.CreatedAt).HasColumnName("created_at");
             entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
 

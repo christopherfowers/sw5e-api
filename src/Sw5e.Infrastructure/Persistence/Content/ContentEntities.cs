@@ -1,4 +1,6 @@
-﻿namespace Sw5e.Infrastructure.Persistence.Content;
+﻿using NpgsqlTypes;
+
+namespace Sw5e.Infrastructure.Persistence.Content;
 
 /// <summary>
 /// One row of the content type registry, mirrored into the database.
@@ -214,6 +216,37 @@ public sealed class ContentItemRow
     /// </para>
     /// </remarks>
     public required string HeadingTextLower { get; set; }
+
+    /// <summary>
+    /// The document as PostgreSQL full text search sees it, weighted by where
+    /// each word was found.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The substring ladder above this column answers "does the phrase appear",
+    /// which is the right question for a name and the wrong one for prose. It
+    /// has no way to say that a chapter about difficult terrain is more about
+    /// it than a class feature that mentions it once, so every prose match
+    /// scored the same and ordering inside a type fell back to the alphabet.
+    /// Searching the deployed site for "difficult terrain" returned the
+    /// Adventuring chapter behind twenty-nine class features, in a list headed
+    /// by an armoured assault tank, because "AAT" sorts first.
+    /// </para>
+    /// <para>
+    /// Weights are the three fields a reader would rank by: <c>A</c> the name,
+    /// <c>B</c> a section heading, <c>D</c> the body. It is a stored generated
+    /// column rather than something the importer computes, so it cannot drift
+    /// from the text it summarises and no write path can forget to update it.
+    /// </para>
+    /// <para>
+    /// This does not replace the ladder. Full text search is word-based, so it
+    /// cannot find "Acrobat" from "acro" and does not connect "blast" to
+    /// "blaster" — which in this corpus is most of the weapons. The trigram
+    /// indexes stay exactly as they are and keep owning names and substrings;
+    /// this column orders the prose beneath them.
+    /// </para>
+    /// </remarks>
+    public NpgsqlTsVector? SearchVector { get; set; }
 
     /// <summary>When the row was first imported.</summary>
     public DateTimeOffset CreatedAt { get; set; }
