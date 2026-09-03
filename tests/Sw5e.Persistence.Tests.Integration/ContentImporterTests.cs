@@ -520,4 +520,94 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
                 $"{row.ContentType}/{row.ItemKey}:{row.Version}@{row.Id}#{row.UpdatedAt:O}")
         ];
     }
+
+    /// <summary>
+    /// The authored reading path reaches the database.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The site builds its path from <c>readingGroup</c> and <c>order</c>, and
+    /// deliberately never from <c>chapterNumber</c>: that field records where a
+    /// passage fell in a printed book, and it disagrees with what a reader
+    /// needs — the handbook numbers "What's Different?" below its own
+    /// introduction. Projecting the two authored fields is what lets the site
+    /// stop asking about the book at all.
+    /// </para>
+    /// <para>
+    /// <c>chapterNumber</c> is asserted alongside them on purpose. It stays
+    /// projected because it is true about the archive, and a test that only
+    /// checked the new fields would not notice it being dropped by somebody
+    /// tidying up.
+    /// </para>
+    /// </remarks>
+    [DockerFact]
+    public async Task Import_ProjectsTheAuthoredReadingPath()
+    {
+        await Database.ImportAsync();
+
+        await using var database = Database.CreateContext();
+
+        var chapter = await database.ContentItems.SingleAsync(
+            item => item.ContentType == "rule" && item.ItemKey == "phb-classes");
+
+        // Facets are stored as the jsonb text the projection produced.
+        var facets = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            chapter.Facets)!;
+
+        facets["readingGroup"].GetString().ShouldBe("Creating a character");
+
+        /*
+          A string, not a number. Facets are a flat map of display values and
+          every one of them is stringified on the way in, which is why the site
+          parses `order` rather than reading it as an integer. Asserting the
+          string here rather than quietly parsing it is the point: a test that
+          coerced would hide the shape a client actually has to handle.
+        */
+        facets["order"].GetString().ShouldBe("5");
+
+        // Still carried, and still not what the site navigates by.
+        facets["chapterNumber"].GetString().ShouldBe("3");
+    }
+
+    /// <summary>
+    /// Changing what a document is projected from means changing the version.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the guard for the mistake that actually happened. The importer
+    /// skips a document whose version it already holds, so a projection change
+    /// reaches only the documents that were edited in the same release. When
+    /// headings were harvested into their own column, the release imported
+    /// cleanly, reported "175 updated, 7,702 unchanged", and left the new
+    /// column empty on 7,876 of 7,877 rows. The feature was inert, and every
+    /// test in this suite was green — because they all import into an empty
+    /// database, where every document is an insert and no version is compared.
+    /// </para>
+    /// <para>
+    /// Mixing the projection version into the document hash fixed the
+    /// mechanism. It did not stop anybody forgetting to change it, which is the
+    /// half that failed. Pinning both together does: edit the projection table
+    /// and this fails, naming the version that has to move with it.
+    /// </para>
+    /// <para>
+    /// It fingerprints the table and nothing else. It will not notice a change
+    /// in how a field becomes text — the heading harvest, the summary cap — and
+    /// that limit is stated in <c>ContentProjection.Fingerprint</c> rather than
+    /// left to be discovered. What it removes is the case where the change is
+    /// right there in the diff as an edited list, and the version two lines
+    /// above it was simply not looked at.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void ChangingTheProjectionMeansChangingItsVersion()
+    {
+        ContentProjection.Fingerprint().ShouldBe(
+            "9959357939fa3903",
+            "the projection table changed. Bump ContentProjection.Version and " +
+            "put the new fingerprint here, or every document already in a " +
+            "database keeps a row built by the old rules and the change reaches " +
+            "nothing but whatever happens to be edited alongside it.");
+
+        ContentProjection.Version.ShouldBe("3-reading-path");
+    }
 }

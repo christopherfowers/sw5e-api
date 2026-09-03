@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Sw5e.Infrastructure.Content;
@@ -49,7 +50,48 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "2-headings";
+    internal const string Version = "3-reading-path";
+
+    /// <summary>
+    /// A stable description of which fields each type is projected from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Exists so that changing the projection without changing
+    /// <see cref="Version"/> fails a test instead of reaching a deployment.
+    /// That is not a hypothetical pairing to forget: harvesting headings into
+    /// their own column shipped, imported cleanly against a database that had
+    /// been up for days, and left the new column empty on 7,876 of 7,877 rows
+    /// because every document's version still matched. The feature was inert
+    /// and every test was green.
+    /// </para>
+    /// <para>
+    /// It fingerprints the table below and nothing else, and that limit is
+    /// worth stating: it will notice a field added, removed or moved between
+    /// name, summary and facets, and it will not notice a change in how a field
+    /// is turned into text — the heading harvest, the summary cap, the search
+    /// text. Those still need somebody to think. What it removes is the case
+    /// where the change is visible in a diff as an edited list and the version
+    /// two lines above it was simply not looked at.
+    /// </para>
+    /// </remarks>
+    internal static string Fingerprint()
+    {
+        var builder = new StringBuilder();
+
+        foreach (var (type, projection) in Projections.OrderBy(
+                     entry => entry.Key, StringComparer.Ordinal))
+        {
+            builder.Append(type).Append('|')
+                   .Append(projection.NameField).Append('|')
+                   .AppendJoin(',', projection.SummaryFields).Append('|')
+                   .AppendJoin(',', projection.FacetFields).Append('\n');
+        }
+
+        return Convert.ToHexStringLower(
+            SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())))[..16];
+    }
+
 
     /// <summary>Longest summary line kept, in characters.</summary>
     /// <remarks>
@@ -254,10 +296,20 @@ internal static class ContentProjection
             // table of contents. Neither identifies a rule: the archive numbers
             // a preface -2 and a changelog 99, and two chapters of Wretched
             // Hives share the number 1.
+            /*
+              readingGroup and order are what the site builds its path from, and
+              chapterNumber is deliberately still here beside them. It is true
+              about the archive — where the passage fell in a printed book — and
+              a facet is exactly the right place for a fact nobody navigates by
+              but somebody may want to see. What changed is that it stopped
+              being the only thing available to order by, which is how it ended
+              up deciding that a comparison with another game came before the
+              explanation of this one.
+            */
             ["rule"] = new(
                 "name",
                 ["body"],
-                ["ruleType", "chapterNumber"]),
+                ["ruleType", "chapterNumber", "readingGroup", "order"]),
 
             // subject is the only thing thirty otherwise unrelated tables have
             // to group by, and grouping is the whole of what a list of them can
