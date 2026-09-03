@@ -50,7 +50,7 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "3-reading-path";
+    internal const string Version = "4-starship-reading-path";
 
     /// <summary>
     /// A stable description of which fields each type is projected from.
@@ -286,7 +286,11 @@ internal static class ContentProjection
                 // Chapters are titled, not named, exactly as sources are.
                 "title",
                 ["body"],
-                ["chapterNumber"]),
+                // The same authored path as a rule, for the same reason: the
+                // site navigates by what somebody decided, not by where a page
+                // fell in a book. chapterNumber stays as a fact about the
+                // archive.
+                ["chapterNumber", "readingGroup", "order"]),
 
             // The summary comes from the body, which for a chapter is up to
             // 460,000 characters of Markdown; MaxSummaryLength cuts it to an

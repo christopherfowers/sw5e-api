@@ -570,6 +570,61 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
     }
 
     /// <summary>
+    /// The starship book's path is projected too.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Its own test rather than a second case on the one above, because the two
+    /// go through different entries in the projection table. Adding the fields
+    /// to <c>rule</c> and not to <c>starship-rule</c> compiles, imports, and
+    /// leaves the starship pages ordering by the number a PDF printed — with
+    /// every rule assertion still green, since a rule is all they look at.
+    /// Removing the starship entry's two fields turns this red and nothing
+    /// else.
+    /// </para>
+    /// <para>
+    /// The fingerprint test below will not catch that either. It notices that
+    /// the table changed; it cannot notice that it changed in one row and not
+    /// the other, which is precisely the shape of this mistake.
+    /// </para>
+    /// <para>
+    /// Imports the committed corpus rather than the fixture, following the
+    /// relevance and round-trip tests. The fixture has no starship chapter and
+    /// adding one is not free: a dozen assertions pin its document and source
+    /// counts, so a new file means editing a dozen expected numbers, which is
+    /// how a genuine regression gets waved through as "the fixture changed".
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Import_ProjectsTheStarshipReadingPath()
+    {
+        Directory.Exists(ContentFixture.CommittedCorpus).ShouldBeTrue(
+            $"No corpus at '{ContentFixture.CommittedCorpus}'. Initialise the submodule with " +
+            "'git submodule update --init'.");
+
+        await Database.ImportAsync(ContentFixture.CommittedCorpus);
+
+        await using var database = Database.CreateContext();
+
+        var chapter = await database.ContentItems.SingleAsync(
+            item => item.ContentType == "starship-rule" && item.ItemKey == "introduction");
+
+        var facets = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            chapter.Facets)!;
+
+        facets["readingGroup"].GetString().ShouldBe("Start here");
+        facets["order"].GetString().ShouldBe("1");
+
+        /*
+          The two disagree, which is the reason the authored path exists. The
+          book numbers its introduction 0; the path puts it first. A fixture
+          where both said the same thing would pass whichever field the
+          projection actually read.
+        */
+        facets["chapterNumber"].GetString().ShouldBe("0");
+    }
+
+    /// <summary>
     /// Changing what a document is projected from means changing the version.
     /// </summary>
     /// <remarks>
@@ -602,12 +657,12 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
     public void ChangingTheProjectionMeansChangingItsVersion()
     {
         ContentProjection.Fingerprint().ShouldBe(
-            "9959357939fa3903",
+            "23b86b85de22ca84",
             "the projection table changed. Bump ContentProjection.Version and " +
             "put the new fingerprint here, or every document already in a " +
             "database keeps a row built by the old rules and the change reaches " +
             "nothing but whatever happens to be edited alongside it.");
 
-        ContentProjection.Version.ShouldBe("3-reading-path");
+        ContentProjection.Version.ShouldBe("4-starship-reading-path");
     }
 }
