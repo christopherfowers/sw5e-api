@@ -24,7 +24,7 @@
 
     <!-- WebAuthn carries attestation objects and public keys as CBOR. The
          virtual authenticator has to produce both. -->
-    <PackageReference Include="System.Formats.Cbor" Version="10.0.0" />
+    <PackageReference Include="System.Formats.Cbor" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>
