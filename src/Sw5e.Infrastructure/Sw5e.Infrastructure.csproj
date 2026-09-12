@@ -28,7 +28,7 @@
          referenced explicitly all the same because the migrations in this
          assembly are written against Relational's MigrationBuilder and would
          otherwise depend on a transitive version nobody chose. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 
     <!-- The health check itself only needs the abstractions, but registering it
