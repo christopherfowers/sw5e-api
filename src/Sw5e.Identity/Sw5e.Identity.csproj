@@ -19,7 +19,7 @@
          on a container-local file system. See AddSw5eIdentity: without it,
          every restart silently invalidates every session and every emailed
          token, and no two replicas agree on a key. -->
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.12" />
 
     <!-- Design-time only: the migration tooling needs it, the running
          application must never ship it. PrivateAssets keeps it out of anything
