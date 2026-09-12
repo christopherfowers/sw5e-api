@@ -12,7 +12,7 @@
     <!-- ASP.NET Core Identity's EF Core stores. Nothing in this assembly
          hashes a credential, formats a token or decides how a passkey is
          verified; all of that is the framework's, and deliberately so. -->
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 
     <!-- Keeps the data protection key ring in the identity schema rather than
