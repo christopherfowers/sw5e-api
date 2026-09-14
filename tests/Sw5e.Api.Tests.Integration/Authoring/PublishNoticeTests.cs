@@ -148,7 +148,7 @@ public sealed class PublishNoticeTests(PostgresFixture postgres) : IAsyncLifetim
 
         // The name is the actionable half: it is what the author has to correct
         // or go and write.
-        notices[0].GetProperty("message").GetString().ShouldContain("reckless");
+        notices[0].GetProperty("message").GetString().ShouldNotBeNull().ShouldContain("reckless");
     }
 
     /// <summary>
