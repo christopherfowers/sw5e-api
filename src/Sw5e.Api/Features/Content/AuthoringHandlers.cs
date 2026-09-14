@@ -190,7 +190,7 @@ internal static class AuthoringHandlers
             : AuthoringProblems.NotFound;
     }
 
-    public static async Task<Results<Ok<RevisionSummaryResponse>, ProblemHttpResult>> PublishAsync(
+    public static async Task<Results<Ok<PublishResponse>, ProblemHttpResult>> PublishAsync(
         string type,
         string key,
         AuthoringReasonRequest? request,
@@ -244,7 +244,7 @@ internal static class AuthoringHandlers
             await ResolveFlagAsync(moderation, flagId, revision.Id, actor.Id, clock, cancellationToken);
         }
 
-        return TypedResults.Ok(ToSummaryResponse(revision));
+        return TypedResults.Ok(ToPublishResponse(revision, result.Notices));
     }
 
     public static async Task<Results<Ok<RevisionListResponse>, ProblemHttpResult>> ListRevisionsAsync(
@@ -403,6 +403,21 @@ internal static class AuthoringHandlers
 
         await moderation.SaveChangesAsync(cancellationToken);
     }
+
+    private static PublishResponse ToPublishResponse(
+        ContentRevisionSummary revision,
+        IReadOnlyList<ContentPublishNotice> notices) =>
+        new(revision.Id,
+            revision.ContentType,
+            revision.ItemKey,
+            revision.Number,
+            ContentAuthoringWire.From(revision.Action),
+            revision.ActorUserId,
+            revision.Reason,
+            revision.RevertedFromId,
+            revision.CreatedAt,
+            [.. notices.Select(notice =>
+                new PublishNoticeResponse(notice.Code, notice.Message, notice.JsonPath))]);
 
     private static RevisionSummaryResponse ToSummaryResponse(ContentRevisionSummary revision) =>
         new(revision.Id,

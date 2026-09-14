@@ -245,7 +245,7 @@ public sealed class DbContentAuthoringStore(
                 return ContentAuthoringResult.Stale;
             }
 
-            var revision = await ApplyAsync(
+            var (revision, notices) = await ApplyAsync(
                 type,
                 key,
                 prepared.Item!,
@@ -259,7 +259,7 @@ public sealed class DbContentAuthoringStore(
 
             await database.SaveChangesAsync(token);
 
-            return ContentAuthoringResult.Succeeded(revision);
+            return ContentAuthoringResult.Succeeded(revision, notices);
         }, cancellationToken);
     }
 
@@ -378,7 +378,7 @@ public sealed class DbContentAuthoringStore(
                 return prepared.Result;
             }
 
-            var revision = await ApplyAsync(
+            var (revision, notices) = await ApplyAsync(
                 type,
                 key,
                 prepared.Item!,
@@ -390,7 +390,11 @@ public sealed class DbContentAuthoringStore(
 
             await database.SaveChangesAsync(token);
 
-            return ContentAuthoringResult.Succeeded(revision);
+            // Reverting reports them too. Going back to an older version can
+            // reintroduce a reference to something that has since been deleted
+            // or renamed, and that is exactly the case where somebody would
+            // otherwise never think to look.
+            return ContentAuthoringResult.Succeeded(revision, notices);
         }, cancellationToken);
     }
 
@@ -427,7 +431,7 @@ public sealed class DbContentAuthoringStore(
     /// <summary>
     /// Writes a document into the catalogue and records the revision for it.
     /// </summary>
-    private async Task<ContentRevisionSummary> ApplyAsync(
+    private async Task<(ContentRevisionSummary Revision, IReadOnlyList<ContentPublishNotice> Notices)> ApplyAsync(
         ContentTypeDefinition type,
         string key,
         IndexedContentItem item,
@@ -493,9 +497,9 @@ public sealed class DbContentAuthoringStore(
 
         await database.SaveChangesAsync(cancellationToken);
 
-        await RewriteReferencesAsync(row, item, cancellationToken);
+        var notices = await RewriteReferencesAsync(row, item, cancellationToken);
 
-        return ToSummary(revision);
+        return (ToSummary(revision), notices);
     }
 
     /// <summary>
@@ -549,11 +553,20 @@ public sealed class DbContentAuthoringStore(
     /// for this item. Both are index lookups, so publishing stays cheap however
     /// large the corpus grows.
     /// </remarks>
-    private async Task RewriteReferencesAsync(
+    /// <returns>
+    /// A notice for each of this item's own edges that reached nothing. Only
+    /// this item's: the re-resolution pass below can leave other documents'
+    /// edges unresolved too, but those are somebody else's document and saying
+    /// so here would report a stranger's problem to whoever happened to publish
+    /// next.
+    /// </returns>
+    private async Task<IReadOnlyList<ContentPublishNotice>> RewriteReferencesAsync(
         ContentItemRow row,
         IndexedContentItem item,
         CancellationToken cancellationToken)
     {
+        var notices = new List<ContentPublishNotice>();
+
         await database.ContentReferences
             .Where(reference => reference.FromItemId == row.Id)
             .ExecuteDeleteAsync(cancellationToken);
@@ -592,6 +605,29 @@ public sealed class DbContentAuthoringStore(
                 Ordinal = extracted.Ordinal,
                 ResolvedItemId = resolved,
             });
+
+            if (resolved is not null)
+            {
+                continue;
+            }
+
+            /*
+              The sentence that was missing.
+
+              A null target is stored either way and always was; what did not
+              happen was anybody being told. The wording names the identifier
+              because that is the actionable half — it is the thing the author
+              either misspelled or has yet to write — and it says "or is not
+              uniquely named" because an ambiguous name resolves to null by the
+              same route as an absent one, and "does not exist" would be a lie
+              in that case.
+            */
+            notices.Add(new ContentPublishNotice(
+                ContentPublishNoticeCodes.UnresolvedReference,
+                $"This names {extracted.TargetType} '{extracted.TargetIdentifier}', " +
+                "which is not in the catalogue or is not uniquely named. It will " +
+                "link up on its own if that content is published later.",
+                extracted.JsonPath));
         }
 
         // Edges elsewhere in the corpus that were waiting for this item, and
@@ -617,6 +653,8 @@ public sealed class DbContentAuthoringStore(
         }
 
         await database.SaveChangesAsync(cancellationToken);
+
+        return notices;
     }
 
     private async Task<long?> CurrentRevisionIdAsync(
