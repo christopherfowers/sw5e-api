@@ -83,8 +83,17 @@ internal static class AuthoringFlow
             new { revisionId, reason });
 
     /// <summary>The catalogue row, read straight out of the database.</summary>
-    public static async Task<ContentItemRow?> StoredItemAsync(
+    public static Task<ContentItemRow?> StoredItemAsync(
         AuthoringApiFactory factory,
+        string key) =>
+        StoredItemOfTypeAsync(factory, Type, key);
+
+    /// <summary>
+    /// The same, for a suite that authors a type other than this one's.
+    /// </summary>
+    public static async Task<ContentItemRow?> StoredItemOfTypeAsync(
+        AuthoringApiFactory factory,
+        string type,
         string key)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -92,7 +101,7 @@ internal static class AuthoringFlow
 
         return await database.ContentItems
             .AsNoTracking()
-            .SingleOrDefaultAsync(item => item.ContentType == Type && item.ItemKey == key);
+            .SingleOrDefaultAsync(item => item.ContentType == type && item.ItemKey == key);
     }
 
     /// <summary>The draft row, read straight out of the database.</summary>

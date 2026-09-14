@@ -95,6 +95,47 @@ public sealed record RevisionSummaryResponse(
     long? RevertedFromId,
     DateTimeOffset CreatedAt);
 
+/// <summary>Something publishing noticed and did not refuse over.</summary>
+/// <param name="Code">
+/// Branch on this, never on the wording. A client that switches on prose breaks
+/// the first time somebody improves a sentence.
+/// </param>
+/// <param name="Message">One sentence, naming what is actually wrong.</param>
+/// <param name="JsonPath">
+/// Where in the document it was found, so an editor can put it beside the
+/// control responsible rather than at the top of the page. Null when the notice
+/// is about the document as a whole.
+/// </param>
+public sealed record PublishNoticeResponse(string Code, string Message, string? JsonPath);
+
+/// <summary>
+/// What publishing wrote, and anything it noticed along the way.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The same nine fields as <see cref="RevisionSummaryResponse"/> plus
+/// <c>notices</c>, rather than that record with a tenth property. Revision
+/// summaries are also what a history list is built from, and putting an
+/// always-empty <c>notices</c> on every row of a hundred-entry history would
+/// be noise in the one place it can never mean anything.
+/// </para>
+/// <para>
+/// The wire shape of the nine is unchanged, so a client written against the
+/// previous contract keeps working and simply ignores the new field.
+/// </para>
+/// </remarks>
+public sealed record PublishResponse(
+    long Id,
+    string Type,
+    string Key,
+    int Number,
+    string Action,
+    Guid? ActorUserId,
+    string? Reason,
+    long? RevertedFromId,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<PublishNoticeResponse> Notices);
+
 /// <summary>A document's history.</summary>
 public sealed record RevisionListResponse(IReadOnlyList<RevisionSummaryResponse> Revisions);
 
