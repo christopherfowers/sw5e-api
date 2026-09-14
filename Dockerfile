@@ -6,7 +6,7 @@
 # pinned to the *builder's* architecture: the publish output below is portable
 # IL with no apphost, so one build serves every target architecture and no
 # emulation is needed to produce an arm64 image on an amd64 runner.
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-alpine3.23 AS build
 
 WORKDIR /src
 
@@ -97,7 +97,7 @@ RUN dotnet publish src/Sw5e.Migrator/Sw5e.Migrator.csproj \
 #
 # This stage contains no RUN instruction, so building it for a foreign
 # architecture copies files and never executes anything.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-alpine3.23 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-alpine3.23 AS runtime
 
 # Kestrel binds 8080 only. Port 80 would require a privileged bind and the
 # container does not run as root.
