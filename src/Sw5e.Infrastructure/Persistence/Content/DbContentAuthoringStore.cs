@@ -497,7 +497,10 @@ public sealed class DbContentAuthoringStore(
 
         await database.SaveChangesAsync(cancellationToken);
 
-        var notices = await RewriteReferencesAsync(row, item, cancellationToken);
+        var notices = new List<ContentPublishNotice>(
+            await RewriteReferencesAsync(row, item, cancellationToken));
+
+        notices.AddRange(await InspectReadingPathAsync(row, cancellationToken));
 
         return (ToSummary(revision), notices);
     }
@@ -655,6 +658,93 @@ public sealed class DbContentAuthoringStore(
         await database.SaveChangesAsync(cancellationToken);
 
         return notices;
+    }
+
+    /// <summary>
+    /// Whether the book this document belongs to still reads as a path.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only asked of a document that is itself on a path. Most content is not —
+    /// a weapon has no place in a reading order — and asking for every publish
+    /// would be a query per publish to answer a question about nothing.
+    /// </para>
+    /// <para>
+    /// Scoped to one book. The rules type spans several, each with its own path
+    /// starting at one, so inspecting them together would report a duplicate at
+    /// every position where two books both have a chapter — which is all of
+    /// them.
+    /// </para>
+    /// <para>
+    /// The positions are read from the projected facets rather than the
+    /// document body, because that is where the site reads them from. A field
+    /// that stopped being projected would stop ordering the page, and this
+    /// would stop checking it, together rather than one quietly outliving the
+    /// other.
+    /// </para>
+    /// </remarks>
+    private async Task<IReadOnlyList<ContentPublishNotice>> InspectReadingPathAsync(
+        ContentItemRow row,
+        CancellationToken cancellationToken)
+    {
+        if (ReadPlacement(row.Facets).Order is null)
+        {
+            return [];
+        }
+
+        var siblings = await database.ContentItems
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.ContentType == row.ContentType &&
+                candidate.SourceKey == row.SourceKey)
+            .Select(candidate => new { candidate.ItemKey, candidate.Facets })
+            .ToListAsync(cancellationToken);
+
+        return ReadingPath.Inspect(
+            [.. siblings.Select(sibling =>
+            {
+                var (order, group) = ReadPlacement(sibling.Facets);
+                return new PlacedChapter(sibling.ItemKey, order, group);
+            })]);
+    }
+
+    /// <summary>
+    /// A document's place on its path, out of the facets the site reads.
+    /// </summary>
+    /// <remarks>
+    /// Facets are a flat map of display values, so every one of them is a
+    /// string on the way in — including a position, which is why this parses
+    /// rather than reads. A facet that will not parse is treated as absent: a
+    /// malformed value means the site cannot order that document either, and
+    /// throwing here would refuse a publish over somebody else's document.
+    /// </remarks>
+    private static (int? Order, string? ReadingGroup) ReadPlacement(string facets)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(facets);
+            var root = document.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return (null, null);
+            }
+
+            int? order = root.TryGetProperty("order", out var value) &&
+                         int.TryParse(value.GetString(), out var parsed)
+                ? parsed
+                : null;
+
+            var group = root.TryGetProperty("readingGroup", out var heading)
+                ? heading.GetString()
+                : null;
+
+            return (order, group);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 
     private async Task<long?> CurrentRevisionIdAsync(
