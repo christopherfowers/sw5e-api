@@ -97,7 +97,7 @@ RUN dotnet publish src/Sw5e.Migrator/Sw5e.Migrator.csproj \
 #
 # This stage contains no RUN instruction, so building it for a foreign
 # architecture copies files and never executes anything.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-alpine3.23 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-alpine3.23 AS runtime
 
 # Kestrel binds 8080 only. Port 80 would require a privileged bind and the
 # container does not run as root.
