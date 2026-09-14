@@ -162,6 +162,44 @@ public enum ContentAuthoringStatus
 /// The schema failures, when <paramref name="Status"/> is
 /// <see cref="ContentAuthoringStatus.Invalid"/>.
 /// </param>
+/// <summary>
+/// Something publishing noticed and did not refuse over.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Distinct from <see cref="ContentViolation"/>, which is a reason a document
+/// was rejected. A notice is attached to work that succeeded: the document is
+/// live, and there is something about it the author would want to know.
+/// </para>
+/// <para>
+/// The distinction is the whole design. Naming content that does not exist yet
+/// is a normal way to author — the weapon before the property, the creature
+/// before the power — and the store re-resolves waiting edges when the target
+/// arrives. Refusing would make the corpus impossible to build in any order but
+/// one. So these do not block; they are only said.
+/// </para>
+/// </remarks>
+/// <param name="Code">
+/// A stable identifier to branch on, never the wording. Clients that switch on
+/// prose break the first time somebody improves a sentence.
+/// </param>
+/// <param name="Message">One sentence, naming what is actually wrong.</param>
+/// <param name="JsonPath">
+/// Where in the document it was found, when that is known, so an editor can put
+/// it beside the control responsible rather than at the top of the page.
+/// </param>
+public sealed record ContentPublishNotice(
+    string Code,
+    string Message,
+    string? JsonPath = null);
+
+/// <summary>Codes a <see cref="ContentPublishNotice"/> can carry.</summary>
+public static class ContentPublishNoticeCodes
+{
+    /// <summary>The document names content the catalogue does not hold.</summary>
+    public const string UnresolvedReference = "unresolved-reference";
+}
+
 /// <param name="Revision">
 /// The revision the operation wrote, when it wrote one. This is what a resolved
 /// flag is pointed at.
@@ -175,17 +213,20 @@ public sealed record ContentAuthoringResult(
     ContentAuthoringStatus Status,
     IReadOnlyList<string> Errors,
     ContentRevisionSummary? Revision,
-    IReadOnlyList<ContentViolation> Violations)
+    IReadOnlyList<ContentViolation> Violations,
+    IReadOnlyList<ContentPublishNotice> Notices)
 {
-    public static ContentAuthoringResult Succeeded(ContentRevisionSummary? revision = null) =>
-        new(ContentAuthoringStatus.Succeeded, [], revision, []);
+    public static ContentAuthoringResult Succeeded(
+        ContentRevisionSummary? revision = null,
+        IReadOnlyList<ContentPublishNotice>? notices = null) =>
+        new(ContentAuthoringStatus.Succeeded, [], revision, [], notices ?? []);
 
     /// <summary>
     /// A refusal with reasons but nothing to place them by — a body that would
     /// not parse, or a type with no schema published.
     /// </summary>
     public static ContentAuthoringResult Invalid(IReadOnlyList<string> errors) =>
-        new(ContentAuthoringStatus.Invalid, errors, null, []);
+        new(ContentAuthoringStatus.Invalid, errors, null, [], []);
 
     /// <summary>A refusal that knows which value each reason was about.</summary>
     public static ContentAuthoringResult Invalid(ContentValidation validation) =>
@@ -193,11 +234,12 @@ public sealed record ContentAuthoringResult(
             ContentAuthoringStatus.Invalid,
             validation.Errors,
             null,
-            validation.Violations);
+            validation.Violations,
+            []);
 
     public static ContentAuthoringResult NotFound { get; } =
-        new(ContentAuthoringStatus.NotFound, [], null, []);
+        new(ContentAuthoringStatus.NotFound, [], null, [], []);
 
     public static ContentAuthoringResult Stale { get; } =
-        new(ContentAuthoringStatus.Stale, [], null, []);
+        new(ContentAuthoringStatus.Stale, [], null, [], []);
 }

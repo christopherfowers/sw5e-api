@@ -50,7 +50,7 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "4-starship-reading-path";
+    internal const string Version = "6-the-book-that-teaches";
 
     /// <summary>
     /// A stable description of which fields each type is projected from.
@@ -141,7 +141,12 @@ internal static class ContentProjection
             ["source"] = new(
                 "title",
                 ["publisher", "licenseNote"],
-                ["abbreviation", "publisher", "publishedAt", "isOfficial"]),
+                // shelfName, blurb, accent and order are how a book presents
+                // itself on the site. They used to be a table in the site that
+                // had to be edited and deployed before a book could appear;
+                // they are facts about a publication, so they travel with it.
+                ["abbreviation", "publisher", "publishedAt", "isOfficial",
+                 "shelfName", "blurb", "accent", "order", "isCoreRulebook"]),
             ["species"] = new(
                 "name",
                 ["lore"],

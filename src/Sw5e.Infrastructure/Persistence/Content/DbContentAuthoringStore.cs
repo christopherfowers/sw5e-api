@@ -245,7 +245,7 @@ public sealed class DbContentAuthoringStore(
                 return ContentAuthoringResult.Stale;
             }
 
-            var revision = await ApplyAsync(
+            var (revision, notices) = await ApplyAsync(
                 type,
                 key,
                 prepared.Item!,
@@ -259,7 +259,7 @@ public sealed class DbContentAuthoringStore(
 
             await database.SaveChangesAsync(token);
 
-            return ContentAuthoringResult.Succeeded(revision);
+            return ContentAuthoringResult.Succeeded(revision, notices);
         }, cancellationToken);
     }
 
@@ -378,7 +378,7 @@ public sealed class DbContentAuthoringStore(
                 return prepared.Result;
             }
 
-            var revision = await ApplyAsync(
+            var (revision, notices) = await ApplyAsync(
                 type,
                 key,
                 prepared.Item!,
@@ -390,7 +390,11 @@ public sealed class DbContentAuthoringStore(
 
             await database.SaveChangesAsync(token);
 
-            return ContentAuthoringResult.Succeeded(revision);
+            // Reverting reports them too. Going back to an older version can
+            // reintroduce a reference to something that has since been deleted
+            // or renamed, and that is exactly the case where somebody would
+            // otherwise never think to look.
+            return ContentAuthoringResult.Succeeded(revision, notices);
         }, cancellationToken);
     }
 
@@ -427,7 +431,7 @@ public sealed class DbContentAuthoringStore(
     /// <summary>
     /// Writes a document into the catalogue and records the revision for it.
     /// </summary>
-    private async Task<ContentRevisionSummary> ApplyAsync(
+    private async Task<(ContentRevisionSummary Revision, IReadOnlyList<ContentPublishNotice> Notices)> ApplyAsync(
         ContentTypeDefinition type,
         string key,
         IndexedContentItem item,
@@ -493,9 +497,12 @@ public sealed class DbContentAuthoringStore(
 
         await database.SaveChangesAsync(cancellationToken);
 
-        await RewriteReferencesAsync(row, item, cancellationToken);
+        var notices = new List<ContentPublishNotice>(
+            await RewriteReferencesAsync(row, item, cancellationToken));
 
-        return ToSummary(revision);
+        notices.AddRange(await InspectReadingPathAsync(row, cancellationToken));
+
+        return (ToSummary(revision), notices);
     }
 
     /// <summary>
@@ -549,11 +556,20 @@ public sealed class DbContentAuthoringStore(
     /// for this item. Both are index lookups, so publishing stays cheap however
     /// large the corpus grows.
     /// </remarks>
-    private async Task RewriteReferencesAsync(
+    /// <returns>
+    /// A notice for each of this item's own edges that reached nothing. Only
+    /// this item's: the re-resolution pass below can leave other documents'
+    /// edges unresolved too, but those are somebody else's document and saying
+    /// so here would report a stranger's problem to whoever happened to publish
+    /// next.
+    /// </returns>
+    private async Task<IReadOnlyList<ContentPublishNotice>> RewriteReferencesAsync(
         ContentItemRow row,
         IndexedContentItem item,
         CancellationToken cancellationToken)
     {
+        var notices = new List<ContentPublishNotice>();
+
         await database.ContentReferences
             .Where(reference => reference.FromItemId == row.Id)
             .ExecuteDeleteAsync(cancellationToken);
@@ -592,6 +608,29 @@ public sealed class DbContentAuthoringStore(
                 Ordinal = extracted.Ordinal,
                 ResolvedItemId = resolved,
             });
+
+            if (resolved is not null)
+            {
+                continue;
+            }
+
+            /*
+              The sentence that was missing.
+
+              A null target is stored either way and always was; what did not
+              happen was anybody being told. The wording names the identifier
+              because that is the actionable half — it is the thing the author
+              either misspelled or has yet to write — and it says "or is not
+              uniquely named" because an ambiguous name resolves to null by the
+              same route as an absent one, and "does not exist" would be a lie
+              in that case.
+            */
+            notices.Add(new ContentPublishNotice(
+                ContentPublishNoticeCodes.UnresolvedReference,
+                $"This names {extracted.TargetType} '{extracted.TargetIdentifier}', " +
+                "which is not in the catalogue or is not uniquely named. It will " +
+                "link up on its own if that content is published later.",
+                extracted.JsonPath));
         }
 
         // Edges elsewhere in the corpus that were waiting for this item, and
@@ -617,6 +656,95 @@ public sealed class DbContentAuthoringStore(
         }
 
         await database.SaveChangesAsync(cancellationToken);
+
+        return notices;
+    }
+
+    /// <summary>
+    /// Whether the book this document belongs to still reads as a path.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only asked of a document that is itself on a path. Most content is not —
+    /// a weapon has no place in a reading order — and asking for every publish
+    /// would be a query per publish to answer a question about nothing.
+    /// </para>
+    /// <para>
+    /// Scoped to one book. The rules type spans several, each with its own path
+    /// starting at one, so inspecting them together would report a duplicate at
+    /// every position where two books both have a chapter — which is all of
+    /// them.
+    /// </para>
+    /// <para>
+    /// The positions are read from the projected facets rather than the
+    /// document body, because that is where the site reads them from. A field
+    /// that stopped being projected would stop ordering the page, and this
+    /// would stop checking it, together rather than one quietly outliving the
+    /// other.
+    /// </para>
+    /// </remarks>
+    private async Task<IReadOnlyList<ContentPublishNotice>> InspectReadingPathAsync(
+        ContentItemRow row,
+        CancellationToken cancellationToken)
+    {
+        if (ReadPlacement(row.Facets).Order is null)
+        {
+            return [];
+        }
+
+        var siblings = await database.ContentItems
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.ContentType == row.ContentType &&
+                candidate.SourceKey == row.SourceKey)
+            .Select(candidate => new { candidate.ItemKey, candidate.Facets })
+            .ToListAsync(cancellationToken);
+
+        return ReadingPath.Inspect(
+            [.. siblings.Select(sibling =>
+            {
+                var (order, group) = ReadPlacement(sibling.Facets);
+                return new PlacedChapter(sibling.ItemKey, order, group);
+            })]);
+    }
+
+    /// <summary>
+    /// A document's place on its path, out of the facets the site reads.
+    /// </summary>
+    /// <remarks>
+    /// Facets are a flat map of display values, so every one of them is a
+    /// string on the way in — including a position, which is why this parses
+    /// rather than reads. A facet that will not parse is treated as absent: a
+    /// malformed value means the site cannot order that document either, and
+    /// throwing here would refuse a publish over somebody else's document.
+    /// </remarks>
+    private static (int? Order, string? ReadingGroup) ReadPlacement(string facets)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(facets);
+            var root = document.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return (null, null);
+            }
+
+            int? order = root.TryGetProperty("order", out var value) &&
+                         int.TryParse(value.GetString(), out var parsed)
+                ? parsed
+                : null;
+
+            var group = root.TryGetProperty("readingGroup", out var heading)
+                ? heading.GetString()
+                : null;
+
+            return (order, group);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 
     private async Task<long?> CurrentRevisionIdAsync(
