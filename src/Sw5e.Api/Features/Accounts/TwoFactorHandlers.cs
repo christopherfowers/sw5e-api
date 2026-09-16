@@ -84,6 +84,7 @@ internal static class TwoFactorHandlers
         UserManager<Sw5eUser> users,
         SignInManager<Sw5eUser> signIn,
         IAccountEmailSender email,
+        TimeProvider clock,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -104,7 +105,7 @@ internal static class TwoFactorHandlers
         // consumes it, so that the success path below has it in hand.
         if (await signIn.GetTwoFactorAuthenticationUserAsync() is { } pending)
         {
-            return await CompleteSignInAsync(users, signIn, pending, code, logger);
+            return await CompleteSignInAsync(users, signIn, pending, code, clock, logger);
         }
 
         if (await users.GetUserAsync(context.User) is { } user)
@@ -120,6 +121,7 @@ internal static class TwoFactorHandlers
         SignInManager<Sw5eUser> signIn,
         Sw5eUser user,
         string code,
+        TimeProvider clock,
         ILogger logger)
     {
         // The framework's method does the work that matters here: it re-checks
@@ -157,7 +159,7 @@ internal static class TwoFactorHandlers
         // same response; the cost is a few hundred bytes on one response, and
         // what it buys is that no sign-in route can produce an unstamped
         // session.
-        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.AuthenticatorMethod);
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.AuthenticatorMethod, clock);
 
         logger.LogInformation("Account {UserId} completed a two-factor sign-in.", user.Id);
 

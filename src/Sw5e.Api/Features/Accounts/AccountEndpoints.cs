@@ -398,6 +398,17 @@ internal static class AccountEndpoints
     /// open a list of everybody else's addresses.
     /// </para>
     /// <para>
+    /// The three that change what another account may do (the role grant, the
+    /// suspension switch and the deletion) require
+    /// <see cref="Sw5ePolicies.AdministerConfirmed"/> instead, which adds that
+    /// the factor was proved minutes ago rather than at some point today. The
+    /// two that only read (the directory and the audit log) deliberately do
+    /// not. Working out whether somebody should be suspended begins by reading
+    /// about them, and a site that asked for a fingerprint before it would show
+    /// a list would train its administrators to confirm without looking, which
+    /// is precisely the reflex the prompt is there to rely on.
+    /// </para>
+    /// <para>
     /// <b>The listing is the reason the rest of this exists.</b> Before it, the
     /// role grant below was addressed by an account identifier that nothing in
     /// the API would tell anybody. No listing, no search, no lookup by
@@ -468,14 +479,15 @@ internal static class AccountEndpoints
                  "requiring the account to be credentialled again. The reason is required when " +
                  "suspending, is written for the other administrators, and is never shown to " +
                  "the account — which is told that it has been suspended and who to write to. " +
-                 "An administrator cannot suspend themselves.")
+                 "An administrator cannot suspend themselves. Asks for a passkey or an " +
+                 "authenticator code proved within the last few minutes.")
              .Produces<AccountSuspensionStateResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status403Forbidden)
              .ProducesProblem(StatusCodes.Status404NotFound)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
-             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireAuthorization(Sw5ePolicies.AdministerConfirmed)
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
 
         group.MapDelete("/admin/users/{userId:guid}", AccountLifecycleHandlers.DeleteAsync)
@@ -489,7 +501,8 @@ internal static class AccountEndpoints
                  "identifier and afterwards render as a removed account, because a history that " +
                  "can be edited by deleting an account is not a history. Refused while the " +
                  "account owns unpublished drafts: publish or discard those first. An " +
-                 "administrator cannot delete themselves.")
+                 "administrator cannot delete themselves. Asks for a passkey or an " +
+                 "authenticator code proved within the last few minutes.")
              .Produces<AccountDeletedResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
              .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -497,7 +510,7 @@ internal static class AccountEndpoints
              .ProducesProblem(StatusCodes.Status404NotFound)
              .ProducesProblem(StatusCodes.Status409Conflict)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
-             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireAuthorization(Sw5ePolicies.AdministerConfirmed)
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
 
         group.MapGet("/admin/audit", UserDirectoryHandlers.ListActionsAsync)
@@ -528,13 +541,14 @@ internal static class AccountEndpoints
              .WithDescription(
                  "Administrators only. Declares the roles the account should hold afterwards; any " +
                  "assignable role not listed is revoked. The account is emailed about the change, " +
-                 "and its live sessions are re-evaluated within minutes rather than at expiry.")
+                 "and its live sessions are re-evaluated within minutes rather than at expiry. " +
+                 "Asks for a passkey or an authenticator code proved within the last few minutes.")
              .Produces<AccountRolesResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status403Forbidden)
              .ProducesProblem(StatusCodes.Status404NotFound)
-             .RequireAuthorization(Sw5ePolicies.Administer)
+             .RequireAuthorization(Sw5ePolicies.AdministerConfirmed)
              .RequireRateLimiting(AuthRateLimiting.StandardPolicy);
     }
 }
