@@ -68,8 +68,8 @@ single setting:
 
 | `Content:Store` | Implementation | What it needs |
 |---|---|---|
-| `file` (default) | `FileContentRepository` — an in-memory index built at startup by scanning the JSON content files | A content directory |
-| `database` | `DbContentRepository` — PostgreSQL | A connection string, a migrated schema, and an import |
+| `file` (default) | `FileContentRepository`: an in-memory index built at startup by scanning the JSON content files | A content directory |
+| `database` | `DbContentRepository`: PostgreSQL | A connection string, a migrated schema, and an import |
 
 Anything else is refused at startup rather than treated as the default, so a
 typo in a deploy variable cannot silently leave production on the wrong store.
@@ -101,7 +101,7 @@ sibling checkout.
 | `GET /api/site/environment` | `{ "name": "QA", "isProduction": false }`. Anonymous, `Cache-Control: no-store`. |
 
 The site is prerendered HTML served by a static nginx image, and the same image
-is promoted from QA to production unchanged — which is the whole value of
+is promoted from QA to production unchanged, which is the whole value of
 promoting it, and which also means nothing in it can be told which environment
 it is running in. This service can be told, and already is, so it is what the
 site asks after hydration in order to decide whether to draw its
@@ -158,8 +158,8 @@ challenge**. `GET /api/auth/challenge` returns a salt, a difficulty in leading
 zero bits, an expiry and an HMAC signature over the three. The client finds the
 smallest counter for which `SHA-256("{salt}:{counter}")` opens with that many
 zero bits, and repeats the challenge back with the counter in the
-`X-Sw5e-Challenge-*` headers. Nothing is stored when a challenge is issued — the
-signature is what makes it trustworthy — and a salt is accepted exactly once.
+`X-Sw5e-Challenge-*` headers. Nothing is stored when a challenge is issued (the
+signature is what makes it trustworthy) and a salt is accepted exactly once.
 
 Nothing is loaded from anywhere else, and no third party is involved. The site's
 content security policy names no external host at all, and a hosted captcha
@@ -176,7 +176,7 @@ without a usable secret is a startup failure.
 
 A passkey assertion, followed by whatever second factor the account has, is the
 **only** thing that issues a session cookie. Verifying an email address does not
-sign anybody in. Registering a passkey does not sign anybody in either — the
+sign anybody in. Registering a passkey does not sign anybody in either. The
 client follows enrolment with an ordinary sign-in. That leaves a single code
 path to audit, and it is why an account that switched on two-factor
 authentication cannot be entered by a route that skips it.
@@ -189,7 +189,7 @@ made this platform's TOTP option decorative for everyone who enabled it.
 ### Registering, and recovering
 
 `register` takes an address and a display name and answers `202` with the same
-body every time — whether the address was free, already belonged to an
+body every time, whether the address was free, already belonged to an
 unverified account, or already belonged to a verified one. It cannot say "that
 address is taken" without confirming to a stranger that somebody has an account
 here, so it says nothing and emails the account holder instead:
@@ -202,9 +202,9 @@ here, so it says nothing and emails the account holder instead:
 That last case is the recovery flow. Somebody who has lost every device they
 enrolled registers again with the same address, and the link that arrives lets
 them enrol a fresh passkey. Redeeming any of these links rotates the account's
-security stamp, which invalidates every other outstanding link for it and drops
-any session already open — the correct outcome when somebody has just proved
-mailbox control in order to re-credential.
+security stamp, which invalidates every other outstanding link for it and
+drops any session already open, which is the correct outcome when somebody has
+just proved mailbox control in order to re-credential.
 
 Sign-in requires **discoverable** passkeys, so `passkey/login/begin` takes no
 identifier and returns an empty `allowCredentials` list. The browser picks the
@@ -228,7 +228,7 @@ therefore safe if it leaks.
 An administrator cannot remove their own administrator role, cannot suspend
 their own account and cannot delete it. The role is the only thing that can
 grant the role, so any self-directed removal would let the last administrator
-leave the platform with no way to appoint another — and with all three closed,
+leave the platform with no way to appoint another, and with all three closed,
 the number of administrators cannot reach zero through this API at all. It is
 also the move most attractive to somebody who has just stolen an
 administrator's session.
@@ -252,15 +252,15 @@ are looking at one slice of it is how the wrong account gets acted on.
 
 This is the only response on the platform that carries somebody else's email
 address, and it is the reason the authorization above is what it is. A caller
-who is not an administrator never reaches the handler — the cookie
-authentication events answer `401` or `403` before any endpoint runs — so there
+who is not an administrator never reaches the handler (the cookie
+authentication events answer `401` or `403` before any endpoint runs) so there
 is no query, no branch, and nothing for a response shape or a response time to
 differ on between an account identifier that exists and one somebody invented.
 
 **Suspension** is `PUT /api/auth/admin/users/{userId}/suspension`, declarative
 like the role grant: `{"suspended": true, "reason": "..."}` to suspend and
 `{"suspended": false}` to lift it. A reason is required to suspend, is written
-for the other administrators, and is never shown to the account — where the
+for the other administrators, and is never shown to the account. Where the
 reason is an investigation, quoting it back would tell the subject what is being
 investigated. The account is emailed that it has been suspended and told who to
 write to.
@@ -276,7 +276,7 @@ What a suspension actually does:
 - **No use of an existing session.** Every authenticated request re-checks the
   suspension alongside the security stamp and signs the caller out the moment it
   finds one. Suspending also rotates the security stamp, which would drop the
-  session on its own — but only at the stamp validator's next interval, up to
+  session on its own, but only at the stamp validator's next interval, up to
   five minutes later. Five minutes is a defensible ceiling for a role revocation
   and an indefensible one for somebody being removed because of what they are
   doing with the session they are holding right now. The cost is one indexed
@@ -295,7 +295,7 @@ progress, and an expiring lockout quietly reinstating somebody a person had
 decided to remove.
 
 **Deletion** is `DELETE /api/auth/admin/users/{userId}`, with an optional
-`{"reason": "..."}` in the body — in the body rather than a query string,
+`{"reason": "..."}` in the body rather than a query string,
 because a sentence naming a person and describing their conduct does not belong
 in a URL that every access log between the browser and the process writes down.
 
@@ -307,7 +307,7 @@ again.
 It does **not** remove what the account wrote. Content revisions keep their
 `actor_user_id` and moderation reports keep their `reporter_user_id`; neither is
 rewritten, reassigned or blanked, and both render afterwards as *a removed
-account* — the state the flag queue's contract already documented. A revision is
+account*, the state the flag queue's contract already documented. A revision is
 the record that somebody changed what a whole community reads, and the revision
 table is append-only at the database precisely so that the people who can make
 those changes cannot quietly unmake the record of having made them. A deletion
@@ -315,8 +315,8 @@ that reached in and erased authorship would be exactly that with a friendlier
 name, available to any administrator against any contributor at any time. A
 history that can be edited by deleting an account is not a history.
 
-Drafts are the exception in the other direction. A draft is not history — it is
-unfinished work holding the only editing slot for the entry it names — so a
+Drafts are the exception in the other direction. A draft is not history (it is
+unfinished work holding the only editing slot for the entry it names) so a
 deletion is refused with `409` and `code: "drafts-outstanding"` while the
 account owns any, and the count is on `GET /api/auth/admin/users/{userId}` so an
 administrator can see it before trying. Publishing or discarding them first is
@@ -324,12 +324,12 @@ the fix. That also keeps identity deletion inside one database and one
 transaction, with no half-done state spanning two schemas.
 
 **The record.** `GET /api/auth/admin/audit` is every role change, suspension,
-reinstatement and deletion — who did it, to whom, when, with what changed and
-why — filterable by subject, actor and action. It lives in the `identity`
+reinstatement and deletion (who did it, to whom, when, with what changed and
+why), filterable by subject, actor and action. It lives in the `identity`
 schema, because it is about accounts, has to be present in every deployment, and
 has to be restored on the same schedule as the rows it describes. It follows the
-moderation schema's actor-and-timestamp pattern — a bare `Guid` with no foreign
-key — with one deliberate difference: the actor's and the subject's display
+moderation schema's actor-and-timestamp pattern, a bare `Guid` with no foreign
+key, with one deliberate difference: the actor's and the subject's display
 names are **copied onto the row**. A flag can afford to render "a removed
 account"; an audit entry recording a deletion cannot, because surviving that
 deletion is the entire point of it. Email addresses are not copied: an audit
@@ -339,7 +339,7 @@ wrong place to keep the address of somebody who asked to be deleted.
 The table is append-only, and PostgreSQL is what refuses. A trigger installed by
 the migration raises on any `UPDATE` or `DELETE`, the same protection the content
 revision table carries. Nothing in the application issues either statement, so
-the trigger is not there to catch this codebase — it is there because the party
+the trigger is not there to catch this codebase. It is there because the party
 with both the database access and the motive to edit a record of administrative
 actions is an administrator, which is exactly the party the record exists to hold
 to account.
@@ -348,9 +348,9 @@ to account.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `ConnectionStrings__Sw5eIdentity` | **yes** | PostgreSQL, for the `identity` schema. `Identity__ConnectionString` overrides it, and `ConnectionStrings__Sw5e` is the fallback. **The API refuses to start without one of them** — an API that boots happily with no account system is one serving an unauthenticated site without saying so. |
+| `ConnectionStrings__Sw5eIdentity` | **yes** | PostgreSQL, for the `identity` schema. `Identity__ConnectionString` overrides it, and `ConnectionStrings__Sw5e` is the fallback. **The API refuses to start without one of them**: an API that boots happily with no account system is one serving an unauthenticated site without saying so. |
 | `Identity__PublicSiteUrl` | **yes, to send mail** | The public base URL of the browser application, used to build emailed links. Configured rather than derived from the request: deriving it would let anyone who can set a `Host` header decide where a recovery link points. |
-| `Identity__RelyingPartyId` | in every deployed environment | The registrable domain passkeys are bound to — `sw5e.example`, with no scheme, port or path. Unset, the framework uses the request's own host, which is right for `localhost` and wrong for anything served under more than one hostname. **Changing it invalidates every existing passkey.** |
+| `Identity__RelyingPartyId` | in every deployed environment | The registrable domain passkeys are bound to: `sw5e.example`, with no scheme, port or path. Unset, the framework uses the request's own host, which is right for `localhost` and wrong for anything served under more than one hostname. **Changing it invalidates every existing passkey.** |
 | `Identity__AllowedOrigins__0` | only for a separately hosted front end | Exact origins, compared exactly, no wildcards. Empty means same-origin only, which is correct when the site and the API share a hostname behind the proxy. Read by both the WebAuthn origin check and the cross-site request check. |
 | `Identity__SessionLifetime` | no | Sliding; `08:00:00` by default. |
 | `Identity__EmailTokenLifetime` | no | `01:00:00` by default. |
@@ -370,15 +370,15 @@ migration in `Sw5e.Identity`. Apply it before serving traffic:
 dotnet ef database update --project src/Sw5e.Identity
 ```
 
-Data protection keys — which sign the session cookie, the two-factor cookie, the
-passkey challenge cookies and every emailed token — are persisted into that
+Data protection keys (which sign the session cookie, the two-factor cookie, the
+passkey challenge cookies and every emailed token) are persisted into that
 schema rather than to the container's file system. On the default file-system
 key ring they would be lost on every restart, silently logging every user out
 and invalidating every outstanding verification link, and two replicas would
 reject each other's cookies.
 
 Account email goes through `IAccountEmailSender`, which `Sw5e.Identity` defines
-and `ProviderAccountEmailSender` bridges onto the email library — so the
+and `ProviderAccountEmailSender` bridges onto the email library, so the
 identity code never learns which provider is configured, and the mail code never
 learns what a passkey is. Verification is delegated to `IAccountEmailService`,
 whose message is exactly right for it; the passkey recovery and security-notice
@@ -403,8 +403,8 @@ builder.Services.AddDatabaseContentStore();
 
 The data source is registered under a service key rather than as a plain
 `NpgsqlDataSource` singleton, so nothing can resolve it by accident. Identity
-reads its own connection string — `Identity:ConnectionString`, then
-`ConnectionStrings:Sw5eIdentity`, falling back to `ConnectionStrings:Sw5e` —
+reads its own connection string (`Identity:ConnectionString`, then
+`ConnectionStrings:Sw5eIdentity`, falling back to `ConnectionStrings:Sw5e`)
 precisely so a deployment can give account data a least-privileged role, or a
 database of its own. An unkeyed singleton would sit in the container waiting for
 someone to resolve it "to share the pool", and would then route account data
@@ -423,10 +423,10 @@ Three tables in a `content` schema.
 | `content_type` | The type registry, seeded by migration so the type column can carry a foreign key |
 
 **The document is stored whole, not shredded into a table per type.** The
-twenty-four SW5e content types have very little in common below the surface — a
+twenty-four SW5e content types have very little in common below the surface (a
 species has `traits[]` and markdown lore, a monster has a nested stat block, a
 starship base size has a six-row tier table and six roles, equipment changes
-shape depending on whether it is a weapon or armour — and normalising
+shape depending on whether it is a weapon or armour), and normalising
 all of it is roughly forty tables that no endpoint queries. It would also cost
 something specific: the published contract for `GET /api/content/{type}/{key}`
 is that the response body *is* the type's JSON Schema, passed through unaltered.
@@ -440,14 +440,14 @@ content item is.
 source, content set, the folded copies used for case-insensitive matching, and
 the display fields a list row needs are lifted out of the document into real,
 indexed columns. They are derived on every write by the same projection code the
-file-backed store uses, so they cannot drift from the document — re-running the
+file-backed store uses, so they cannot drift from the document. Re-running the
 importer rebuilds them.
 
 **Cross-references are lifted into rows.** That is the part that justifies a
 database rather than a directory of files. The eventual goal includes generating
 print-ready documents from arbitrary collections, and every question that
-implies — "everything published in this book", "the archetype this feature
-belongs to", "the feats this background offers" — is a graph traversal.
+implies ("everything published in this book", "the archetype this feature
+belongs to", "the feats this background offers") is a graph traversal.
 Answering it from documents means one round trip per edge with every type's link
 fields hard-coded into the walker; answering it from `content_reference` is a
 join.
@@ -455,8 +455,8 @@ join.
 An edge whose target is missing is still a row. Exactly one field in the whole
 corpus points at another item by slug (`sourceKey`); everything else names its
 target by display name, because the documents were transcribed from print. Some
-of those targets have not been written yet, and three of the target types —
-`class`, and the weapon and armour property types — do not exist as content
+of those targets have not been written yet, and three of the target types
+(`class`, and the weapon and armour property types) do not exist as content
 types at all. So `content_reference` records what the document said and fills in
 `resolved_item_id` only when the target is actually there, which turns "what is
 this corpus still missing" from a grep into a query. Resolution is recomputed
@@ -504,7 +504,7 @@ docker run --rm --entrypoint dotnet \
 
 Exit codes: `0` success, `1` a command failed, `2` the command was not
 recognised, `3` `export --check` found the database and the tree disagreeing.
-The last is its own code because a disagreement is not a fault — it is the
+The last is its own code because a disagreement is not a fault. It is the
 normal state of a repository nobody has exported into since somebody published.
 
 Because nothing migrates on startup, a deploy that ships new code and forgets
@@ -528,7 +528,7 @@ to connect rather than quietly reaching a real one.
 ### The importer
 
 `ContentImporter` loads the canonical JSON into PostgreSQL and can be run again
-over the same corpus without changing anything — each document's content hash is
+over the same corpus without changing anything. Each document's content hash is
 compared with the stored one and a row is written only when it differs. That
 matters because deploys get retried: an importer that deleted and re-inserted
 would churn every row and invalidate every cached response in front of the API
@@ -536,7 +536,7 @@ for a corpus that did not change.
 
 It refuses to interpret a failed read as a deletion. An import that finds no
 content deletes nothing, and an import that finds no content *for a type* leaves
-that type alone — an unmounted volume and an emptied corpus are
+that type alone. An unmounted volume and an emptied corpus are
 indistinguishable from inside the importer, and the first is far more likely.
 The migrator turns "found nothing at all" into a non-zero exit so the deploy
 stops rather than publishing an empty catalogue.
@@ -546,8 +546,8 @@ stops rather than publishing an empty catalogue.
 Content used to move in one direction. A pull request against `sw5e-database`,
 an image, a deploy, and the importer loaded it into PostgreSQL. Authoring
 reversed that for everything edited through the site: those documents exist only
-as rows, and `sw5e-database` — still the seed, still what the published content
-image carries — drifts away from them silently, until somebody rebuilds that
+as rows, and `sw5e-database` (still the seed, still what the published content
+image carries) drifts away from them silently, until somebody rebuilds that
 image and reverts the community's work with nothing in the process saying so.
 
 `export` is the other direction.
@@ -566,7 +566,7 @@ dotnet run --project src/Sw5e.Migrator -- export --output ../sw5e-database/conte
 
 **What "published" means.** The catalogue table, and nothing else. A draft lives
 in a different table precisely so that it is not part of the catalogue, so
-excluding drafts is not a filter the exporter applies — it is a consequence of
+excluding drafts is not a filter the exporter applies. It is a consequence of
 reading the same rows the read path serves. A revert is a write to the catalogue
 like any other, so a reverted document exports as whatever it was reverted to.
 Neither needed a special case, which is the argument for reading the catalogue
@@ -576,8 +576,8 @@ rather than replaying the revision log.
 push. Writing files needs a path; committing needs an identity to attribute the
 change to, and pushing needs a credential with write access to the content
 repository, held by a process that already holds the whole catalogue. Neither
-buys anything a scheduled job running `git commit` beside this one does not —
-the review happens in a pull request either way — and the credential is a real
+buys anything a scheduled job running `git commit` beside this one does not
+(the review happens in a pull request either way) and the credential is a real
 thing to get wrong. If that job is ever built, what it needs is a deploy key or
 an app installation scoped to `sw5e-database` alone, and a committer identity
 that is visibly a bot rather than a person; that is a decision to make on its
@@ -586,7 +586,7 @@ own, not a side effect of an exporter.
 **Byte-for-byte, or it is worthless.** PostgreSQL stores each document as
 `jsonb`, which keeps the values and discards the text: member order,
 indentation and whitespace are gone by the time a row is read back. So the file
-is derived, not remembered, and it is derived by `CanonicalContent` — from the
+is derived, not remembered, and it is derived by `CanonicalContent`, from the
 content repository, through the submodule, the same way `SchemaValidator` is,
 because two implementations of one byte-exact format drift exactly the way two
 validators would. `ContentCorpusRoundTripTests` imports all 7,877 committed
@@ -596,7 +596,7 @@ have caught a writer that changed member order, indentation, line endings, the
 trailing newline or the escaping.
 
 **Every document is validated on the way out.** The importer does not validate
-against the JSON Schemas — it loads whatever the corpus holds — and a row can
+against the JSON Schemas (it loads whatever the corpus holds), and a row can
 also be written by a migration or by hand. The content repository's CI validates
 every document on every pull request, so an export that emitted one it rejects
 would produce a branch that cannot be merged, discovered by whoever opened the
@@ -624,8 +624,8 @@ Neither ever returns a connection string, a host name or a stack trace.
 ## Content flagging
 
 The first feature that accepts user-submitted data. A **flag** is a report
-raised against one content document — a species entry, a rules chapter, or the
-`asset-credit` record behind a picture — and it is a note attached from the
+raised against one content document (a species entry, a rules chapter, or the
+`asset-credit` record behind a picture), and it is a note attached from the
 outside. It never mutates the thing it points at, and the handler that writes it
 holds `IContentRepository`, which is read-only by its interface, rather than a
 content `DbContext`. That is what makes "a report cannot change the reference" a
@@ -633,7 +633,7 @@ property of the type system instead of a promise.
 
 It ships before content authoring on purpose. There is no revision history to
 attach a correction to and no write endpoint for content, and flagging needs
-neither — while the knowledge it collects is being lost right now. Around a
+neither, while the knowledge it collects is being lost right now. Around a
 hundred and fifty of the pictures inherited from the original sw5e.com have no
 recorded artist, and the people who can identify them are reading the site
 today.
@@ -642,7 +642,7 @@ today.
 
 There is no separate image target. Every picture the site publishes already has
 an `asset-credit` document recording what is known about its provenance, keyed
-`{group}-{key}` — `species-wookiee`, `classes-guardian`, `brand-logo`. A picture
+`{group}-{key}`: `species-wookiee`, `classes-guardian`, `brand-logo`. A picture
 is reported by pointing at that record, so the report points at exactly the
 document a reviewer edits to resolve it, and one existence check covers both
 kinds of target.
@@ -670,7 +670,7 @@ The test for whether a reason deserves to exist is not "is this a distinct kind
 of wrongness" but "does a reviewer do something different about it". Two of
 these are not in the list this was asked for. `image-rights-complaint` is the
 same sentence as `image-replacement-wanted` read from the other side and behaves
-nothing like it — one is a wish, the other is a person saying their work is
+nothing like it. One is a wish, the other is a person saying their work is
 published without permission, which has a clock on it and must not queue behind
 two hundred requests to redraw a portrait. `content-missing` is split from
 `content-incorrect` because the work is authoring rather than correcting.
@@ -686,7 +686,7 @@ open ──▶ accepted ──▶ resolved
 Every finished state can be reopened. `declined → resolved` is refused: it would
 claim work was done on something a reviewer had just said needed none, and a
 queue that permits it has a status field nobody can trust afterwards. Restating
-the current status is refused too — it is almost always two reviewers acting on
+the current status is refused too. It is almost always two reviewers acting on
 one row, and answering 200 would tell the second they did something they did
 not.
 
@@ -707,7 +707,7 @@ other reviewers and never to the reporter.
 | Contributor / Administrator | yes | yes | yes | yes |
 
 The queue additionally requires a session established with a passkey or an
-authenticator code, because the elevated policies carry that requirement — it
+authenticator code, because the elevated policies carry that requirement. It
 holds the display name of everybody who has reported anything and the text of
 what they wrote.
 
@@ -720,7 +720,7 @@ what a reporter is called on the queue.
 
 ### Untrusted text
 
-Free text is **stored verbatim** — not stripped of markup, not HTML-encoded on
+Free text is **stored verbatim**: not stripped of markup, not HTML-encoded on
 the way in, not sanitised. Encoding at rest makes a column's contents depend on
 which writer inserted them, double-encodes the moment anything re-encodes on
 output, and mangles the ordinary sentences the field exists to collect. Safety
@@ -746,7 +746,7 @@ Two independent limits, because they defend against different attackers.
   of addresses.
 * **Per account**, in the handler: 50 reports a rolling day and 40 outstanding
   at once. This is what survives that attacker, and is the half the limiter
-  cannot see — it partitions on the address, which is exactly what such an
+  cannot see. It partitions on the address, which is exactly what such an
   attacker changes.
 
 On top of both, a filtered unique index refuses a second *outstanding* report of
@@ -765,7 +765,7 @@ states so a decline from a year ago is a judgement rather than a permanent ban.
 | `Flags__RateLimits__AccountOutstandingReports` | no | `40` by default. |
 
 The identity connection is the last fallback so that a deployment serving
-content from files — which has no reason to set `ConnectionStrings__Sw5e` — is
+content from files (which has no reason to set `ConnectionStrings__Sw5e`) is
 not broken by the arrival of flagging. There is deliberately **no health check**
 on this store: `/health/ready` must not report the whole deployment unhealthy
 because nobody can file a typo report, when the reference itself is served from
@@ -780,7 +780,7 @@ are covered. See [SECURITY.md](SECURITY.md) for reporting instructions.
 ### Sessions
 
 The session cookie is `__Host-sw5e.session`: `HttpOnly`, `Secure` in every
-environment, and `SameSite=Strict`. The `__Host-` prefix is not decoration — a
+environment, and `SameSite=Strict`. The `__Host-` prefix is not decoration. A
 browser refuses to store such a cookie unless it is `Secure`, has `Path=/` and
 carries no `Domain`, so no sibling subdomain can set it and nothing served over
 plain HTTP can either.
@@ -804,8 +804,8 @@ Three independent layers, none of which is a token shipped to JavaScript:
    `Origin` is not an origin this deployment serves. It fails closed: a request
    with neither `Origin` nor `Sec-Fetch-Site` is refused, because every browser
    has sent `Origin` on unsafe requests for years.
-3. A JSON body. HTML forms — the only way to make a browser issue a
-   cross-origin `POST` without CORS approval — can send exactly three content
+3. A JSON body. HTML forms (the only way to make a browser issue a
+   cross-origin `POST` without CORS approval) can send exactly three content
    types, and `application/json` is not among them.
 
 ### Brute force
@@ -817,7 +817,7 @@ by client address *and* endpoint, so hammering sign-in cannot exhaust somebody
 else's ability to register.
 
 Lockout answers the per-account attack and rate limiting answers the per-caller
-one — an attacker spreading a single guess across ten thousand accounts trips no
+one. An attacker spreading a single guess across ten thousand accounts trips no
 lockout counter at all.
 
 ### What errors do not say
@@ -832,8 +832,8 @@ of these in full, keyed by account identifier.
 
 Every mapped endpoint without an explicit policy is refused. This is the
 opposite of the framework's default, where an endpoint with no `[Authorize]` is
-public — fine for a mostly public site, and the wrong way round where forgetting
-is a breach. The genuinely public endpoints all say `AllowAnonymous` explicitly.
+public, which is fine for a mostly public site and the wrong way round where
+forgetting is a breach. The genuinely public endpoints all say `AllowAnonymous` explicitly.
 Requests that match no endpoint still answer `404` rather than `401`.
 
 The `type` and `key` route values are the only caller-controlled strings
@@ -872,7 +872,7 @@ exercised before it merges.
 | User | Non-root: UID `1654` (`app`), provided by the .NET base image. Nothing in the image is writable by it. |
 | Content | A read-only mount at `/srv/content`. |
 | Health | `HEALTHCHECK` requests `GET /health` from inside the container every 30s, after a 15s start period. |
-| TLS | None. The image speaks plain HTTP and must sit behind a TLS-terminating proxy — see [Deployment](#deployment), which is **required** reading before the first boot. |
+| TLS | None. The image speaks plain HTTP and must sit behind a TLS-terminating proxy: see [Deployment](#deployment), which is **required** reading before the first boot. |
 | Base images | `mcr.microsoft.com/dotnet/sdk:10.0.302-alpine3.23` to build, `mcr.microsoft.com/dotnet/aspnet:10.0.11-alpine3.23` to run. Both are Microsoft's MIT-licensed .NET images on Alpine. |
 
 No secret, connection string or certificate is baked into the image. Everything
@@ -887,21 +887,21 @@ below is supplied at run time.
 | `Content__RootPath` | `/srv/content` | Where the content volume is mounted. A relative value resolves against the app's content root (`/app`). Read by the `file` store and by the migrator's import step. |
 | `ConnectionStrings__Sw5e` | unset | The one connection string for the whole database. **Required when `Content__Store=database`**, and by the migrator always. It carries the password, so it comes from the environment and never from a committed file. |
 | `Sw5e__Database__CommandTimeoutSeconds` | `15` | Per-command timeout. Every query the API issues is a single-page read; one that has not answered in fifteen seconds is stuck, not slow. |
-| `Sw5e__Database__MaxRetryCount` | `3` | Retries for transient failures only — a dropped connection, a failover. A constraint violation or a syntax error is never retried. |
+| `Sw5e__Database__MaxRetryCount` | `3` | Retries for transient failures only: a dropped connection, a failover. A constraint violation or a syntax error is never retried. |
 | `Sw5e__Database__ReportPendingMigrations` | `true` | Whether readiness reports a schema behind this build as degraded. |
-| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document; never set that in a deployed stack. Set it to `QA` on the QA stack: anything other than `Production` makes [`/api/site/environment`](#which-deployment-this-is) report a test environment, which is what puts the "nothing here is kept" banner on the site. Leave it unset on production — the default is what keeps that banner off the live site, and an empty value counts as unset. |
-| `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development** — the app refuses to start without it. See [Email](#email). |
+| `ASPNETCORE_ENVIRONMENT` | unset, so `Production` | `Development` turns off HSTS and HTTPS redirection and serves the OpenAPI document; never set that in a deployed stack. Set it to `QA` on the QA stack: anything other than `Production` makes [`/api/site/environment`](#which-deployment-this-is) report a test environment, which is what puts the "nothing here is kept" banner on the site. Leave it unset on production: the default is what keeps that banner off the live site, and an empty value counts as unset. |
+| `Email__Provider` | unset | `MailerSend`, `Smtp` or `Capture`. **Required outside Development**: the app refuses to start without it. See [Email](#email). |
 | `Email__FromAddress` | unset | The sending mailbox. Required whenever `Email__Provider` is set. |
 | `Email__MailerSend__ApiToken` | unset | **Secret.** Required when the provider is `MailerSend`. Never bake it into the image. |
 | `Email__Smtp__Host` | unset | Required when the provider is `Smtp`. |
 | `Email__Smtp__Password` | unset | **Secret.** Required when `Email__Smtp__UserName` is set. |
-| `ForwardedHeaders__KnownNetworks__0` | unset | The proxy's network in CIDR notation. **Required behind a containerised proxy** — see below. |
+| `ForwardedHeaders__KnownNetworks__0` | unset | The proxy's network in CIDR notation. **Required behind a containerised proxy**: see below. |
 | `ForwardedHeaders__KnownProxies__0` | unset | An exact proxy IP, as an alternative to the network above. |
 | `HTTPS_PORT` | unset | Port `UseHttpsRedirection` redirects to. Leave it unset and let the proxy handle the HTTP-to-HTTPS redirect at the edge. |
 | `Logging__LogLevel__Default` | `Information` | Standard ASP.NET Core logging configuration; every `Logging__*` key binds. |
 | `AllowedHosts` | `*` | Host filtering, if you want it narrower than the proxy's routing rule. |
 | `DOTNET_EnableDiagnostics` | `0` | Set by the image: the diagnostic IPC socket has no use in this container. |
-| `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT` | `true` | Set by the Alpine base image, which ships no ICU. Safe here — every comparison, sort and case fold in the content index is ordinal or invariant — but culture-sensitive behaviour is unavailable if future code wants it. |
+| `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT` | `true` | Set by the Alpine base image, which ships no ICU. Safe here (every comparison, sort and case fold in the content index is ordinal or invariant) but culture-sensitive behaviour is unavailable if future code wants it. |
 | `ASPNETCORE_HTTP_PORTS` | `8080` | Set by the base image and ignored while `ASPNETCORE_URLS` is set. |
 
 Configuration keys nest with a double underscore and arrays are indexed, so
@@ -914,12 +914,12 @@ stack mounts its shared content volume on. That volume is populated by the
 sw5e-database init container; the API only ever reads it, so mount it `:ro`.
 
 The container runs as UID 1654, so files in the volume must be readable by
-that user — world-readable files are the simplest way to guarantee it. A
+that user. World-readable files are the simplest way to guarantee it. A
 missing, empty or unreadable directory is not fatal: the API starts anyway and
 serves an empty catalogue, logging `Content directory ... does not exist` or
 `Content index built with 0 items.` A healthy container serving an empty
 catalogue is therefore the signature of a content volume that did not mount,
-not of a broken API — check the startup log rather than the health endpoint.
+not of a broken API. Check the startup log rather than the health endpoint.
 
 ### Running it directly
 
@@ -931,8 +931,8 @@ docker run --rm -p 8080:8080 \
   ghcr.io/christopherfowers/sw5e-api:latest
 ```
 
-The image runs as Production, so it will not start without an email provider —
-see [Email](#email). `Capture` is the credential-free choice for a local run:
+The image runs as Production, so it will not start without an email provider.
+See [Email](#email). `Capture` is the credential-free choice for a local run:
 it writes messages to the log and delivers nothing.
 
 `GET /health` answers `{"status":"healthy"}` and is the same endpoint the
@@ -940,7 +940,7 @@ image's own healthcheck probes.
 
 ## Email
 
-Transactional mail — address verification and password reset — lives in
+Transactional mail, address verification and password reset, lives in
 `src/Sw5e.Email`, behind an `IEmailSender` seam so that swapping provider is a
 configuration change rather than a code change. MailerSend's HTTP API is the
 intended production provider; a generic SMTP relay and an in-memory capture
@@ -957,7 +957,7 @@ Two things matter at the deployment level:
   deliberate: the alternative is a deployment that looks healthy, returns a
   failure on every send that nobody reads, and is discovered by a locked-out
   user whose reset email never arrived. Set `Email__Provider=Capture` in an
-  environment that should not send real mail yet — it logs messages and
+  environment that should not send real mail yet. It logs messages and
   delivers nothing.
 - **Credentials never live in the repository or the image.** The MailerSend API
   token and the SMTP password have no defaults and no committed placeholder.
@@ -966,14 +966,14 @@ Two things matter at the deployment level:
 In Development, with nothing configured at all, the app runs on the capture
 provider: it logs the recipient and subject of each message and delivers
 nothing, so no credentials are needed to work on the account flows locally. It
-does not log message bodies — a verification or reset link is a bearer
+does not log message bodies. A verification or reset link is a bearer
 credential and does not belong in a log. To open one, run a local catcher such
 as Mailpit and point the SMTP provider at it; `src/Sw5e.Email/README.md` has the
 four settings.
 
 ## Deployment
 
-The API is designed to run behind a TLS-terminating reverse proxy — Azure App
+The API is designed to run behind a TLS-terminating reverse proxy: Azure App
 Service's front end, or Traefik or nginx in front of the container in a Docker
 deployment. The proxy terminates HTTPS and forwards the request to Kestrel as
 plain HTTP, adding `X-Forwarded-Proto` and `X-Forwarded-For` headers so the
@@ -994,8 +994,8 @@ string arrays:
 
 | Configuration key | Bound to | Example value |
 |---|---|---|
-| `ForwardedHeaders:KnownProxies` | `ForwardedHeadersOptions.KnownProxies` — exact proxy IP addresses | `10.0.0.4` |
-| `ForwardedHeaders:KnownNetworks` | `ForwardedHeadersOptions.KnownIPNetworks` — proxy IP ranges in CIDR notation | `10.0.0.0/16` |
+| `ForwardedHeaders:KnownProxies` | `ForwardedHeadersOptions.KnownProxies`: exact proxy IP addresses | `10.0.0.4` |
+| `ForwardedHeaders:KnownNetworks` | `ForwardedHeadersOptions.KnownIPNetworks`: proxy IP ranges in CIDR notation | `10.0.0.0/16` |
 
 As environment variables (App Service application settings, Docker
 environment variables, or any other `IConfiguration` provider that maps `:`
@@ -1007,13 +1007,13 @@ ForwardedHeaders__KnownNetworks__0=10.0.0.0/16
 ```
 
 `KnownNetworks` entries must be valid CIDR notation with no host bits set in
-the base address (e.g. `10.0.0.0/16`, not `10.0.0.4/16`) — a malformed value
+the base address (e.g. `10.0.0.0/16`, not `10.0.0.4/16`). A malformed value
 fails at startup rather than silently widening or narrowing the trusted
 range. Add one indexed entry per proxy or network as needed
 (`ForwardedHeaders__KnownProxies__1`, `__2`, and so on).
 
 Do not work around a misconfigured proxy by leaving both keys empty unless
-the app is genuinely unreachable except through that proxy — an empty trust
+the app is genuinely unreachable except through that proxy. An empty trust
 list makes the middleware accept forwarded headers from every caller.
 
 #### What happens if you skip this
@@ -1024,7 +1024,7 @@ behind a real proxy, the forwarded headers are silently ignored:
 never emits a `Strict-Transport-Security` header, and HTTPS redirection can
 issue a redirect the proxy forwards straight back as HTTP, producing a
 redirect loop. There is no test, health check, or log line that catches
-this — the app keeps responding `200 OK` on `/health` the whole time. The
+this. The app keeps responding `200 OK` on `/health` the whole time. The
 only visible symptom is a missing security header.
 
 #### Azure App Service
@@ -1035,7 +1035,7 @@ shown above. Set `ForwardedHeaders__KnownProxies__0` (or `KnownNetworks`) to
 the address or range of App Service's front-end infrastructure, or of any
 load balancer you have placed in front of it. If you don't control that
 address space directly, consult your network/App Service configuration
-rather than guessing — an overly broad range defeats the purpose of the
+rather than guessing. An overly broad range defeats the purpose of the
 allow-list.
 
 #### Docker Compose behind Traefik
@@ -1045,12 +1045,12 @@ boot, so it is worth being exact about.
 
 Traefik is not loopback. It reaches the API over a user-defined bridge
 network, so the remote address Kestrel sees is Traefik's container IP on that
-network — something like `172.28.0.3`, never `127.0.0.1`. With the default
+network: something like `172.28.0.3`, never `127.0.0.1`. With the default
 loopback-only trust list, `ForwardedHeadersMiddleware` discards Traefik's
 `X-Forwarded-Proto: https`, `Request.IsHttps` stays `false`, and both
 consequences described above follow: no `Strict-Transport-Security` header is
 ever emitted, and `UseHttpsRedirection` answers the proxy's plain HTTP request
-with a redirect to HTTPS that Traefik forwards straight back as plain HTTP — a
+with a redirect to HTTPS that Traefik forwards straight back as plain HTTP. A
 loop the client sees as `ERR_TOO_MANY_REDIRECTS`.
 
 Fix it by trusting the compose network, and pin that network's subnet so the
@@ -1093,7 +1093,7 @@ docker network inspect <stack>_edge \
 `ForwardedHeaders__KnownProxies__0` set to Traefik's container IP works too,
 but a container IP changes when the container is recreated, so the network
 form is the one to prefer. The default Docker bridge (`172.17.0.0/16`) is not
-the right value for a compose stack — compose creates its own network.
+the right value for a compose stack. Compose creates its own network.
 
 Trust only the network the proxy actually connects from. Trusting `0.0.0.0/0`,
 or emptying both keys, lets any caller that can reach port 8080 directly claim
@@ -1108,7 +1108,7 @@ redirect` once at startup. That warning is expected and is the safe state: the
 redirection middleware has no port to send clients to, so it forwards the
 request instead of redirecting, which is one fewer way to build a loop. Set
 `HTTPS_PORT` only if you deliberately want the app rather than the proxy to
-issue the redirect — and only with the trust list already correct, or you will
+issue the redirect, and only with the trust list already correct, or you will
 build exactly the loop described above.
 
 Verify with the check below, and confirm in the same pass that Traefik's access
@@ -1117,8 +1117,8 @@ log shows `200` on `/health` rather than a chain of `307`s.
 #### Docker Compose behind nginx
 
 The same rule applies unchanged: nginx in a sibling container is not loopback
-either, and its address on the compose network — or the gateway address, if
-nginx routes through it — must be in the trust list. Confirm the address with
+either, and its address on the compose network (or the gateway address, if
+nginx routes through it) must be in the trust list. Confirm the address with
 `docker network inspect` as above, then set
 `ForwardedHeaders__KnownNetworks__0`. Check that nginx is actually sending the
 headers (`proxy_set_header X-Forwarded-Proto $scheme;` and
@@ -1143,13 +1143,13 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 If that header is absent, or an HTTP request to the same host redirects
 repeatedly instead of landing on HTTPS, the proxy's address is not in the
-trusted list — recheck `ForwardedHeaders:KnownProxies` /
+trusted list. Recheck `ForwardedHeaders:KnownProxies` /
 `ForwardedHeaders:KnownNetworks` against the address the proxy actually
 connects from.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ## QA deployment
 
@@ -1158,7 +1158,7 @@ environment at <https://sw5e.cfowers.io>, which runs the database, API and site
 as one Compose stack behind the reverse proxy.
 
 The deploy step runs on a self-hosted runner on the QA host. That runner polls
-GitHub outbound — no inbound port is opened — holds no secrets, and is
+GitHub outbound (no inbound port is opened) holds no secrets, and is
 permitted to run exactly one script via a narrow sudoers rule. Only the
 immutable `sha-<full commit SHA>` tag is ever deployed; `latest` is refused.
 This repository deploys only the `api` service, so a merge here cannot move
