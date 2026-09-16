@@ -92,7 +92,7 @@ internal static class FlagProblems
         TypedResults.Problem(
             title: "You have already reported this",
             detail: "You have an open report of the same kind against this. It has not been " +
-                    "lost — it is waiting for a reviewer.",
+                    "lost. It is waiting for a reviewer.",
             statusCode: StatusCodes.Status409Conflict,
             extensions: new Dictionary<string, object?> { ["code"] = "duplicate-report" });
 

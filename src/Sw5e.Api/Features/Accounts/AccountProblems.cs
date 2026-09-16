@@ -240,7 +240,7 @@ internal static class AccountProblems
         detail:
             $"That account owns {count} unpublished " +
             (count == 1 ? "draft" : "drafts") +
-            ". Publish or discard them first — deleting the account would leave the work " +
+            ". Publish or discard them first. Deleting the account would leave the work " +
             "attributed to nobody and would keep anyone else from editing those entries.",
         statusCode: StatusCodes.Status409Conflict,
         extensions: new Dictionary<string, object?>

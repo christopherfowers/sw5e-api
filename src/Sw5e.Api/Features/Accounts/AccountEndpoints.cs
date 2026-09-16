@@ -72,7 +72,7 @@ internal static class AccountEndpoints
                  "The client finds the smallest counter for which SHA-256 of `{salt}:{counter}` " +
                  "opens with that many zero bits, and sends the whole challenge back with the " +
                  "counter in the X-Sw5e-Challenge-* headers on /register or /email/code. Echo " +
-                 "expiresAt and signature verbatim — both are covered by the signature and a " +
+                 "expiresAt and signature verbatim. Both are covered by the signature and a " +
                  "re-formatted date will not verify. A challenge is good once and expires; " +
                  "fetch a fresh one per request.")
              .Produces<ChallengeResponse>()
@@ -114,8 +114,8 @@ internal static class AccountEndpoints
              .WithSummary("Complete email verification.")
              .WithDescription(
                  "Consumes the token from the emailed link. On success the account's address is " +
-                 "confirmed and a short enrolment window opens, during which — and only during " +
-                 "which — a first passkey may be registered. Verifying does not sign the caller " +
+                 "confirmed and a short enrolment window opens, during which (and only during " +
+                 "which) a first passkey may be registered. Verifying does not sign the caller " +
                  "in; only a passkey assertion does that.")
              .Produces<VerifyEmailResponse>()
              .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -169,8 +169,8 @@ internal static class AccountEndpoints
                  "app, in which case it answers mfaRequired and the client posts a code to " +
                  "/api/auth/mfa/totp/verify exactly as it would after a passkey. A code is good " +
                  "once, for ten minutes, for the address it was sent to, and for five attempts. " +
-                 "Every failure — unknown address, wrong digits, expired, already spent, " +
-                 "attempts exhausted, locked-out account — is the same 401. The resulting " +
+                 "Every failure (unknown address, wrong digits, expired, already spent, " +
+                 "attempts exhausted, locked-out account) is the same 401. The resulting " +
                  "session may reach the account area and may not use a Contributor or " +
                  "Administrator role; that needs a passkey or an authenticator code.")
              .Produces<SignInResponse>()
@@ -256,8 +256,8 @@ internal static class AccountEndpoints
              .WithDescription(
                  "Verifies the assertion and issues a session cookie, unless the account has a " +
                  "second factor, in which case it answers mfaRequired and the client posts a code " +
-                 "to /api/auth/mfa/totp/verify. Every failure — unknown credential, bad signature, " +
-                 "unverified address, locked-out account — is the same 401.")
+                 "to /api/auth/mfa/totp/verify. Every failure (unknown credential, bad signature, " +
+                 "unverified address, locked-out account) is the same 401.")
              .Produces<SignInResponse>()
              .ProducesProblem(StatusCodes.Status401Unauthorized)
              .ProducesProblem(StatusCodes.Status429TooManyRequests)
@@ -435,7 +435,7 @@ internal static class AccountEndpoints
              .WithDescription(
                  "Administrators only. The account directory, oldest first, paginated. `q` " +
                  "matches an email address or a display name, case-insensitively, and needs at " +
-                 "least two characters — below that it is a table dump wearing a search box. " +
+                 "least two characters. Below that it is a table dump wearing a search box. " +
                  "`role` filters to one of Community, Contributor or Administrator; `status` to " +
                  "active, suspended, unverified or all. An unrecognised filter value is a 400 " +
                  "rather than no filter, because showing somebody the whole directory while " +
@@ -455,7 +455,7 @@ internal static class AccountEndpoints
              .WithSummary("One account, in administrative detail.")
              .WithDescription(
                  "Administrators only. Everything the directory shows for one account, plus how " +
-                 "many unpublished drafts it owns — which is the one thing that will refuse a " +
+                 "many unpublished drafts it owns, which is the one thing that will refuse a " +
                  "deletion, and is therefore worth knowing before trying one. The draft count " +
                  "is null on a deployment that serves content from files and has no authoring " +
                  "at all.")
@@ -478,7 +478,7 @@ internal static class AccountEndpoints
                  "while the suspension stands, so reinstating restores access rather than " +
                  "requiring the account to be credentialled again. The reason is required when " +
                  "suspending, is written for the other administrators, and is never shown to " +
-                 "the account — which is told that it has been suspended and who to write to. " +
+                 "the account, which is told that it has been suspended and who to write to. " +
                  "An administrator cannot suspend themselves. Asks for a passkey or an " +
                  "authenticator code proved within the last few minutes.")
              .Produces<AccountSuspensionStateResponse>()
@@ -497,7 +497,7 @@ internal static class AccountEndpoints
                  "Administrators only, and not reversible. Removes the account and everything " +
                  "that identifies it: the address, the display name, the roles, the passkeys, " +
                  "the authenticator secret and any live sign-in code. It does not remove what " +
-                 "the account wrote — content revisions and moderation reports keep their " +
+                 "the account wrote. Content revisions and moderation reports keep their " +
                  "identifier and afterwards render as a removed account, because a history that " +
                  "can be edited by deleting an account is not a history. Refused while the " +
                  "account owns unpublished drafts: publish or discard those first. An " +
@@ -520,7 +520,7 @@ internal static class AccountEndpoints
                  "Administrators only. Every role change, suspension, reinstatement and " +
                  "deletion, newest first, filterable by subject, by actor and by action. The " +
                  "display names are copies taken at the time, so an entry stays readable after " +
-                 "either account has gone — which is the whole point of the one entry that " +
+                 "either account has gone, which is the whole point of the one entry that " +
                  "records a deletion. The table is append-only at the database: nothing in this " +
                  "API updates or removes a row, and PostgreSQL refuses to as well.")
              .Produces<AdministrativeLogResponse>()

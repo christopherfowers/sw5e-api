@@ -517,9 +517,9 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
             FROM content.content_item AS i
             CROSS JOIN query AS q
             -- Deliberately not widened with `OR i.search_vector @@ q.tsquery`.
-            -- That would find documents the substring ladder cannot — "starship
+            -- That would find documents the substring ladder cannot ("starship
             -- shields" matches thirty-four documents as words and none as a
-            -- phrase — but every snippet here is cut at a substring position,
+            -- phrase) but every snippet here is cut at a substring position,
             -- so those rows would come back with nothing to show for
             -- themselves. Recall is worth having and is a separate change; it
             -- needs a headline that can quote a stemmed match.
