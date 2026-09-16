@@ -12,6 +12,12 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
     [Fact]
     public async Task ContentTypes_ListsEveryType()
     {
+        // Written out rather than compared against the registry, because a test
+        // that read the registry would agree with any change made to it. This
+        // is the published order of a published endpoint, and the site's header
+        // is built from it, so a type appearing, moving or vanishing should
+        // have to be typed here as well as there.
+
         var response = await factory.CreateClient().GetAsync("/api/content-types");
         var body = await JsonResponse.ReadAsync(response);
 
@@ -29,7 +35,8 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
                 "starship-base-size", "starship-deployment", "starship-equipment",
                 "starship-modification", "starship-venture", "starship-rule",
                 "rule", "reference-table",
-                "credit-category", "credit", "asset-credit"
+                "credit-category", "credit", "asset-credit",
+                "resource", "channel", "page"
             ],
             ignoreOrder: false);
     }

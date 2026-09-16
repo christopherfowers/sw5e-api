@@ -50,7 +50,7 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "6-the-book-that-teaches";
+    internal const string Version = "7-the-front-pages-furniture";
 
     /// <summary>
     /// A stable description of which fields each type is projected from.
@@ -138,6 +138,36 @@ internal static class ContentProjection
     private static readonly Dictionary<string, TypeProjection> Projections =
         new(StringComparer.Ordinal)
         {
+            /*
+              The front page's own furniture, and the reason all three are
+              spelled out rather than left to the default.
+
+              NameField falls back to "name" for any type not in this table,
+              and none of these has one. A channel is known by its service and
+              a page by the route it belongs to, so a document of either was
+              rejected for a missing property it was never meant to carry, and
+              rejected quietly: the scan records a warning and drops the item,
+              which is right for one corrupt file in eight thousand and reads
+              as "the type does not work" when it happens to every document of
+              a type. Three channels and one page went missing exactly that
+              way, and the corpus round trip is what noticed.
+            */
+            ["resource"] = new(
+                "name",
+                ["blurb"],
+                ["fillable", "pages", "sanitized", "order"]),
+            ["channel"] = new(
+                // What a reader sees on the button, and what an administrator
+                // picks one out by in a list, are the same thing: the service.
+                "platform",
+                ["blurb"],
+                ["platform", "group", "enabled", "order"]),
+            ["page"] = new(
+                // A page carries no title. It is addressed by the route it
+                // belongs to, so its key is the only thing that names it.
+                "key",
+                ["heroLede"],
+                []),
             ["source"] = new(
                 "title",
                 ["publisher", "licenseNote"],

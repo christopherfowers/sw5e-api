@@ -51,12 +51,12 @@ public sealed class ContentProjectionVersionTests
     public void ChangingTheProjectionMeansChangingItsVersion()
     {
         ContentProjection.Fingerprint().ShouldBe(
-            "32d6aad16f10aaba",
+            "aca2a2fb02568649",
             "the projection table changed. Bump ContentProjection.Version and " +
             "put the new fingerprint here, or every document already in a " +
             "database keeps a row built by the old rules and the change reaches " +
             "nothing but whatever happens to be edited alongside it.");
 
-        ContentProjection.Version.ShouldBe("6-the-book-that-teaches");
+        ContentProjection.Version.ShouldBe("7-the-front-pages-furniture");
     }
 }
