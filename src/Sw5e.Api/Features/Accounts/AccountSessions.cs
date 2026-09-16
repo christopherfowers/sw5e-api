@@ -37,13 +37,26 @@ internal static class AccountSessions
     /// The sliding eight-hour window covers a working day.
     /// </para>
     /// <para>
-    /// The claim goes into the ticket rather than into the store. See
-    /// <see cref="Sw5eClaims.AuthenticationMethod"/> for why it has to be a
-    /// property of this sign-in rather than of the account.
+    /// The claims go into the ticket rather than into the store. See
+    /// <see cref="Sw5eClaims.AuthenticationMethod"/> for why they have to be
+    /// properties of this sign-in rather than of the account.
+    /// </para>
+    /// <para>
+    /// Two of them, and the second is the timestamp. It is written here, on the
+    /// one path every route in shares, for the same reason the method is:
+    /// re-authenticating comes through this method too, so proving a factor
+    /// again restamps the session without any caller having to remember to.
     /// </para>
     /// </remarks>
-    public static Task SignInAsync(SignInManager<Sw5eUser> signIn, Sw5eUser user, string method) =>
-        signIn.SignInWithClaimsAsync(user, isPersistent: false, [Sw5eClaims.For(method)]);
+    public static Task SignInAsync(
+        SignInManager<Sw5eUser> signIn,
+        Sw5eUser user,
+        string method,
+        TimeProvider clock) =>
+        signIn.SignInWithClaimsAsync(
+            user,
+            isPersistent: false,
+            [Sw5eClaims.For(method), Sw5eClaims.At(clock.GetUtcNow())]);
 
     /// <summary>
     /// Records that an account has passed its first factor and is waiting on

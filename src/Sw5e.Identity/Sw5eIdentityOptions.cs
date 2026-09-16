@@ -113,6 +113,19 @@ public sealed class Sw5eIdentityOptions
     public TimeSpan EmailTokenLifetime { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
+    /// How long a proved second factor counts as recent, for the handful of
+    /// administrative actions that ask for one again.
+    /// </summary>
+    /// <remarks>
+    /// Ten minutes is long enough to grant a role, notice the second person who
+    /// also needed one and grant that too, and short enough that an unattended
+    /// browser is not a standing grant. It is measured from the moment the
+    /// factor was demonstrated, so re-authenticating restarts it and renewing
+    /// the session does not. See RecentAuthenticationRequirement.
+    /// </remarks>
+    public TimeSpan RecentAuthenticationWindow { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
     /// How long an emailed sign-in code stays usable.
     /// </summary>
     /// <remarks>
@@ -272,6 +285,21 @@ public sealed class Sw5eIdentityOptions
         {
             throw new Sw5eIdentityConfigurationException(
                 "'Identity:SessionLifetime' and 'Identity:EmailTokenLifetime' must be positive.");
+        }
+
+        // Zero would be unsatisfiable rather than strict: the claim is stamped
+        // in whole seconds, so a window of nothing refuses the request that
+        // follows the confirmation it just asked for. A window at or beyond the
+        // session's own length is the other failure, a setting that reads as a
+        // rule and enforces nothing, because a session can never be older than
+        // itself.
+        if (RecentAuthenticationWindow <= TimeSpan.Zero ||
+            RecentAuthenticationWindow >= SessionLifetime)
+        {
+            throw new Sw5eIdentityConfigurationException(
+                "'Identity:RecentAuthenticationWindow' must be positive and shorter than " +
+                $"'Identity:SessionLifetime'. It is currently {RecentAuthenticationWindow} " +
+                $"against a session of {SessionLifetime}.");
         }
 
         if (EmailSignInCodeLifetime <= TimeSpan.Zero ||

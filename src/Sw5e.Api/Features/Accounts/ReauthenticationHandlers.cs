@@ -75,6 +75,7 @@ internal static class ReauthenticationHandlers
         SignInManager<Sw5eUser> signIn,
         IPasskeyHandler<Sw5eUser> passkeys,
         AccountStateCookies state,
+        TimeProvider clock,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
@@ -148,7 +149,7 @@ internal static class ReauthenticationHandlers
             return AccountProblems.ReauthenticationFailed;
         }
 
-        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod);
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod, clock);
         await users.ResetAccessFailedCountAsync(user);
 
         logger.LogInformation("Account {UserId} re-authenticated with a passkey.", user.Id);
@@ -167,6 +168,7 @@ internal static class ReauthenticationHandlers
         HttpContext context,
         UserManager<Sw5eUser> users,
         SignInManager<Sw5eUser> signIn,
+        TimeProvider clock,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
@@ -223,7 +225,7 @@ internal static class ReauthenticationHandlers
         }
 
         await users.ResetAccessFailedCountAsync(user);
-        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.AuthenticatorMethod);
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.AuthenticatorMethod, clock);
 
         logger.LogInformation("Account {UserId} re-authenticated with an authenticator code.", user.Id);
 

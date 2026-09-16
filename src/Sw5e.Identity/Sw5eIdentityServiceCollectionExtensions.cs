@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -62,7 +63,7 @@ public static class Sw5eIdentityServiceCollectionExtensions
         AddIdentityCore(services, options);
         AddCookiePolicy(services, options);
         AddPasskeyPolicy(services, options);
-        AddAuthorizationPolicies(services);
+        AddAuthorizationPolicies(services, options.RecentAuthenticationWindow);
 
         // Fails closed: if nothing else supplies a mail provider, the first
         // attempt to send throws rather than pretending it delivered. See
@@ -224,8 +225,39 @@ public static class Sw5eIdentityServiceCollectionExtensions
         // revoked or its passkeys are removed. Five minutes is a far more
         // defensible ceiling on "revoked but still working", and the check is a
         // single indexed read.
-        services.Configure<SecurityStampValidatorOptions>(
-            validator => validator.ValidationInterval = TimeSpan.FromMinutes(5));
+        services.Configure<SecurityStampValidatorOptions>(validator =>
+        {
+            validator.ValidationInterval = TimeSpan.FromMinutes(5);
+
+            // What the refresh above would otherwise throw away.
+            //
+            // A refresh rebuilds the principal from the store with
+            // CreateUserPrincipalAsync, which knows about the account and
+            // nothing about this sign-in, so every claim describing the session
+            // is dropped. The framework acknowledges this in a comment of its
+            // own next to the call. The effect here was that an administrator
+            // who signed in with a passkey was refused administrative work five
+            // minutes later, told to sign in more strongly, and had in fact
+            // done so. Which looked like a permissions bug and was a claim
+            // quietly going missing.
+            //
+            // Both session claims are carried across unchanged, and unchanged
+            // is the important word for the timestamp. Stamping the refresh
+            // time would mean a session re-proved itself every five minutes
+            // without anybody touching anything, which is not a lie the server
+            // should tell itself.
+            validator.OnRefreshingPrincipal = context =>
+            {
+                if (context.CurrentPrincipal is { } current &&
+                    context.NewPrincipal?.Identity is ClaimsIdentity identity)
+                {
+                    CarryForward(current, identity, Sw5eClaims.AuthenticationMethod);
+                    CarryForward(current, identity, Sw5eClaims.AuthenticatedAt);
+                }
+
+                return Task.CompletedTask;
+            };
+        });
     }
 
     private static void AddCookiePolicy(IServiceCollection services, Sw5eIdentityOptions options)
@@ -288,26 +320,14 @@ public static class Sw5eIdentityServiceCollectionExtensions
                 "Authentication required",
                 "This request requires a signed-in account.");
 
-            // Two different refusals wear the same status code, and telling
+            // Three different refusals wear the same status code, and telling
             // them apart is the difference between a page that says "you cannot
             // do this" and one that says "sign in with your passkey and you
-            // can". Both are facts about the caller's own session, so neither
+            // can". All three are facts about the caller's own session, so none
             // discloses anything: an account already knows how it signed in.
             cookie.Events.OnRedirectToAccessDenied = context =>
-                context.HttpContext.User.Identity?.IsAuthenticated == true &&
-                !Sw5eClaims.HasStrongAuthentication(context.HttpContext.User)
-                    ? WriteProblemAsync(
-                        context.HttpContext,
-                        StatusCodes.Status403Forbidden,
-                        "Stronger sign-in required",
-                        "This action needs a passkey or an authenticator app. Sign in again " +
-                        "using one of those, or enrol one first if the account has neither.",
-                        StrongAuthenticationRequired)
-                    : WriteProblemAsync(
-                        context.HttpContext,
-                        StatusCodes.Status403Forbidden,
-                        "Forbidden",
-                        "This account may not perform that action.");
+                DescribeAccessDeniedAsync(
+                    context.HttpContext, options.RecentAuthenticationWindow);
 
             cookie.Events.OnRedirectToLogout = context =>
             {
@@ -483,6 +503,123 @@ public static class Sw5eIdentityServiceCollectionExtensions
     /// </remarks>
     public const string StrongAuthenticationRequired = "strong-authentication-required";
 
+    /// <summary>
+    /// The machine-readable reason on a refusal that confirming identity would
+    /// have satisfied.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="StrongAuthenticationRequired"/> because the
+    /// remedies are different and only one of them is available. This account
+    /// has the factor and has used it; it is being asked to use it again. A
+    /// client that collapsed the two would send somebody holding a passkey off
+    /// to enrol one.
+    /// </remarks>
+    public const string RecentAuthenticationRequired = "recent-authentication-required";
+
+    /// <summary>
+    /// Copies one session claim onto a principal that was just rebuilt without
+    /// it.
+    /// </summary>
+    /// <remarks>
+    /// Skips a claim the rebuilt principal somehow already has, so a refresh
+    /// can never leave two answers to a question whose readers take the first
+    /// one they find.
+    /// </remarks>
+    /// <summary>
+    /// Answers a refusal the authorization system raised, saying which of the
+    /// three reasons it was.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The order is the order a caller would fix them in. Somebody with no
+    /// second factor on this session needs a factor before freshness can mean
+    /// anything, so that answer comes first even on a route that wants both.
+    /// </para>
+    /// <para>
+    /// Freshness is only mentioned when it is the thing actually standing in
+    /// the way, which is why this reads the endpoint's own policy and the
+    /// caller's role rather than just the clock. Telling a Contributor who
+    /// wandered onto an administrative route to confirm their identity would
+    /// send them through a ceremony that changes nothing and ends in the same
+    /// refusal, and a prompt that cannot help is worse than a plain no.
+    /// </para>
+    /// </remarks>
+    private static Task DescribeAccessDeniedAsync(HttpContext context, TimeSpan window)
+    {
+        var user = context.User;
+
+        if (user.Identity?.IsAuthenticated == true && !Sw5eClaims.HasStrongAuthentication(user))
+        {
+            return WriteProblemAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Stronger sign-in required",
+                "This action needs a passkey or an authenticator app. Sign in again " +
+                "using one of those, or enrol one first if the account has neither.",
+                StrongAuthenticationRequired);
+        }
+
+        if (NeedsFreshProof(context, window))
+        {
+            return WriteProblemAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Confirm it is you",
+                "This action changes what other accounts may do, so it asks for your " +
+                "passkey or authenticator code again. Confirm and the action goes " +
+                "through. You stay signed in either way.",
+                RecentAuthenticationRequired);
+        }
+
+        return WriteProblemAsync(
+            context,
+            StatusCodes.Status403Forbidden,
+            "Forbidden",
+            "This account may not perform that action.");
+    }
+
+    /// <summary>
+    /// Whether this refusal is one that confirming identity would clear.
+    /// </summary>
+    /// <remarks>
+    /// Reads the policy off the endpoint rather than guessing from the clock,
+    /// because a stale session is only a problem on the routes that ask for
+    /// freshness and is perfectly ordinary everywhere else.
+    /// </remarks>
+    private static bool NeedsFreshProof(HttpContext context, TimeSpan window)
+    {
+        if (!context.User.IsInRole(Sw5eRoles.Administrator))
+        {
+            return false;
+        }
+
+        var wantsFreshProof = context.GetEndpoint()?.Metadata
+            .GetOrderedMetadata<IAuthorizeData>()
+            .Any(data => data.Policy == Sw5ePolicies.AdministerConfirmed) == true;
+
+        if (!wantsFreshProof)
+        {
+            return false;
+        }
+
+        var clock = context.RequestServices.GetRequiredService<TimeProvider>();
+
+        return !Sw5eClaims.HasRecentStrongAuthentication(context.User, window, clock.GetUtcNow());
+    }
+
+    private static void CarryForward(ClaimsPrincipal from, ClaimsIdentity to, string type)
+    {
+        if (to.FindFirst(type) is not null)
+        {
+            return;
+        }
+
+        if (from.FindFirst(type) is { } claim)
+        {
+            to.AddClaim(claim);
+        }
+    }
+
     private static async Task WriteProblemAsync(
         HttpContext context,
         int statusCode,
@@ -516,12 +653,16 @@ public static class Sw5eIdentityServiceCollectionExtensions
         await problems.WriteAsync(problem);
     }
 
-    private static void AddAuthorizationPolicies(IServiceCollection services)
+    private static void AddAuthorizationPolicies(IServiceCollection services, TimeSpan window)
     {
-        // Decides the requirement the two elevated policies below add. A
-        // singleton because it holds nothing and reads nothing but the
-        // principal it is handed.
+        // Decides the requirement the elevated policies below add. A singleton
+        // because it holds nothing and reads nothing but the principal it is
+        // handed.
         services.AddSingleton<IAuthorizationHandler, StrongAuthenticationHandler>();
+
+        // Decides the freshness requirement. Also a singleton, and it holds
+        // only the clock.
+        services.AddSingleton<IAuthorizationHandler, RecentAuthenticationHandler>();
 
         services.AddAuthorizationBuilder()
             // Deny by default, for mapped endpoints only. See
@@ -549,6 +690,18 @@ public static class Sw5eIdentityServiceCollectionExtensions
             .AddPolicy(Sw5ePolicies.Administer, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole(Sw5eRoles.Administrator)
-                .AddRequirements(new StrongAuthenticationRequirement()));
+                .AddRequirements(new StrongAuthenticationRequirement()))
+            // Administration, plus a factor proved minutes ago rather than this
+            // morning. Built by restating the requirements rather than by
+            // referring to the policy above, so that a change to what it means
+            // to administer cannot be applied to one of them and missed on the
+            // other. See Sw5ePolicies.AdministerConfirmed for which routes want
+            // this and why the rest deliberately do not.
+            .AddPolicy(Sw5ePolicies.AdministerConfirmed, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(Sw5eRoles.Administrator)
+                .AddRequirements(
+                    new StrongAuthenticationRequirement(),
+                    new RecentAuthenticationRequirement(window)));
     }
 }

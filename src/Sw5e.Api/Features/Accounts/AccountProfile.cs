@@ -40,6 +40,13 @@ namespace Sw5e.Api.Features.Accounts;
 /// account's enrolments would get it wrong for exactly the case that matters.
 /// Somebody who has a passkey but did not use it this time.
 /// </para>
+/// <para>
+/// <em>When</em> the factor was proved is deliberately not among them. The
+/// three administrative actions that care ask the server and are told, and a
+/// client holding a timestamp would be a second opinion about freshness formed
+/// against a clock this site does not own. There is nothing it could do with
+/// that opinion that waiting for the refusal does not do correctly.
+/// </para>
 /// </remarks>
 internal static class AccountProfile
 {

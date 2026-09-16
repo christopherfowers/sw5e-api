@@ -67,4 +67,26 @@ public static class Sw5ePolicies
 
     /// <summary>Requires full administrative control.</summary>
     public const string Administer = "sw5e:administer";
+
+    /// <summary>
+    /// Requires full administrative control <em>and</em> a second factor proved
+    /// within the last few minutes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For the actions that change who else can act: granting and revoking
+    /// roles, suspending an account, and deleting one. These are what an
+    /// attacker reaches for first with a stolen session, and they are also what
+    /// an administrator does rarely enough that being asked to touch a key
+    /// costs nothing.
+    /// </para>
+    /// <para>
+    /// Everything else an administrator does stays on <see cref="Administer"/>.
+    /// Reading the directory and the audit log is how somebody works out
+    /// whether an action is needed, and a site that asked for a fingerprint
+    /// before it would show a list would teach its administrators to confirm
+    /// without reading, which is the habit the prompt exists to exploit.
+    /// </para>
+    /// </remarks>
+    public const string AdministerConfirmed = "sw5e:administer-confirmed";
 }

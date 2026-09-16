@@ -144,6 +144,7 @@ internal static class EmailCodeHandlers
         UserManager<Sw5eUser> users,
         SignInManager<Sw5eUser> signIn,
         EmailSignInCodeService codes,
+        TimeProvider clock,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -217,7 +218,7 @@ internal static class EmailCodeHandlers
             return TypedResults.Ok(SignInResponse.MfaRequired);
         }
 
-        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.EmailCodeMethod);
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.EmailCodeMethod, clock);
         await users.ResetAccessFailedCountAsync(user);
 
         logger.LogInformation("Account {UserId} signed in with an emailed code.", user.Id);

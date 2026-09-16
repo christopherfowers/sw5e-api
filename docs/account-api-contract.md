@@ -543,3 +543,41 @@ does have access; it is this sign-in that does not. A client that sees this code
 should offer to sign in again with a passkey when the account has one, and offer
 enrolment when it does not; `GET /api/auth/me` carries what it needs to tell
 those apart.
+
+### The `recent-authentication-required` 403
+
+Three of the administrative routes change what another account may do: the role
+grant, the suspension switch and the deletion. Those require the second factor
+to have been proved within the last ten minutes, not merely at some point during
+the session. A session lasts a working day, which is the right length for
+reading and writing and the wrong length for handing somebody the Administrator
+role: an unattended browser sits in between, and the value of a passkey is that
+the person holding it was present.
+
+```json
+{
+  "status": 403,
+  "title": "Confirm it is you",
+  "detail": "This action changes what other accounts may do, so it asks for ...",
+  "code": "recent-authentication-required"
+}
+```
+
+Distinct from `strong-authentication-required`, and the two want opposite things
+from the reader. That one means the session proved nothing stronger than a
+mailbox and the account may have nothing stronger to prove with, so the answer
+is to enrol something. This one means the account holds a factor, has already
+used it, and is being asked to use it once more. A client that collapsed the two
+would send somebody holding a passkey off to add a passkey.
+
+`POST /api/auth/reauthenticate/passkey/begin` and `/complete`, or
+`POST /api/auth/reauthenticate/totp`, clear it. Each re-issues the session
+stamped with the moment the factor was demonstrated, so confirming restarts the
+window. Renewing the session does not, which is the property that makes the
+window mean anything.
+
+The two administrative routes that only read, the directory and the audit log,
+deliberately stay on the plain requirement. Working out whether an account
+should be suspended begins by reading about it, and a service that asked for a
+fingerprint before it would return a list would teach administrators to confirm
+without reading.

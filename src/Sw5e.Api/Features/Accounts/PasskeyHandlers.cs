@@ -303,6 +303,7 @@ internal static class PasskeyHandlers
         IPasskeyHandler<Sw5eUser> passkeys,
         AccountStateCookies state,
         EmailSignInCodeService codes,
+        TimeProvider clock,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -370,7 +371,7 @@ internal static class PasskeyHandlers
 
         // Stamped as a passkey sign-in, which is what lets an elevated role
         // actually be used. See Sw5eClaims and AccountSessions.
-        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod);
+        await AccountSessions.SignInAsync(signIn, user, Sw5eClaims.PasskeyMethod, clock);
 
         // Any sign-in code still sitting in this account's mailbox is now a
         // live credential nobody is waiting on. Somebody who asked for one,
