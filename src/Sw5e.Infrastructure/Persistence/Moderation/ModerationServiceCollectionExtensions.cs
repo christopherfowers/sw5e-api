@@ -20,7 +20,7 @@ public static class ModerationServiceCollectionExtensions
     /// <list type="number">
     /// <item><description><c>Moderation:ConnectionString</c></description></item>
     /// <item><description><c>ConnectionStrings:Sw5eModeration</c></description></item>
-    /// <item><description><c>ConnectionStrings:Sw5e</c> — the platform database</description></item>
+    /// <item><description><c>ConnectionStrings:Sw5e</c>. The platform database</description></item>
     /// <item><description><c>ConnectionStrings:Sw5eIdentity</c></description></item>
     /// </list>
     /// <para>
@@ -29,7 +29,7 @@ public static class ModerationServiceCollectionExtensions
     /// <c>ConnectionStrings:Sw5e</c> at all, and one of them is running: the
     /// site's own container smoke test. Refusing to start there would mean the
     /// arrival of flagging broke a configuration that had nothing to do with
-    /// it, so the identity connection is accepted as a last resort — accounts
+    /// it, so the identity connection is accepted as a last resort. Accounts
     /// exist in every deployment, and moderation data has far more in common
     /// with them than with the content catalogue anyway.
     /// </para>
@@ -117,7 +117,7 @@ public static class ModerationServiceCollectionExtensions
     /// <para>
     /// It lives here rather than in the migrator so the test host can play the
     /// migrator's part without the test project taking a dependency on an
-    /// executable — and so there is one implementation of "bring this schema
+    /// executable, and so there is one implementation of "bring this schema
     /// up to date" rather than one the deployment runs and one the tests
     /// approximate.
     /// </para>

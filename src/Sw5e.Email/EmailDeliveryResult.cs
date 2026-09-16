@@ -5,7 +5,7 @@ namespace Sw5e.Email;
 /// </summary>
 /// <remarks>
 /// Provider status codes do not belong above the adapter, but the decision
-/// "should this be tried again" does — it is what the retry decorator runs on
+/// "should this be tried again" does. It is what the retry decorator runs on
 /// and what an eventual outbox or dead-letter queue would run on. Each adapter
 /// maps its own vocabulary (HTTP status codes for MailerSend, SMTP reply codes
 /// for the relay) onto these two answers exactly once.
@@ -34,7 +34,7 @@ public enum EmailFailureKind
 /// application log, which has a wider audience than the mail itself.
 /// </param>
 /// <param name="RetryAfter">
-/// How long the provider asked the caller to wait, when it said so — from a
+/// How long the provider asked the caller to wait, when it said so. From a
 /// <c>Retry-After</c> header, typically alongside a 429. Null when the provider
 /// gave no guidance, which is the normal case.
 /// </param>
@@ -53,7 +53,7 @@ public sealed record EmailDeliveryFailure(
 /// as a matter of routine, and a caller that must decide between "tell the user
 /// to check their inbox" and "tell the user to try again" should not be
 /// steering on exception types. Reserving exceptions for genuine programmer
-/// error — a malformed message, missing configuration — keeps them meaningful.
+/// error (a malformed message, missing configuration) keeps them meaningful.
 /// </para>
 /// <para>
 /// The consequence is that <b>the result must be inspected</b>. A caller that
@@ -80,7 +80,7 @@ public sealed class EmailDeliveryResult
     public bool Succeeded => Failure is null;
 
     /// <summary>
-    /// The provider's own handle for the message, when it gave one — MailerSend
+    /// The provider's own handle for the message, when it gave one. MailerSend
     /// returns it in the <c>x-message-id</c> response header, and it is the
     /// value to quote when correlating with their activity log or a webhook.
     /// Null for providers that issue no identifier.

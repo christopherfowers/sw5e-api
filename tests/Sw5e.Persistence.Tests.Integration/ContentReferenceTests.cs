@@ -111,7 +111,7 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     /// This edge used to be the corpus's only record that classes existed at
     /// all: it was recorded and left dangling, because nothing had authored the
     /// class type yet. Now that a class is a real item, the same rule has to
-    /// resolve rather than merely record — and it has to do so from an
+    /// resolve rather than merely record, and it has to do so from an
     /// archetype and from a class improvement alike, since the class page is
     /// the only route to either of them.
     /// </remarks>
@@ -209,8 +209,8 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     /// <remarks>
     /// The prerequisite is the gate and names the tier immediately below;
     /// <c>improves</c> names the base maneuver the chain hangs off. For a third
-    /// tier those are different documents — Administer Aid (Greater) requires
-    /// Administer Aid (Improved) and improves Administer Aid — so an extractor
+    /// tier those are different documents, Administer Aid (Greater) requires
+    /// Administer Aid (Improved) and improves Administer Aid, so an extractor
     /// that treated one as a synonym for the other would publish a chain that
     /// skips a tier. The fixture holds Riposte and Riposte (Improved), where
     /// the two edges happen to agree, which is why the assertions check the
@@ -324,8 +324,8 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     /// grammar in one row: a bare name ("two-handed"), a numeric argument
     /// ("burst 4", "reload 4", "strength 13") and a parenthesised one ("power
     /// cell (range 50/200)"). The last is the case that kept this rule
-    /// unwritten for so long — taking the leading token yields "power", which
-    /// names nothing — so it is asserted by name rather than only counted.
+    /// unwritten for so long (taking the leading token yields "power", which
+    /// names nothing) so it is asserted by name rather than only counted.
     /// Reload's glossary entry is left out of the fixture on purpose: without a
     /// clause that dangles, this would pass against an extractor that quietly
     /// dropped anything it could not resolve.
@@ -413,7 +413,7 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
     /// </summary>
     /// <remarks>
     /// The combat suit is armour with no printed properties, so it must
-    /// contribute nothing — an extractor that emitted an edge per item rather
+    /// contribute nothing. An extractor that emitted an edge per item rather
     /// than per clause would show up here and nowhere else. The totals are then
     /// asserted across the whole corpus, because a target type is a column
     /// queries filter on: if a clause ever produced an edge into some third
@@ -487,7 +487,7 @@ public sealed class ContentReferenceTests(PostgresFixture fixture) : DatabaseTes
 
     /// <summary>
     /// An edge that could not be resolved resolves later, when its target is
-    /// finally written — without the document that declared it changing at all.
+    /// finally written. Without the document that declared it changing at all.
     /// </summary>
     /// <remarks>
     /// This is the test that pins the design down. Resolution is a property of

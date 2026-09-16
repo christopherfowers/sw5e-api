@@ -67,7 +67,7 @@ public sealed class SmtpOptions
     /// <b>Known limitation.</b> The adapter is built on
     /// <see cref="System.Net.Mail.SmtpClient"/>, which speaks STARTTLS on a
     /// connection that begins in cleartext and has never supported implicit
-    /// TLS — the mode where the TLS handshake happens first, conventionally on
+    /// TLS. The mode where the TLS handshake happens first, conventionally on
     /// port <see cref="ImplicitTlsPort"/>. Configuring that port is therefore
     /// rejected at startup with an explanation, rather than producing a
     /// connection that hangs until it times out. Every mainstream provider

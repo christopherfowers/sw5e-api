@@ -18,7 +18,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// from <c>GET /api/auth/challenge</c>, hashes until it finds a counter, and
 /// sends the whole thing back in headers. Nothing reaches into the container to
 /// mint a challenge or to ask the verifier a question directly, for the same
-/// reason the rest of this suite refuses to fabricate a session — a test that
+/// reason the rest of this suite refuses to fabricate a session. A test that
 /// signs its own challenges is asserting that the server accepts what the
 /// server made, which is true of a server that accepts anything.
 /// </para>
@@ -26,7 +26,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// The one thing the tests deliberately do <em>not</em> share with production
 /// is the leading-zero-bit count. <see cref="LeadingZeroBits"/> below is written
 /// independently, and differently, precisely so that a bug in the server's
-/// version — counting nibbles, ignoring the byte that straddles the boundary —
+/// version (counting nibbles, ignoring the byte that straddles the boundary)
 /// shows up as a disagreement rather than being reproduced identically on both
 /// sides and cancelling out.
 /// </para>
@@ -41,7 +41,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
     /// Not a secret and not treated as one: it signs challenges for a host that
     /// exists for the length of one test and is thrown away. It is shared
     /// between two hosts on purpose in the tests that need one instance to
-    /// accept a challenge another instance issued — which is also the real
+    /// accept a challenge another instance issued. Which is also the real
     /// arrangement behind a load balancer.
     /// </remarks>
     private const string Secret = "test-only-proof-of-work-signing-key-0123456789";
@@ -54,7 +54,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
 
     /// <summary>
     /// Low enough that the suite is not spending seconds per test on hashing,
-    /// and high enough to be above the configured floor of eight bits — which
+    /// and high enough to be above the configured floor of eight bits. Which
     /// means a wrong counter is genuinely unlikely to pass by luck.
     /// </summary>
     private const int Difficulty = 12;
@@ -150,7 +150,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
         var address = AccountFlow.NewAddress("pow-wrong-counter");
 
         // A counter chosen because it demonstrably does not produce the
-        // required zeros, rather than "the right answer plus one" — which is
+        // required zeros, rather than "the right answer plus one". Which is
         // itself a valid solution once every few thousand challenges and would
         // make this test flake.
         var wrong = UnsolvedCounter(challenge);
@@ -240,7 +240,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
 
         // Pushed a year out, which is what somebody who wanted one challenge to
         // last forever would do. The expiry is inside the signature, so this is
-        // caught as a forgery rather than by the freshness check — and it is
+        // caught as a forgery rather than by the freshness check, and it is
         // the reason the expiry has to be inside the signature at all.
         var forged = issued with
         {
@@ -294,7 +294,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
         var counter = Solve(challenge);
 
         // Past the ten-minute lifetime. Solved correctly, signed correctly,
-        // never used — and worthless, because the expiry is what bounds how
+        // never used, and worthless, because the expiry is what bounds how
         // long a challenge harvested in bulk stays spendable.
         factory.Clock.Advance(TimeSpan.FromMinutes(11));
 
@@ -454,7 +454,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
         // Not the same statement as the test above, and the more important of
         // the two. A verifier that short-circuits only on the absence of a
         // solution would start refusing a client that had begun sending stale
-        // ones — which is exactly what a client rolled out ahead of the switch
+        // ones. Which is exactly what a client rolled out ahead of the switch
         // would be doing.
         await using var factory = new AccountApiFactory(postgres);
         var client = factory.CreateBrowserClient();
@@ -510,7 +510,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
         // Checked even though this host leaves the gate switched off. A
         // difficulty of 40 is a mistake on the day it is typed, and validating
         // it only in the enabled branch would hold the failure back until the
-        // operator flipped the switch — which is precisely the moment they are
+        // operator flipped the switch. Which is precisely the moment they are
         // least able to absorb a surprise.
         await using var factory = new MisconfiguredApiFactory(postgres, difficulty: 40);
 
@@ -585,7 +585,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
 
     /// <summary>
     /// The smallest counter that reaches <paramref name="atLeast"/> zero bits
-    /// and no more — a solution to an easier challenge than the one issued.
+    /// and no more. A solution to an easier challenge than the one issued.
     /// </summary>
     private static long NearMissCounter(Challenge challenge, int atLeast)
     {
@@ -655,7 +655,7 @@ public sealed class ProofOfWorkChallengeTests(PostgresFixture postgres)
     /// <remarks>
     /// Nothing else is changed. In particular the rate limits stay at the
     /// fixture's generous test values, so a refusal in any test here is the
-    /// challenge refusing and never the limiter — the two produce different
+    /// challenge refusing and never the limiter. The two produce different
     /// status codes, but a test that could not tell them apart would be
     /// worthless the day somebody made them agree.
     /// </remarks>

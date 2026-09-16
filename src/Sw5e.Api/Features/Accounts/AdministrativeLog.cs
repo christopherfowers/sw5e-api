@@ -12,14 +12,14 @@ namespace Sw5e.Api.Features.Accounts;
 /// One method, called by every administrative handler, for the same reason
 /// <c>AccountSessions</c> is one method called by every sign-in route: the
 /// property that matters is one they must all share, and a handler that forgot
-/// would produce an action nobody can account for — a failure that looks like
+/// would produce an action nobody can account for. A failure that looks like
 /// nothing at all until somebody asks who granted a role.
 /// </para>
 /// <para>
 /// <b>It stages the row rather than saving it.</b> Nothing here calls
 /// <c>SaveChangesAsync</c>. The identity <c>DbContext</c> is scoped, and it is
 /// the same instance the <c>UserManager</c> writes through, so an entry added
-/// here is flushed by whatever write the handler performs next — one
+/// here is flushed by whatever write the handler performs next. One
 /// <c>SaveChanges</c>, one implicit transaction, and therefore no state in
 /// which a role was granted and the record of it was not, or the reverse. That
 /// matters most for deletion, where the record has to be written in the same
@@ -84,8 +84,8 @@ internal static class AdministrativeLog
     /// makes "did this change anything" answerable by comparing the two
     /// columns.
     /// <para>
-    /// Null therefore covers two cases — the action was not about roles, and
-    /// the account held no assignable role — and that is deliberate rather than
+    /// Null therefore covers two cases (the action was not about roles, and
+    /// the account held no assignable role) and that is deliberate rather than
     /// sloppy. The column is not what says which happened; <c>Action</c> is,
     /// and a reader who needs to tell "revoked everything" from "suspended"
     /// looks there. Inventing a sentinel string for the empty set would put a

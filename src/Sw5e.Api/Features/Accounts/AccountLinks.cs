@@ -18,7 +18,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// The links point at the browser application rather than at this API. The
 /// front end reads the token out of the query string and posts it to
 /// <c>/api/auth/email/verify</c>, which means the token is consumed by an
-/// explicit action rather than by a preview fetch — mail clients and security
+/// explicit action rather than by a preview fetch. Mail clients and security
 /// scanners follow links in messages, and a verification that completed on GET
 /// would be spent before the recipient ever saw it.
 /// </para>
@@ -47,7 +47,7 @@ internal static class AccountLinks
     /// It also could not have lived under <c>/account</c> even if that route had
     /// existed. Everything below that path is behind the site's session guard,
     /// and the entire point of this link is that it is opened by somebody who
-    /// has no session and no credential yet — a brand-new account whose only
+    /// has no session and no credential yet. A brand-new account whose only
     /// proof of anything is the message in their inbox.
     /// </para>
     /// <para>

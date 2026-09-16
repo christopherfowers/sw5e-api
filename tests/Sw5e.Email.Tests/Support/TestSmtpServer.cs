@@ -27,7 +27,7 @@ internal sealed class TestSmtpServerBehaviour
 
     /// <summary>
     /// How long to sit on an accepted connection before greeting it, so a test
-    /// can produce a relay that answers the socket and then goes quiet — which
+    /// can produce a relay that answers the socket and then goes quiet. Which
     /// is what a wedged relay looks like and is not the same as one that
     /// refuses the connection outright.
     /// </summary>
@@ -41,8 +41,8 @@ internal sealed class TestSmtpServerBehaviour
 /// <para>
 /// This exists because the alternative tests nothing. Replacing
 /// <see cref="System.Net.Mail.SmtpClient"/> with a fake would leave the
-/// adapter's entire job — building a MIME message, negotiating the session,
-/// authenticating, reading reply codes — unexercised, and a test asserting
+/// adapter's entire job (building a MIME message, negotiating the session,
+/// authenticating, reading reply codes) unexercised, and a test asserting
 /// that a fake was called is a test that passes whether or not any of that
 /// works.
 /// </para>
@@ -66,7 +66,7 @@ internal sealed class TestSmtpServer : IAsyncDisposable
         Behaviour = behaviour ?? new TestSmtpServerBehaviour();
 
         // Port 0 means the operating system picks a free one, so tests running
-        // in parallel — and CI agents running several jobs — never collide.
+        // in parallel, and CI agents running several jobs, never collide.
         _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
 
@@ -200,7 +200,7 @@ internal sealed class TestSmtpServer : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// Both forms are handled. RFC 4954 allows the initial response to be sent
-    /// with the command — <c>AUTH LOGIN &lt;base64 username&gt;</c> — and that
+    /// with the command, <c>AUTH LOGIN &lt;base64 username&gt;</c>, and that
     /// is what the framework's client does, but the two-challenge form is what
     /// most documentation shows, so accepting only one would make this a test
     /// of the fixture rather than of the adapter.

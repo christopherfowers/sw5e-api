@@ -9,7 +9,7 @@ namespace Sw5e.Api.Tests.Integration.Moderation;
 /// </summary>
 /// <remarks>
 /// No database and no host. These are decisions, and a decision can be wrong
-/// without a server being involved — but they are the decisions that the store,
+/// without a server being involved, but they are the decisions that the store,
 /// the endpoint and the browser client all read, so getting one wrong is wrong
 /// in three places at once.
 /// </remarks>
@@ -167,7 +167,7 @@ public sealed class FlagTaxonomyTests
     public void EveryFinishedStateCanBeReopened()
     {
         // Reviewers are wrong sometimes, and a queue with no way back is one
-        // people are afraid to triage quickly — which produces a queue nobody
+        // people are afraid to triage quickly. Which produces a queue nobody
         // triages at all.
         ContentFlagRules.CanTransition(FlagStatus.Declined, FlagStatus.Open).ShouldBeTrue();
         ContentFlagRules.CanTransition(FlagStatus.Resolved, FlagStatus.Open).ShouldBeTrue();

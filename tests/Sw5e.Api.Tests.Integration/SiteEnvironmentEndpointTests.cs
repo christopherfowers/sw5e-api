@@ -18,15 +18,15 @@ namespace Sw5e.Api.Tests.Integration;
 /// QA is an inconvenience somebody fixes by setting a variable. A
 /// "test environment, nothing here is kept" banner on the live site tells every
 /// reader that the reference they are using is disposable, and it would be
-/// served from every prerendered page until somebody noticed. So the default
-/// has to be production, and the default has to be tested — a default nobody
+/// served from every prerendered page until somebody noticed, so the default
+/// has to be production, and the default has to be tested. A default nobody
 /// asserts is a default that survives exactly as long as nobody edits the line
 /// it lives on.
 /// </para>
 /// <para>
 /// <see cref="UnconfiguredIsProduction"/> is the test that matters. It is the
-/// one case a hosted test cannot reach — both hosts substitute a name when none
-/// is given, which is the behaviour under test — so it goes at the decision
+/// one case a hosted test cannot reach (both hosts substitute a name when none
+/// is given, which is the behaviour under test) so it goes at the decision
 /// directly, with the values a deployment where somebody forgot actually
 /// produces.
 /// </para>
@@ -50,7 +50,7 @@ public sealed class SiteEnvironmentEndpointTests
     /// <see cref="UnconfiguredIsProduction"/> below goes at
     /// <c>SiteEnvironmentEndpoint.Describe</c> directly instead. Both the test
     /// host and the real host substitute a name of their own when none is
-    /// given — which is the very behaviour under test — so asking this factory
+    /// given, which is the very behaviour under test, so asking this factory
     /// for "no environment" would only ever exercise whatever it substituted.
     /// </para>
     /// </remarks>
@@ -74,7 +74,7 @@ public sealed class SiteEnvironmentEndpointTests
             // without a provider, deliberately: an API that starts happily and
             // then silently drops every password-reset mail is worse than one
             // that will not start. Nothing here sends mail, so the capture
-            // provider — which writes to the log and goes nowhere — satisfies
+            // provider, which writes to the log and goes nowhere, satisfies
             // that check without weakening it.
             builder.UseSetting("Email:Provider", "Capture");
             builder.UseSetting("Email:FromAddress", "noreply@sw5e.test");
@@ -116,8 +116,8 @@ public sealed class SiteEnvironmentEndpointTests
     /// written, and it will fail again the day somebody removes it.
     /// </para>
     /// <para>
-    /// Flip the default in <c>Describe</c> — return <c>false</c> for an unknown
-    /// name, or drop the blank check and defer to <c>IsProduction()</c> — and
+    /// Flip the default in <c>Describe</c> (return <c>false</c> for an unknown
+    /// name, or drop the blank check and defer to <c>IsProduction()</c>) and
     /// this is what goes red.
     /// </para>
     /// </remarks>
@@ -207,7 +207,7 @@ public sealed class SiteEnvironmentEndpointTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// "Safe" here is not "assume the worst" — it is "change nothing". A
+    /// "Safe" here is not "assume the worst". It is "change nothing". A
     /// deployment that cannot say anything about its relay must leave the site
     /// saying exactly what it said before this field existed, because the
     /// alternative is telling every reader that email is broken on the strength
@@ -267,8 +267,8 @@ public sealed class SiteEnvironmentEndpointTests
     /// <para>
     /// This endpoint is anonymous, and the temptation the day somebody debugs a
     /// mail outage is to put the useful detail here, where it can be read
-    /// without a session. The provider's reply is the specific hazard — a relay
-    /// writes it about one envelope and it can quote the recipient — but a
+    /// without a session. The provider's reply is the specific hazard, a relay
+    /// writes it about one envelope and it can quote the recipient, but a
     /// failure count or a timestamp would be no better a fit: neither changes
     /// what a reader can do, and both invite the next field.
     /// </para>

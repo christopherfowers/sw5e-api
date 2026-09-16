@@ -8,7 +8,7 @@ namespace Sw5e.Identity.Email;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The obvious alternative — a no-op that logs and returns — is a security bug.
+/// The obvious alternative, a no-op that logs and returns, is a security bug.
 /// Every account flow here is gated on the user receiving a link: if delivery
 /// silently does nothing, registration still creates an account, the endpoint
 /// still answers "check your email", and a deployment can sit for weeks in a

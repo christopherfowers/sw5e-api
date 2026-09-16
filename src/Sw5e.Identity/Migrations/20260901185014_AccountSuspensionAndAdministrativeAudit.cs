@@ -87,7 +87,7 @@ namespace Sw5e.Identity.Migrations
             // is there because the only value an audit record has is the
             // confidence that it was not edited afterwards, and the person with
             // both the database access and the motive to edit it is an
-            // administrator — the exact party this table exists to hold to
+            // administrator. The exact party this table exists to hold to
             // account. "We do not write that statement" is a weaker claim than
             // "the statement is refused", and this is the same protection the
             // content revision table already carries.

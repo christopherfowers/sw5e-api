@@ -20,7 +20,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// <para>
 /// They anchor to two things outside this repository instead. The first is the
 /// set of test vectors published in RFC 6238 Appendix B, which every conformant
-/// implementation on earth reproduces — if the server's arithmetic matches
+/// implementation on earth reproduces. If the server's arithmetic matches
 /// those, it matches every authenticator app, and if it ever stops matching
 /// them the failure appears here rather than in somebody's inbox. The second is
 /// the Key Uri Format that the apps actually parse, which is checked
@@ -46,8 +46,8 @@ public sealed class AuthenticatorInteroperabilityTests
     /// </summary>
     /// <remarks>
     /// The RFC prints eight-digit codes; this implementation produces six,
-    /// which by construction are the low six digits of the same value —
-    /// truncation is a modulo, so <c>value % 1e6</c> is the last six digits of
+    /// which by construction are the low six digits of the same value.
+    /// Truncation is a modulo, so <c>value % 1e6</c> is the last six digits of
     /// <c>value % 1e8</c>. Taking the tail of the published number rather than
     /// recomputing it keeps this table checkable against the RFC by eye.
     /// </remarks>
@@ -111,8 +111,8 @@ public sealed class AuthenticatorInteroperabilityTests
     public void A_code_one_step_out_is_accepted(int offset)
     {
         // The whole point of the window. A phone whose clock has drifted a few
-        // seconds across a boundary — or a reader who took eight seconds to
-        // type — produces exactly this, and rejecting it is the "it does not
+        // seconds across a boundary, or a reader who took eight seconds to
+        // type, produces exactly this, and rejecting it is the "it does not
         // work" experience that the requirement to have a window exists to
         // prevent.
         var now = DateTimeOffset.UtcNow;
@@ -188,8 +188,8 @@ public sealed class AuthenticatorInteroperabilityTests
         var uri = AuthenticatorUri.Build("person@example.com", secret);
 
         // Asserted as one exact string rather than field by field, because the
-        // failure this test exists to catch is a small malformation — an
-        // encoded colon, a missing parameter, a lower-cased algorithm name —
+        // failure this test exists to catch is a small malformation (an
+        // encoded colon, a missing parameter, a lower-cased algorithm name)
         // and a field-by-field check is exactly the shape of test that lets
         // those through.
         uri.ShouldBe(
@@ -229,7 +229,7 @@ public sealed class AuthenticatorInteroperabilityTests
     public void The_secret_in_the_uri_carries_no_padding_and_no_spaces()
     {
         // Padding is legal in a query string and is rejected by several apps'
-        // base32 decoders. A grouped secret — the manual-entry form — pasted
+        // base32 decoders. A grouped secret, the manual-entry form, pasted
         // into the URI would be worse still.
         var secret = TimeBasedOneTimePassword.SecretFrom(
             AuthenticatorUri.Build("person@example.com", "JBSWY3DPEHPK3PXP"));

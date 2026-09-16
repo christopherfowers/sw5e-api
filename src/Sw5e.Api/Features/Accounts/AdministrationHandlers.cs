@@ -11,8 +11,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// may upload content.
 /// </summary>
 /// <remarks>
-/// This is the most dangerous endpoint in the API — it is the one that creates
-/// more administrators — so it is also the smallest. It does one thing, it
+/// This is the most dangerous endpoint in the API, it is the one that creates
+/// more administrators, so it is also the smallest. It does one thing, it
 /// takes a declaration of the end state rather than an instruction to add,
 /// and every use of it is logged at warning level and emailed to the account it
 /// affected.
@@ -56,7 +56,7 @@ internal static class AdministrationHandlers
         // the last administrator revoking themselves leaves the platform with
         // no way to appoint another short of editing the database by hand. It
         // also removes the most attractive move available to somebody who has
-        // just stolen an administrator's session — locking the real
+        // just stolen an administrator's session. Locking the real
         // administrators out of their own platform.
         if (actor.Id == target.Id && !requested.Contains(Sw5eRoles.Administrator))
         {
@@ -96,7 +96,7 @@ internal static class AdministrationHandlers
         if (toGrant.Length > 0 || toRevoke.Length > 0)
         {
             // The record of the change, in a table the administrator who made
-            // it cannot afterwards edit — the migration puts an append-only
+            // it cannot afterwards edit. The migration puts an append-only
             // trigger over it. Staged here and flushed by the security stamp
             // rotation below, which writes through the same scoped context, so
             // the grant and the record of it are one transaction.
@@ -115,7 +115,7 @@ internal static class AdministrationHandlers
 
             // Rotating the stamp is what makes a revocation take effect on a
             // session that is already open. Without it the demoted account
-            // keeps its old role claims until its cookie expires — up to eight
+            // keeps its old role claims until its cookie expires. Up to eight
             // hours of privilege somebody has just decided it should not have.
             // With it, the security stamp validator drops the session at its
             // next check, within five minutes.
@@ -132,7 +132,7 @@ internal static class AdministrationHandlers
             // A silent privilege change is one nobody can dispute.
             //
             // When the new role cannot be used yet, the message says so and
-            // says what to do about it. The alternative — the ordinary notice —
+            // says what to do about it. The alternative, the ordinary notice,
             // would leave somebody who has just been made a contributor to
             // discover on their own that the contributor tools answer 403, and
             // the most likely conclusion they would draw is that the grant did

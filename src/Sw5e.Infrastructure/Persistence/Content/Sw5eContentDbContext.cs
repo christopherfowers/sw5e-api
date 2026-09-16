@@ -10,9 +10,9 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// <remarks>
 /// <para>
 /// <b>Why its own context and its own schema.</b> Content and identity share a
-/// database but nothing else. They are written by different pipelines — content
+/// database but nothing else. They are written by different pipelines (content
 /// by a deploy-time importer from a reviewed repository, identity by users at
-/// runtime — restored on different schedules, and read by code that has no
+/// runtime) restored on different schedules, and read by code that has no
 /// business seeing the other's tables. Splitting them into two contexts over
 /// two PostgreSQL schemas means each owns its own migration history, so a
 /// content migration and an identity migration can be authored, reviewed and
@@ -26,7 +26,7 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// or a separate database entirely.
 /// </para>
 /// <para>
-/// What both contexts must do — and what the identity context also does — is
+/// What both contexts must do, and what the identity context also does, is
 /// keep the migration history table inside their own schema. Pointing both at
 /// the default <c>public.__EFMigrationsHistory</c> makes each read the other's
 /// rows as unknown migrations of its own, and the next <c>Migrate</c> on either
@@ -67,7 +67,7 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
 
         // Trigram indexes are what make the substring filters this API is built
         // around index-usable. `name LIKE '%wook%'` cannot use a btree index at
-        // all — the leading wildcard defeats it — so without pg_trgm every name
+        // all, the leading wildcard defeats it, so without pg_trgm every name
         // filter and every free-text search is a sequential scan of the whole
         // type. That is survivable at 136 items and is not at 7,000.
         modelBuilder.HasPostgresExtension("pg_trgm");
@@ -88,9 +88,9 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
     /// <remarks>
     /// <para>
     /// This is the most consequential decision in the file. PostgreSQL's
-    /// default collation is whatever the database was initialised with —
-    /// <c>en_US.utf8</c> on one host, <c>C.UTF-8</c> in a container image,
-    /// something else on a developer's machine — and under a locale collation
+    /// default collation is whatever the database was initialised with
+    /// (<c>en_US.utf8</c> on one host, <c>C.UTF-8</c> in a container image,
+    /// something else on a developer's machine) and under a locale collation
     /// punctuation is weighted differently or ignored outright. "Twi'lek" then
     /// sorts somewhere other than where <see cref="StringComparer.Ordinal"/>
     /// puts it, so the same page of species comes back in a different order
@@ -106,14 +106,14 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
     /// not: the database is provisioned by the compose stack and the migrator
     /// only ever runs against an existing one, so a model-level setting would
     /// be silently ignored and the columns would inherit the host's locale
-    /// after all — which is the failure this exists to prevent, arriving
+    /// after all. Which is the failure this exists to prevent, arriving
     /// looking like it had been prevented.
     /// </para>
     /// <para>
     /// What decides is the type the column is <em>stored</em> as, not the type
     /// the property has. <c>target_kind</c> is an enum in C# and text in
     /// PostgreSQL because of a value converter, and a check on the CLR type
-    /// alone skips it — leaving one column ordered by the host's locale in a
+    /// alone skips it. Leaving one column ordered by the host's locale in a
     /// schema where everything else is not.
     /// </para>
     /// <para>
@@ -222,7 +222,7 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
             // serves the @@ operator, and nothing here uses @@: the rows are
             // still selected by the trigram indexes above, and this column is
             // only read to rank the rows that were already found. Checked
-            // rather than assumed — the plan for a search is a bitmap scan on
+            // rather than assumed. The plan for a search is a bitmap scan on
             // ix_content_item_search_text_trgm and never touches a tsvector
             // index. An index arrives when recall does, because that is the
             // change that will query it.
@@ -245,8 +245,8 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
 
             // The list query's default ordering, covered end to end: filter by
             // type, order by folded name then key. On the folded copy rather
-            // than on `name`, because that is the column the ORDER BY names —
-            // an index on `name` would be ignored by the very query it exists
+            // than on `name`, because that is the column the ORDER BY names.
+            // An index on `name` would be ignored by the very query it exists
             // for. item_key is included so the tiebreaker does not force a
             // sort of its own.
             entity.HasIndex(item => new { item.ContentType, item.NameLower, item.ItemKey })
@@ -353,7 +353,7 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
                   .HasDatabaseName("ix_content_reference_from_path");
 
             // Reverse traversal: "what refers to this item". This is the
-            // direction the print pipeline walks — given a source or a species,
+            // direction the print pipeline walks. Given a source or a species,
             // collect everything that points at it.
             entity.HasIndex(reference => new { reference.ResolvedItemId, reference.Relation })
                   .HasDatabaseName("ix_content_reference_resolved")

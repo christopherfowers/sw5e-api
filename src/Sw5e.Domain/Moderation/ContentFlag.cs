@@ -6,7 +6,7 @@ namespace Sw5e.Domain.Moderation;
 /// <remarks>
 /// <para>
 /// The taxonomy is closed and it is a <see langword="enum"/> rather than a
-/// string, because a reason is not a label — it is a routing decision. Every
+/// string, because a reason is not a label. It is a routing decision. Every
 /// value below sends the report to a different person and asks them for
 /// different work, and a free-text "category" field would collapse that back
 /// into a pile somebody has to read end to end. The test for whether a reason
@@ -14,8 +14,8 @@ namespace Sw5e.Domain.Moderation;
 /// but "does a reviewer do something different about it".
 /// </para>
 /// <para>
-/// The values divide into two sets by what they can be raised against — see
-/// <see cref="FlagTargetKind"/> — because "the artist is wrong" is not a
+/// The values divide into two sets by what they can be raised against, see
+/// <see cref="FlagTargetKind"/>, because "the artist is wrong" is not a
 /// statement anybody can make about a paragraph of rules text, and offering it
 /// there produces reports nobody can act on.
 /// </para>
@@ -30,8 +30,8 @@ public enum FlagReason
     /// <remarks>
     /// The reason this whole feature was built first. The archive carries
     /// roughly a hundred and fifty pictures inherited from the original
-    /// sw5e.com whose artist was never recorded, and that knowledge exists —
-    /// scattered across people who recognise a style, remember a commission, or
+    /// sw5e.com whose artist was never recorded, and that knowledge exists.
+    /// Scattered across people who recognise a style, remember a commission, or
     /// made the picture themselves. Until now it had nowhere to go, and every
     /// month that passed lost more of it.
     /// <para>
@@ -139,7 +139,7 @@ public enum FlagReason
     /// <summary>Something the list above does not cover.</summary>
     /// <remarks>
     /// Present on both target kinds, and the only reason for which free text is
-    /// mandatory — a report that says nothing but "other" is a report nobody
+    /// mandatory. A report that says nothing but "other" is a report nobody
     /// can act on, so it is refused at the endpoint rather than accepted and
     /// left to rot in the queue.
     /// <para>
@@ -156,8 +156,8 @@ public enum FlagReason
 /// Both kinds resolve to a content document, and that is a deliberate
 /// simplification rather than a coincidence. Every picture the site publishes
 /// already has an <c>asset-credit</c> document recording what is known about
-/// its provenance, keyed <c>{group}-{key}</c> — <c>species-wookiee</c>,
-/// <c>classes-guardian</c>, <c>brand-logo</c>. So an image flag points at that
+/// its provenance, keyed <c>{group}-{key}</c>. <c>species-wookiee</c>,
+/// <c>classes-guardian</c>, <c>brand-logo</c>, so an image flag points at that
 /// record, which means it points at the very document a reviewer has to edit
 /// to resolve it, and it means one existence check covers both kinds.
 /// </para>
@@ -181,7 +181,7 @@ public enum FlagTargetKind
 /// <remarks>
 /// <para>
 /// Four states, and the shape of them matters more than the count. The obvious
-/// design is three — open, done, rejected — and it is wrong for this queue,
+/// design is three (open, done, rejected) and it is wrong for this queue,
 /// because the single most valuable thing a reviewer can record is "yes, this
 /// is real, and it is not fixed yet". That is <see cref="Accepted"/>: it is the
 /// worklist. Without it, agreeing with a report and fixing it are the same
@@ -233,8 +233,8 @@ public static class ContentFlagRules
     /// <summary>Longest free-text explanation accepted, in characters.</summary>
     /// <remarks>
     /// <para>
-    /// A thousand is generous for the job — the useful ones are a sentence
-    /// naming an artist and a place to verify it — and it is a bound rather
+    /// A thousand is generous for the job, the useful ones are a sentence
+    /// naming an artist and a place to verify it, and it is a bound rather
     /// than a style guide. This column is written from a request an
     /// authenticated but otherwise unprivileged account controls, it is read
     /// back by moderators, and an unbounded text field reachable that way is a
@@ -322,7 +322,7 @@ public static class ContentFlagRules
     /// from <see cref="FlagStatus.Declined"/> straight to
     /// <see cref="FlagStatus.Resolved"/>, because the second claims work was
     /// done on something the first said needed none, and a queue that permits
-    /// that has a status field nobody can trust. And every terminal state can
+    /// that has a status field nobody can trust, and every terminal state can
     /// be reopened, because reviewers are wrong sometimes and a queue with no
     /// way back is a queue people are afraid to triage quickly.
     /// </para>

@@ -12,7 +12,7 @@ public sealed class HealthEndpointTests(ContentApiFactory factory)
     [Theory]
     // The container image probes the first directly. The second is where the
     // probe lands from outside, because the QA reverse proxy routes /api/* here
-    // without stripping the prefix — it used to answer 404.
+    // without stripping the prefix. It used to answer 404.
     [InlineData("/health")]
     [InlineData("/api/health")]
     public async Task Health_ReturnsOk(string path)

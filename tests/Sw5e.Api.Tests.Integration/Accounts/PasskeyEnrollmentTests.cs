@@ -124,7 +124,7 @@ public sealed class PasskeyEnrollmentTests(PostgresFixture postgres) : IAsyncLif
         await account.RegisterAsync();
         var first = _factory.Email.LatestToken(account.EmailAddress);
 
-        // A second request — from anybody, since the endpoint is anonymous —
+        // A second request (from anybody, since the endpoint is anonymous)
         // rotates nothing yet, but issues a newer token.
         await account.RegisterAsync();
         var second = _factory.Email.LatestToken(account.EmailAddress);

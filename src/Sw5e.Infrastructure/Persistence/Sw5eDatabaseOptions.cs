@@ -18,9 +18,9 @@ namespace Sw5e.Infrastructure.Persistence;
 /// </para>
 /// <para>
 /// <c>ConnectionStrings:Sw5e</c> is the platform-wide connection string and the
-/// one this content store uses. Identity reads its own —
-/// <c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
-/// falling back to this one — so a small deployment can run everything through
+/// one this content store uses. Identity reads its own
+/// (<c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
+/// falling back to this one) so a small deployment can run everything through
 /// a single role while a larger one gives account data a role, or a database,
 /// with no rights over content at all. Nothing here assumes the two resolve to
 /// the same server, and nothing here should: content and identity are never

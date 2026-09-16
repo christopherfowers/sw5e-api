@@ -18,7 +18,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// people who can make those changes cannot quietly unmake the record of having
 /// made them. A deletion that reached in and erased authorship would be exactly
 /// that with a friendlier name, available to any administrator against any
-/// contributor at any time — so it does not, and this is where that is proved
+/// contributor at any time, so it does not, and this is where that is proved
 /// rather than asserted in a comment.
 /// </para>
 /// <para>
@@ -85,8 +85,8 @@ public sealed class AccountDeletionTests(PostgresFixture postgres) : IAsyncLifet
         //
         // Asserted on what was emailed rather than on the status code, because
         // the status code cannot say. Registration answers the same 202 for a
-        // free address and for one that is already taken — that is the whole
-        // enumeration defence — so the only observable difference is that a
+        // free address and for one that is already taken, that is the whole
+        // enumeration defence, so the only observable difference is that a
         // free address is sent a verification link while a taken one is sent a
         // recovery link. Before the deletion this address had a verified
         // account and would have been sent the second.

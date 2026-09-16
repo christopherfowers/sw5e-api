@@ -10,9 +10,9 @@ namespace Sw5e.Identity.TwoFactor;
 /// <remarks>
 /// <para>
 /// Registered over the framework's own provider rather than beside it, so that
-/// every route into two-factor verification — <c>VerifyTwoFactorTokenAsync</c>
+/// every route into two-factor verification (<c>VerifyTwoFactorTokenAsync</c>
 /// during enrolment, <c>TwoFactorAuthenticatorSignInAsync</c> during sign-in,
-/// and anything added later — resolves to this one. A second provider under a
+/// and anything added later) resolves to this one. A second provider under a
 /// different name would be a second, differently-behaved way to satisfy the
 /// same check, which is how a tightened window ends up applying to one flow and
 /// not the other.
@@ -20,8 +20,8 @@ namespace Sw5e.Identity.TwoFactor;
 /// <para>
 /// What changes relative to the framework's provider is exactly one thing: the
 /// acceptance window is read from configuration instead of being a constant
-/// compiled into an internal type. Everything else — the secret's storage, the
-/// base32 encoding, the algorithm, the step length, the digit count — is
+/// compiled into an internal type. Everything else (the secret's storage, the
+/// base32 encoding, the algorithm, the step length, the digit count) is
 /// unchanged, because those are the parts real authenticator apps depend on.
 /// </para>
 /// <para>

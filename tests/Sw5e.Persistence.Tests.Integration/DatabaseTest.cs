@@ -7,7 +7,7 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// Per-class rather than per-test: creating a database and applying the
 /// migrations costs about a second, and the tests within a class either do not
 /// mutate the catalogue or say in their name that they do. Sharing across
-/// classes was tried and is worse — the importer tests delete content, and
+/// classes was tried and is worse. The importer tests delete content, and
 /// everything else then reads whatever they happened to leave.
 /// </remarks>
 [Collection(PostgresCollection.Name)]

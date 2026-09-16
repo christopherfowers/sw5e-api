@@ -41,7 +41,7 @@ public class ContentApiFactory : WebApplicationFactory<Program>
         // request. Pointed at the placeholder above it fails every time and
         // logs the whole connection stack, which would bury the output of every
         // content test in an error that is expected and irrelevant here. The
-        // behaviour is deliberately not changed — only its volume in this one
+        // behaviour is deliberately not changed. Only its volume in this one
         // fixture.
         builder.UseSetting("Logging:LogLevel:Microsoft.AspNetCore.DataProtection", "None");
     }

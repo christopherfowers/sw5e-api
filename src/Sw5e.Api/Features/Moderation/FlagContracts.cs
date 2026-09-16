@@ -7,7 +7,7 @@ namespace Sw5e.Api.Features.Moderation;
 /// <para>
 /// Four fields, and there is deliberately no <c>targetKind</c> among them.
 /// Whether a report is about a picture or about writing follows from the
-/// reason, and the server derives it — see <c>ContentFlagRules.KindOf</c>. A
+/// reason, and the server derives it. See <c>ContentFlagRules.KindOf</c>. A
 /// field the client supplies is a field the client can contradict, and
 /// "picture reason, document target" is a combination that would then have to
 /// be rejected somewhere.
@@ -21,7 +21,7 @@ namespace Sw5e.Api.Features.Moderation;
 /// </para>
 /// </remarks>
 /// <param name="Reason">
-/// One of the published reason names — <c>image-artist-known</c>,
+/// One of the published reason names. <c>image-artist-known</c>,
 /// <c>text-error</c> and the rest.
 /// </param>
 /// <param name="TargetType">
@@ -33,7 +33,7 @@ namespace Sw5e.Api.Features.Moderation;
 /// <param name="TargetKey">The document's slug within its type.</param>
 /// <param name="Details">
 /// What the reporter wants to say. Optional except for <c>other</c>, capped,
-/// and stored exactly as sent — see <c>ContentFlagRow.Details</c> for why it is
+/// and stored exactly as sent. See <c>ContentFlagRow.Details</c> for why it is
 /// never sanitised on the way in.
 /// </param>
 public sealed record RaiseFlagRequest(
@@ -57,7 +57,7 @@ public sealed record UpdateFlagStatusRequest(string? Status, string? Note);
 /// </summary>
 /// <remarks>
 /// <para>
-/// The display name and nothing else — no email address, ever. The queue is
+/// The display name and nothing else. No email address, ever. The queue is
 /// read by Contributors, who are trusted with content and are not thereby
 /// entitled to the address of everybody who has ever reported a typo.
 /// </para>
@@ -117,7 +117,7 @@ public sealed record FlagListResponse(
 /// </para>
 /// </remarks>
 /// <param name="Total">Every report ever raised, in any state.</param>
-/// <param name="Outstanding">Open and accepted together — the actual worklist.</param>
+/// <param name="Outstanding">Open and accepted together. The actual worklist.</param>
 /// <param name="ByStatus">One entry per status, including the empty ones.</param>
 /// <param name="ByReason">
 /// One entry per reason that has at least one outstanding report. Reasons with

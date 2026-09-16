@@ -24,8 +24,8 @@ internal sealed record CapturedHttpRequest(
 /// Stands in for MailerSend at the transport boundary.
 /// </summary>
 /// <remarks>
-/// Deliberately placed at the lowest seam available — a
-/// <see cref="HttpMessageHandler"/> under a real <see cref="HttpClient"/> —
+/// Deliberately placed at the lowest seam available, a
+/// <see cref="HttpMessageHandler"/> under a real <see cref="HttpClient"/>,
 /// rather than by faking the adapter or the client. Everything above it is the
 /// production code path: real request construction, real JSON serialisation,
 /// real header handling, real response parsing. What a test asserts here is

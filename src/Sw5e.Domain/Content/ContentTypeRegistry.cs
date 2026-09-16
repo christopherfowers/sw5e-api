@@ -37,7 +37,7 @@ public static class ContentTypeRegistry
         // `maneuver` is the entry to be careful with. Its canonical directory,
         // its schema and its key are singular like every other type here, but
         // the site has been serving /maneuvers since before any of this content
-        // existed — the type is in the navigation and renders an empty index.
+        // existed. The type is in the navigation and renders an empty index.
         // The route segment therefore has to be the plural the site already
         // publishes, or the day the content lands the API answers on an address
         // nothing links to and the page stays empty for a different reason than
@@ -55,7 +55,7 @@ public static class ContentTypeRegistry
         // reader looks for them: an enhanced item is gear, and the two property
         // glossaries are the definitions an equipment or enhanced-item row
         // refers to. Weapon and armour properties are two types rather than one
-        // because four names — interlocking, silent, strength and versatile —
+        // because four names (interlocking, silent, strength and versatile)
         // are published in both glossaries with different rules, so a merged
         // type could answer a lookup with the wrong rule.
         new("enhanced-item", "Enhanced item", "Enhanced items", "enhanced-items"),

@@ -53,8 +53,8 @@ internal sealed record MailerSendPayload
     public required string Html { get; init; }
 
     /// <summary>
-    /// Optional reply-to mailbox. Omitted from the JSON entirely when unset —
-    /// see <see cref="MailerSendSerialization.Options"/> for why null is not
+    /// Optional reply-to mailbox. Omitted from the JSON entirely when unset.
+    /// See <see cref="MailerSendSerialization.Options"/> for why null is not
     /// sent instead.
     /// </summary>
     [JsonPropertyName("reply_to")]
@@ -78,14 +78,14 @@ internal static class MailerSendSerialization
     /// <para>
     /// Nulls are dropped. MailerSend validates the shape of what it is given,
     /// and an explicit <c>"reply_to": null</c> is not the same as an absent
-    /// key — the first invites a 422 for a field that was never wanted. The
+    /// key. The first invites a 422 for a field that was never wanted. The
     /// same applies to a contact's <c>name</c>.
     /// </para>
     /// <para>
     /// Encoding is left at the strict default. The bodies contain HTML, so
     /// <c>&lt;</c>, <c>&gt;</c> and <c>&amp;</c> arrive escaped as <c><</c>
     /// and friends. That is valid JSON, MailerSend unescapes it, and it costs a
-    /// few bytes — which is a good trade for not having to reason about what a
+    /// few bytes. Which is a good trade for not having to reason about what a
     /// relaxed encoder would do with a body that is markup by construction.
     /// </para>
     /// <para>

@@ -20,7 +20,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// That is a broken account system, and it is also an enumeration hazard.
 /// <c>register</c> and <c>email/code</c> promise one answer whether or not the
 /// address has an account, and only the fact that both branches happen to send
-/// a message kept the 500 from being an oracle — the day the unknown-address
+/// a message kept the 500 from being an oracle. The day the unknown-address
 /// send was dropped as an optimisation, registered addresses would have errored
 /// and unknown ones would have succeeded.
 /// </para>
@@ -105,7 +105,7 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
     /// <remarks>
     /// Both endpoints, and whole responses rather than a spot-checked field,
     /// because enumeration leaks through whatever differs. The registered
-    /// address is established against a working fixture first — the two share
+    /// address is established against a working fixture first. The two share
     /// the one database, so the account is real as far as the broken one is
     /// concerned.
     /// </remarks>
@@ -169,7 +169,7 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
         var response = await client.GetAsync("/api/health/ready");
 
         // 200, not 503. Every replica sends through the same relay, so draining
-        // them cannot route around a mail outage — it only removes capacity
+        // them cannot route around a mail outage. It only removes capacity
         // from a site whose reading and browsing are entirely unaffected.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -241,8 +241,8 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
     /// was one, and nothing else.
     /// </summary>
     /// <remarks>
-    /// The provider's reply is the named hazard — the relay wrote it about one
-    /// envelope and it can quote the recipient — so both it and the address are
+    /// The provider's reply is the named hazard, the relay wrote it about one
+    /// envelope and it can quote the recipient, so both it and the address are
     /// ruled out of the whole body rather than out of one field. The assertion
     /// is on the raw text for that reason: a leak into a field nobody thought to
     /// read is still a leak.
@@ -272,7 +272,7 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
                 "the recipient");
 
         // The pieces of the reply, not only the whole of it. A future adapter
-        // that forwarded a fragment — the status code and the phrase — would
+        // that forwarded a fragment, the status code and the phrase, would
         // satisfy a whole-string check and still be publishing what a relay
         // said about one message.
         body.Contains("554", StringComparison.Ordinal).ShouldBeFalse();
@@ -295,7 +295,7 @@ public sealed class AccountEmailDeliveryFailureTests(PostgresFixture postgres)
     /// <para>
     /// So the test probes an account endpoint with a known address and with a
     /// stranger, reads the site surface after each, and compares whole bodies
-    /// rather than the one field — a difference anywhere is an enumeration
+    /// rather than the one field. A difference anywhere is an enumeration
     /// channel, and the point is that nothing in here varies with who was asked
     /// about. Both delivery states are covered, and the working one is not
     /// ceremony: with the relay refusing everything, a per-address

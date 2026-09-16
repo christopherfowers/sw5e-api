@@ -249,8 +249,8 @@ public sealed class DbContentRepositoryTests(PostgresFixture fixture) : Database
     /// <para>
     /// The case this tier was added for, and it was found on the deployed site
     /// rather than here. Searching "difficult terrain" returned one hundred and
-    /// twenty-two matches with the rules chapter — which has a section titled
-    /// "Difficult Terrain" — in fifth place, behind twenty-nine class features
+    /// twenty-two matches with the rules chapter, which has a section titled
+    /// "Difficult Terrain", in fifth place, behind twenty-nine class features
     /// that mention the phrase in passing. Every hit had landed in the same
     /// tier, so ranking collapsed to the alphabet inside whichever content type
     /// happened to have the most matches.
@@ -275,7 +275,7 @@ public sealed class DbContentRepositoryTests(PostgresFixture fixture) : Database
 
         // And it still shows the phrase in context. A heading's words are part
         // of the prose the window is cut from, so there is no reason for this
-        // tier to carry less evidence than the one below it — a result that
+        // tier to carry less evidence than the one below it. A result that
         // asserts a match without showing one makes somebody open the page to
         // find out whether it was worth opening.
         hit.Snippet.ShouldNotBeNullOrWhiteSpace();

@@ -9,7 +9,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// account here.
 /// </summary>
 /// <remarks>
-/// The assertions compare whole responses — status line and body — rather than
+/// The assertions compare whole responses, status line and body, rather than
 /// spot-checking a field, because enumeration leaks through whatever differs.
 /// A different status code, a different wording, an extra field: any of them
 /// answers the attacker's question.
@@ -110,8 +110,8 @@ public sealed class AccountEnumerationTests(PostgresFixture postgres) : IAsyncLi
     /// Problem Details stamps a distinct <c>traceId</c> onto every response, so
     /// two bodies are never byte-identical and comparing them raw would fail
     /// against a perfectly indistinguishable pair. The trace id is not an
-    /// enumeration channel — it is freshly generated per request and says
-    /// nothing about the account — but every other field is, so everything else
+    /// enumeration channel, it is freshly generated per request and says
+    /// nothing about the account, but every other field is, so everything else
     /// is compared exactly.
     /// </remarks>
     private static async Task<string> WithoutCorrelationAsync(HttpResponseMessage response)
@@ -154,7 +154,7 @@ public sealed class AccountEnumerationTests(PostgresFixture postgres) : IAsyncLi
         var response = await client.PostAsJsonAsync(
             "/api/auth/register", new { email = "not-an-address", displayName = "Nobody" });
 
-        // Refusing malformed input reveals nothing about any account — the
+        // Refusing malformed input reveals nothing about any account. The
         // input never named one. Being specific here is what keeps the
         // deliberately vague answers elsewhere from looking like bugs.
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

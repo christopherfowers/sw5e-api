@@ -11,8 +11,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Collected here because there are now three routes in — a passkey assertion,
-/// an emailed code, and either of those followed by an authenticator code — and
+/// Collected here because there are now three routes in (a passkey assertion,
+/// an emailed code, and either of those followed by an authenticator code) and
 /// the property that matters most about them is one they must all share. Every
 /// session this platform issues records <em>how</em> it was established, and a
 /// route that forgot to would produce a session that silently cannot use an
@@ -54,7 +54,7 @@ internal static class AccountSessions
     /// <c>SignInManager.TwoFactorAuthenticatorSignInAsync</c> reads back, so
     /// the scheme and the claim type have to match the framework's exactly for
     /// the second half of the sign-in to find it. It carries the account
-    /// identifier and nothing else — no roles, no name — because it is not an
+    /// identifier and nothing else (no roles, no name) because it is not an
     /// identity yet, and anything authorization could act on has no business
     /// being in it.
     /// </remarks>

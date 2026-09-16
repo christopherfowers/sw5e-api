@@ -26,7 +26,7 @@ public sealed class AuthRateLimitOptions
     /// <remarks>
     /// Twenty attempts every five minutes is 240 an hour. Against a six-digit
     /// TOTP code that is a one-in-4 000 chance of a hit per hour of sustained
-    /// abuse, and the account lockout closes long before that — the limiter's
+    /// abuse, and the account lockout closes long before that. The limiter's
     /// job is to stop the attempt reaching the lockout counter thousands of
     /// times a second, not to be the only thing standing there.
     /// </remarks>
@@ -36,8 +36,8 @@ public sealed class AuthRateLimitOptions
     public TimeSpan SensitiveWindow { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Requests allowed per window against the remaining account endpoints —
-    /// the WebAuthn ceremony openers, the proof-of-work challenge, the
+    /// Requests allowed per window against the remaining account endpoints.
+    /// The WebAuthn ceremony openers, the proof-of-work challenge, the
     /// current-user probe, sign-out.
     /// </summary>
     /// <remarks>
@@ -73,8 +73,8 @@ public sealed class AuthRateLimitOptions
     /// per address, pointed at whoever the caller likes.
     /// </para>
     /// <para>
-    /// Five in fifteen minutes is more than a real person needs — the flow
-    /// takes one, and a resend takes a second — and it is measured per caller
+    /// Five in fifteen minutes is more than a real person needs (the flow
+    /// takes one, and a resend takes a second) and it is measured per caller
     /// rather than per address, so it is the half of the defence that survives
     /// an attacker who spreads one request each across ten thousand addresses.
     /// The other half, the per-address budget, lives in the identity options
@@ -95,7 +95,7 @@ public sealed class AuthRateLimitOptions
 /// <para>
 /// Brute force is the attack every credential endpoint faces first, and it is
 /// the one that does not need a bug to work. Lockout answers it per account;
-/// this answers it per caller, which is the half lockout cannot reach — an
+/// this answers it per caller, which is the half lockout cannot reach. An
 /// attacker spreading one attempt each across ten thousand accounts never trips
 /// a single lockout counter.
 /// </para>
@@ -195,7 +195,7 @@ internal static class AuthRateLimiting
         // Read after UseForwardedHeaders has run, so behind a correctly
         // configured proxy this is the client's own address rather than the
         // proxy's. If the proxy trust list is wrong the value collapses to the
-        // proxy address and every client shares one bucket — noisy, but it
+        // proxy address and every client shares one bucket. Noisy, but it
         // fails towards refusing traffic rather than towards admitting it.
         var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 

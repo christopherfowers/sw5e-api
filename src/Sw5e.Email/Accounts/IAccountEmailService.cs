@@ -18,7 +18,7 @@ namespace Sw5e.Email.Accounts;
 /// validation, expiry enforcement, and URL construction. Those belong to the
 /// identity system, which is the only thing that can do them correctly. This
 /// library never sees a token in isolation and never decides whether one is
-/// still good — <paramref name="validFor"/> below is copy for the reader, not
+/// still good. <paramref name="validFor"/> below is copy for the reader, not
 /// a policy this library enforces.
 /// </para>
 /// <para>
@@ -35,7 +35,7 @@ public interface IAccountEmailService
     /// </summary>
     /// <param name="recipient">
     /// The address being verified, with the account holder's display name when
-    /// one is known — it is used in the greeting, and it is treated as
+    /// one is known. It is used in the greeting, and it is treated as
     /// untrusted input throughout.
     /// </param>
     /// <param name="verificationUrl">

@@ -13,8 +13,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <para>
 /// Read the route table below as a security document rather than a list of
 /// URLs. Every route states three things explicitly and never by inheritance:
-/// who may call it, which rate-limit budget it draws on, and — for the
-/// anonymous ones — that being anonymous is a decision somebody made rather
+/// who may call it, which rate-limit budget it draws on, and, for the
+/// anonymous ones, that being anonymous is a decision somebody made rather
 /// than an oversight.
 /// </para>
 /// <para>
@@ -58,7 +58,7 @@ internal static class AccountEndpoints
     /// Anonymous by necessity: the callers who need one are by definition
     /// people without an account. On the standard budget rather than a tighter
     /// one because the endpoint stores nothing and costs an HMAC, so the budget
-    /// is there to cap consumption rather than to slow an attack — and because
+    /// is there to cap consumption rather than to slow an attack, and because
     /// throttling it below what an honest client needs would make the gate
     /// refuse the people it is supposed to admit.
     /// </remarks>
@@ -103,7 +103,7 @@ internal static class AccountEndpoints
              .RequireRateLimiting(AuthRateLimiting.SensitivePolicy)
 
              // One of the two anonymous routes a stranger can use to make this
-             // platform spend something — here, a row in the identity store and
+             // platform spend something. Here, a row in the identity store and
              // an outbound message. The limiter caps how fast any one caller
              // can do that; this caps how cheaply anybody can, wherever they
              // are coming from.
@@ -186,7 +186,7 @@ internal static class AccountEndpoints
         // enrolment ticket rather than a session. The handler resolves the
         // account from a session or a ticket and refuses when it has neither,
         // so this route is anonymous to the router and authorised in the
-        // handler — the one place in this API where those differ, and the
+        // handler. The one place in this API where those differ, and the
         // reason it is called out here.
         group.MapPost("/passkey/register/begin", PasskeyHandlers.BeginRegistrationAsync)
              .WithName("beginPasskeyRegistration")
@@ -400,7 +400,7 @@ internal static class AccountEndpoints
     /// <para>
     /// <b>The listing is the reason the rest of this exists.</b> Before it, the
     /// role grant below was addressed by an account identifier that nothing in
-    /// the API would tell anybody — no listing, no search, no lookup by
+    /// the API would tell anybody. No listing, no search, no lookup by
     /// address. The single administrative capability the platform had was
     /// therefore reachable only from a database client, which is another way of
     /// saying it was not reachable.
@@ -520,7 +520,7 @@ internal static class AccountEndpoints
 
         // Not part of the original endpoint list, and added because without it
         // the Contributor role can only ever be granted by someone with a
-        // database client — which means the privilege that gates content upload
+        // database client. Which means the privilege that gates content upload
         // has no reviewable, audited path to being handed out.
         group.MapPut("/admin/users/{userId:guid}/roles", AdministrationHandlers.AssignRolesAsync)
              .WithName("assignRoles")

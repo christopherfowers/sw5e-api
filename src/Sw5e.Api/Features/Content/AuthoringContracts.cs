@@ -16,7 +16,7 @@ namespace Sw5e.Api.Features.Content;
 /// </param>
 /// <param name="ResolvesFlagId">
 /// The moderation report this work answers, when it came out of the queue.
-/// Optional, and only ever set — a save that omits it leaves an existing link
+/// Optional, and only ever set. A save that omits it leaves an existing link
 /// alone rather than quietly detaching the draft from its report.
 /// </param>
 public sealed record SaveDraftRequest(
@@ -72,7 +72,7 @@ public sealed record DraftResponse(
 /// The version is carried alongside the document rather than being left for the
 /// client to read out of the <c>$id</c>. A client that generates an editor from
 /// this needs to be able to say which version it drew, and a revision already
-/// records which version it was judged against — the two only line up if both
+/// records which version it was judged against. The two only line up if both
 /// are stated the same way.
 /// </para>
 /// <para>
@@ -145,8 +145,8 @@ public sealed record RevisionListResponse(IReadOnlyList<RevisionSummaryResponse>
 /// <remarks>
 /// This is what a diff is built from: fetch two, compare the documents. The API
 /// deliberately does not compute the diff. Rendering a change to a nested
-/// document is a presentation decision — which fields matter, how prose is
-/// segmented, what counts as a move rather than a delete and an insert — and
+/// document is a presentation decision (which fields matter, how prose is
+/// segmented, what counts as a move rather than a delete and an insert) and
 /// baking one answer into the response would fix it for every client forever.
 /// </remarks>
 public sealed record RevisionResponse(
@@ -171,14 +171,14 @@ public sealed record RevisionResponse(
 /// editor put the error beside the control that caused it.
 /// </param>
 /// <param name="Keyword">
-/// The JSON Schema keyword that rejected the value — <c>required</c>,
+/// The JSON Schema keyword that rejected the value. <c>required</c>,
 /// <c>pattern</c>, <c>enum</c>. A vocabulary term rather than prose, so a
 /// client can key its own wording off it without reading the message.
 /// </param>
 /// <param name="Message">
 /// The validator's own sentence. Written for somebody debugging a schema
 /// rather than for somebody correcting a rules page, so a client is expected to
-/// prefer its own wording where it has one — and to show this where it does
+/// prefer its own wording where it has one, and to show this where it does
 /// not, because the validator's sentence is always better than a guess.
 /// </param>
 /// <remarks>

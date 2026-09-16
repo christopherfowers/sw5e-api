@@ -7,8 +7,8 @@ namespace Sw5e.Domain.Moderation;
 /// <remarks>
 /// <para>
 /// One table, used by both the JSON contract and the database column. The
-/// obvious alternative — <c>HasConversion&lt;string&gt;()</c> for storage and a
-/// separate map for the wire, which is what the content schema does — is fine
+/// obvious alternative (<c>HasConversion&lt;string&gt;()</c> for storage and a
+/// separate map for the wire, which is what the content schema does) is fine
 /// where nothing outside the process reads the column, and is a trap here: it
 /// makes the C# member name a published identifier in two systems at once, so
 /// renaming <c>TextError</c> rewrites every stored row's meaning and every

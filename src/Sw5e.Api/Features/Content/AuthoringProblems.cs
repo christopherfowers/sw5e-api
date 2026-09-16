@@ -18,7 +18,7 @@ namespace Sw5e.Api.Features.Content;
 /// <para>
 /// Schema errors are the exception worth naming. They are returned verbatim
 /// from the validator, and they describe the document the caller has just sent
-/// — a location and a keyword, not stored content — so they disclose nothing
+/// (a location and a keyword, not stored content) so they disclose nothing
 /// the caller did not supply. They are carried in a dedicated
 /// <c>schemaErrors</c> extension rather than concatenated into
 /// <c>detail</c>, because an editor wants to put each one beside the field it
@@ -58,8 +58,8 @@ internal static class AuthoringProblems
     /// <para>
     /// The structured one exists because the editor was reconstructing it. The
     /// pointer is what lets an error be shown beside the control that caused
-    /// it, and it was being recovered from the line with a regular expression —
-    /// a guess at a format produced in a different repository, promised by
+    /// it, and it was being recovered from the line with a regular expression.
+    /// A guess at a format produced in a different repository, promised by
     /// nothing here. A reworded validator message would have quietly stopped
     /// errors landing on fields.
     /// </para>

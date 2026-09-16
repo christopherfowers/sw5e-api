@@ -12,8 +12,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <remarks>
 /// <para>
 /// One place, used by every endpoint that returns an account, so that the
-/// decision about what is and is not disclosed is made once. The alternative —
-/// each handler projecting its own — is how a security stamp, a lockout end
+/// decision about what is and is not disclosed is made once. The alternative,
+/// each handler projecting its own, is how a security stamp, a lockout end
 /// date or a normalised email ends up in a response because one handler was
 /// written in a hurry.
 /// </para>
@@ -27,9 +27,9 @@ namespace Sw5e.Api.Features.Accounts;
 /// The passkey list is present, and used to be a bare count. Revocation is what
 /// changed the calculation: naming a credential to remove requires its
 /// identifier, and an account that can only add credentials cannot cut off a
-/// lost device. The identifiers are not secrets — the browser and the
+/// lost device. The identifiers are not secrets (the browser and the
 /// authenticator hold them already, and they are disclosed here only to the
-/// account holder — whereas the public key and the signature counter stay out,
+/// account holder) whereas the public key and the signature counter stay out,
 /// because nothing in this contract needs them.
 /// </para>
 /// <para>
@@ -37,8 +37,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <c>authenticationMethod</c> and <c>strongAuthentication</c>. They are here
 /// because the browser application has to be able to explain a 403 that a
 /// different sign-in would have avoided, and guessing at the reason from the
-/// account's enrolments would get it wrong for exactly the case that matters —
-/// somebody who has a passkey but did not use it this time.
+/// account's enrolments would get it wrong for exactly the case that matters.
+/// Somebody who has a passkey but did not use it this time.
 /// </para>
 /// </remarks>
 internal static class AccountProfile
@@ -47,7 +47,7 @@ internal static class AccountProfile
     /// Describes an account to itself, in the context of one session.
     /// </summary>
     /// <param name="method">
-    /// How the caller signed in, or null when that is not known — which happens
+    /// How the caller signed in, or null when that is not known. Which happens
     /// only for a session established before this field existed.
     /// </param>
     public static async Task<CurrentUserResponse> DescribeAsync(
@@ -61,8 +61,8 @@ internal static class AccountProfile
         var strong = method is Sw5eClaims.PasskeyMethod or Sw5eClaims.AuthenticatorMethod;
 
         // Whether this account's roles oblige it to hold a second factor. Not
-        // whether it holds one — the front end can see the passkey list and the
-        // two-factor flag and work that out — but whether the obligation
+        // whether it holds one, the front end can see the passkey list and the
+        // two-factor flag and work that out, but whether the obligation
         // applies at all, so that a Community account is never shown a warning
         // about a rule that does not govern it.
         var elevated = roles.Any(role =>

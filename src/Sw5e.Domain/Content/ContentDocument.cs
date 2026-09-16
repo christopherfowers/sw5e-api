@@ -10,8 +10,8 @@ namespace Sw5e.Domain.Content;
 /// <param name="Name">Display name, lifted out of the body for convenience.</param>
 /// <param name="Version">
 /// Opaque token that changes whenever the item's body changes. The store
-/// computes it — a content hash for the filesystem store, a row version or an
-/// <c>md5(body)</c> for the database one — so the API can emit an ETag without
+/// computes it (a content hash for the filesystem store, a row version or an
+/// <c>md5(body)</c> for the database one) so the API can emit an ETag without
 /// knowing how either store detects change.
 /// </param>
 /// <param name="Body">

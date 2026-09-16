@@ -49,7 +49,7 @@ internal static class FlagRequestValidation
     /// <remarks>
     /// <para>
     /// The registry decides, and what is carried forward is the registry's own
-    /// instance rather than the caller's string — the same rule the content
+    /// instance rather than the caller's string. The same rule the content
     /// endpoints follow, and for the same reason: this value ends up in a
     /// filesystem path join in one store and a table selection in the other.
     /// </para>
@@ -104,7 +104,7 @@ internal static class FlagRequestValidation
     /// "this is about a picture" and "this points at an asset-credit record"
     /// are the same statement. That makes the check a single comparison rather
     /// than a second field the caller has to get right, and it makes the
-    /// mismatch — <c>image-artist-known</c> raised against a rules chapter —
+    /// mismatch, <c>image-artist-known</c> raised against a rules chapter,
     /// something the server refuses rather than something the queue has to
     /// display.
     /// </para>
@@ -160,7 +160,7 @@ internal static class FlagRequestValidation
     /// <b>No control characters</b> beyond tab and newline. They are invisible
     /// in every interface a reviewer will use, which makes them the natural
     /// material for a report whose rendered text says one thing and whose
-    /// stored text says another — and a bidirectional override in a
+    /// stored text says another, and a bidirectional override in a
     /// moderator's queue can reverse the meaning of a sentence they are about
     /// to act on. Carriage returns are folded into newlines first, because a
     /// browser sends <c>\r\n</c> from a textarea and rejecting the entire
@@ -240,7 +240,7 @@ internal static class FlagRequestValidation
     /// <para>
     /// Two families, and the list is narrow on purpose. C0 and C1 control
     /// characters other than tab and newline, because they are invisible and
-    /// have no meaning in a sentence. And the bidirectional overrides and
+    /// have no meaning in a sentence, and the bidirectional overrides and
     /// isolates, because they are the Trojan Source characters: they reorder
     /// how a line renders without changing its bytes, so a report can be made
     /// to read one way in a moderator's queue and mean another.

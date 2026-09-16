@@ -148,7 +148,7 @@ if (string.Equals(contentStore, "database", StringComparison.OrdinalIgnoreCase))
     // optionally and answer 503 saying exactly that.
     //
     // Content:SchemaPath points at the JSON Schemas the write path validates
-    // against — the same documents the content repository's CI checks the whole
+    // against. The same documents the content repository's CI checks the whole
     // corpus with, evaluated by the same validator, which is why they are
     // consumed through a submodule rather than copied. Relative paths resolve
     // against the content root, and the image ships them beside the
@@ -210,7 +210,7 @@ builder.Services.AddSw5eAuthRateLimiting(builder.Configuration);
 // standing exception somebody else controls.
 //
 // Off unless a deployment sets Auth:Challenge:Enabled and a secret. Enabled
-// without a usable secret is a startup failure rather than a warning — see
+// without a usable secret is a startup failure rather than a warning. See
 // AddSw5eProofOfWork for why failing to start is the kinder outcome.
 builder.Services.AddSw5eProofOfWork(builder.Configuration);
 
@@ -223,7 +223,7 @@ builder.Services.AddSw5eProofOfWork(builder.Configuration);
 // has readers who can recognise an uncredited picture.
 //
 // The schema is its own, in its own PostgreSQL schema, with its own migration
-// history — see Sw5eModerationDbContext for why it is neither in the content
+// history. See Sw5eModerationDbContext for why it is neither in the content
 // schema nor in the identity one. Which database it lands in is resolved by
 // ModerationServiceCollectionExtensions, and the migrator resolves it through
 // the same method so the two can never disagree.
@@ -240,8 +240,8 @@ builder.Services.AddSingleton<AccountEmailDeliveryMonitor>();
 builder.Services.AddScoped<IAccountEmailSender, ProviderAccountEmailSender>();
 
 // Where an undelivered account message ends up. The endpoints that send one
-// cannot report the failure — their answer must not depend on whether mail got
-// out, or it becomes a way to test whether an address has an account here — so
+// cannot report the failure (their answer must not depend on whether mail got
+// out, or it becomes a way to test whether an address has an account here) so
 // the report comes out on this surface instead, alongside the error the sender
 // logs.
 //
@@ -259,7 +259,7 @@ var app = builder.Build();
 // Resolve the store now rather than on the first request. For the file-backed
 // store that forces the scan, so a content problem shows up in the startup log
 // and the first visitor does not pay for it. For the database-backed store it
-// only builds the object graph — no query is issued and no connection is
+// only builds the object graph. No query is issued and no connection is
 // opened, because an API that refused to start while its database was briefly
 // unavailable would turn a short outage into a manual recovery.
 app.Services.GetRequiredService<IContentRepository>();
@@ -291,9 +291,9 @@ app.MapHealthEndpoints();
 // cannot work out for itself. It is prerendered HTML served by a static nginx
 // image that is promoted from QA to production unchanged, so nothing in it
 // varies by environment and nothing in it can be told; this service can be
-// told, and already is. It answers which deployment this is — see
+// told, and already is. It answers which deployment this is, see
 // SiteEnvironmentEndpoint for why that defaults to production when nobody has
-// said otherwise — and whether account mail is currently getting out, which is
+// said otherwise, and whether account mail is currently getting out, which is
 // how the site stops telling people to watch an inbox for a message the relay
 // has just refused. The mail flag is global and carries no address and no
 // provider reply, so it cannot be turned into a question about an account.

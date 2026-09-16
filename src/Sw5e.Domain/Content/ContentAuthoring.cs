@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Sw5e.Domain.Content;
 
 /// <summary>
-/// Why a revision exists — what the actor was doing when it was written.
+/// Why a revision exists. What the actor was doing when it was written.
 /// </summary>
 /// <remarks>
 /// Recorded rather than inferred from position in the history. "The first
@@ -92,8 +92,8 @@ public sealed record ContentRevisionSummary(
 /// A draft is a row in its own table rather than a status column on the live
 /// document. That is the difference between a council member being able to
 /// work on the Wookiee entry and the Wookiee entry disappearing from the site
-/// while they do. It also means the read path — which serves the whole
-/// community and is the thing that must not regress — is not touched by any of
+/// while they do. It also means the read path, which serves the whole
+/// community and is the thing that must not regress, is not touched by any of
 /// this: it queries the same table, with the same predicates, as it did before.
 /// </remarks>
 /// <param name="ContentType">Canonical content type key.</param>
@@ -173,10 +173,10 @@ public enum ContentAuthoringStatus
 /// </para>
 /// <para>
 /// The distinction is the whole design. Naming content that does not exist yet
-/// is a normal way to author — the weapon before the property, the creature
-/// before the power — and the store re-resolves waiting edges when the target
+/// is a normal way to author (the weapon before the property, the creature
+/// before the power) and the store re-resolves waiting edges when the target
 /// arrives. Refusing would make the corpus impossible to build in any order but
-/// one. So these do not block; they are only said.
+/// one, so these do not block; they are only said.
 /// </para>
 /// </remarks>
 /// <param name="Code">
@@ -222,7 +222,7 @@ public sealed record ContentAuthoringResult(
         new(ContentAuthoringStatus.Succeeded, [], revision, [], notices ?? []);
 
     /// <summary>
-    /// A refusal with reasons but nothing to place them by — a body that would
+    /// A refusal with reasons but nothing to place them by. A body that would
     /// not parse, or a type with no schema published.
     /// </summary>
     public static ContentAuthoringResult Invalid(IReadOnlyList<string> errors) =>

@@ -13,7 +13,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// These helpers make no assertions about the behaviour under test. They throw
 /// when a step they did not come to test fails, so that a broken prerequisite
 /// surfaces as a loud setup failure rather than as a confusing assertion
-/// several lines later — but every property a test is actually about is
+/// several lines later, but every property a test is actually about is
 /// asserted in the test itself.
 /// </para>
 /// <para>
@@ -82,7 +82,7 @@ internal sealed class AccountFlow(HttpClient client, string emailAddress, string
 
     /// <summary>
     /// Runs a full passkey sign-in ceremony and returns the response, without
-    /// asserting anything about it — the caller decides whether a session or an
+    /// asserting anything about it. The caller decides whether a session or an
     /// MFA challenge was the right outcome.
     /// </summary>
     public async Task<HttpResponseMessage> SignInAsync(string? originOverride = null)
@@ -105,7 +105,7 @@ internal sealed class AccountFlow(HttpClient client, string emailAddress, string
     /// </summary>
     /// <remarks>
     /// Takes the client rather than using the flow's own, because the session
-    /// being raised is usually not the one this flow signed in with — the
+    /// being raised is usually not the one this flow signed in with. The
     /// interesting case is an account that got in through the weaker door on a
     /// second client and is now proving the credential it already had.
     /// </remarks>
@@ -139,7 +139,7 @@ internal sealed class AccountFlow(HttpClient client, string emailAddress, string
     }
 
     /// <summary>
-    /// Registers, verifies, enrols a passkey and signs in — the complete
+    /// Registers, verifies, enrols a passkey and signs in. The complete
     /// journey from nothing to a session.
     /// </summary>
     public async Task<AccountFlow> EstablishAsync(RecordingEmailSender email)

@@ -10,7 +10,7 @@ namespace Sw5e.Email.Configuration;
 /// <remarks>
 /// This enum is the swap. Changing <c>Email:Provider</c> from
 /// <c>MailerSend</c> to <c>Smtp</c> changes which adapter satisfies
-/// <see cref="IEmailSender"/> and nothing else — not a template, not a call
+/// <see cref="IEmailSender"/> and nothing else. Not a template, not a call
 /// site, not a line of the identity system. Adding a third provider means a new
 /// class, a new member here, and a new branch in
 /// <see cref="EmailServiceCollectionExtensions"/>.

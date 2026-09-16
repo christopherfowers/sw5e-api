@@ -27,8 +27,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// It is a directory of real people's email addresses. There is no version of
 /// it for Contributors, no version for Community accounts, and no version that
 /// answers a narrower question to an anonymous caller. The route requires
-/// <c>Sw5ePolicies.Administer</c> — which is the Administrator role
-/// <em>and</em> a session established with a passkey or an authenticator — and
+/// <c>Sw5ePolicies.Administer</c>, which is the Administrator role
+/// <em>and</em> a session established with a passkey or an authenticator, and
 /// that check runs in the authorization middleware, before this file is
 /// reached. Nothing here can leak, because nothing here runs for anybody who
 /// should not see it: a Community caller's 403 is written by the cookie
@@ -96,7 +96,7 @@ internal static class UserDirectoryHandlers
             // Matched against the normalised address rather than the stored
             // one. Identity keeps NormalizedEmail precisely so that address
             // comparison does not depend on a collation or a culture, and the
-            // unique index is over that column — so searching it is both the
+            // unique index is over that column, so searching it is both the
             // correct comparison and the one PostgreSQL can serve without
             // evaluating a function over every row.
             //
@@ -212,7 +212,7 @@ internal static class UserDirectoryHandlers
 
         var described = await DescribeManyAsync(store, [user], cancellationToken);
 
-        // Null rather than zero when authoring is not registered at all — a
+        // Null rather than zero when authoring is not registered at all. A
         // file-backed deployment has no drafts and never will, and reporting
         // zero would invite an interface to draw "0 drafts" beside an account
         // on a deployment where the concept does not exist.
@@ -307,7 +307,7 @@ internal static class UserDirectoryHandlers
     /// <para>
     /// Three queries for a page of any size: the accounts themselves, their
     /// role memberships, and whether each holds a passkey. The obvious
-    /// alternative — asking the <c>UserManager</c> per account — is two queries
+    /// alternative, asking the <c>UserManager</c> per account, is two queries
     /// per row, which turns a page of a hundred into two hundred round trips
     /// and makes the cost of this endpoint a function of the page size in the
     /// worst way.

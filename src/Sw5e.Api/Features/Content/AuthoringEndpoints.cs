@@ -26,7 +26,7 @@ namespace Sw5e.Api.Features.Content;
 /// <b>Both policies already require a second factor used in this session.</b>
 /// <c>sw5e:contribute</c> and <c>sw5e:administer</c> each carry
 /// <c>StrongAuthenticationRequirement</c>, so a contributor who signed in with
-/// an emailed code holds the role and is still refused — with
+/// an emailed code holds the role and is still refused. With
 /// <c>strong-authentication-required</c>, so the client can say what to do
 /// about it rather than showing a bare 403. Nothing in this file re-states that
 /// rule; it comes with the policy, which is what stops a route added later from
@@ -43,7 +43,7 @@ namespace Sw5e.Api.Features.Content;
 /// <para>
 /// <b>Rate limited despite the small, vetted population.</b> The accounts that
 /// can reach these routes are few and strongly authenticated, so the limiter is
-/// not really about abuse from strangers — it is about what a single stolen
+/// not really about abuse from strangers. It is about what a single stolen
 /// session can do before anyone notices, and about a client bug that retries a
 /// publish in a loop. The standard authenticated budget is the right size for
 /// work a person does by hand.
@@ -88,7 +88,7 @@ internal static class AuthoringEndpoints
     /// </para>
     /// <para>
     /// <c>sw5e:contribute</c> rather than anonymous. The schemas are public
-    /// information — they live in a public repository — so this is not
+    /// information, they live in a public repository, so this is not
     /// protecting a secret. It is keeping the anonymous surface of a
     /// content-management API to the endpoints that serve readers, and it costs
     /// the one caller that wants this nothing, because that caller already

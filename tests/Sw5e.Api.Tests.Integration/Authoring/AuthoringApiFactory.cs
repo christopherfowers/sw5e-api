@@ -61,8 +61,8 @@ public class AuthoringApiFactory : AccountApiFactory
         // Content schema, applied the way the deploy-time migrator applies it:
         // through EF's own Migrate, so the tests exercise the migrations that
         // will actually run rather than a model the test built for itself. That
-        // is what makes the append-only trigger part of what is under test —
-        // it exists only in a migration.
+        // is what makes the append-only trigger part of what is under test.
+        // It exists only in a migration.
         using (var scope = host.Services.CreateScope())
         {
             var content = scope.ServiceProvider.GetRequiredService<Sw5eContentDbContext>();
@@ -79,7 +79,7 @@ public class AuthoringApiFactory : AccountApiFactory
     /// <remarks>
     /// Revisions go by <c>TRUNCATE</c> rather than <c>DELETE</c>. The
     /// append-only guard is a row-level BEFORE DELETE trigger, and PostgreSQL
-    /// does not fire those for a truncate — so the fixture can clear its own
+    /// does not fire those for a truncate, so the fixture can clear its own
     /// data without disabling the guard, and without needing to know how. A
     /// <c>DELETE</c> here would be refused, which is exactly what
     /// <see cref="ContentRevisionImmutabilityTests"/> asserts on directly.

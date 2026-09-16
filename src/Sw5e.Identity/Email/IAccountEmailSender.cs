@@ -6,7 +6,7 @@ namespace Sw5e.Identity.Email;
 /// <remarks>
 /// <para>
 /// Deliberately an interface with no implementation in this assembly. Mail
-/// delivery is somebody else's problem — <c>Sw5e.Email</c> owns the providers —
+/// delivery is somebody else's problem, <c>Sw5e.Email</c> owns the providers,
 /// and the account code must not grow an opinion about SMTP, API keys or
 /// retries. What it does own is the shape of the contract, because the security
 /// properties live in that shape.
@@ -35,15 +35,15 @@ namespace Sw5e.Identity.Email;
 /// </para>
 /// <para>
 /// Swallowing the failure is the other wrong answer: it turns "we emailed you a
-/// link" into a lie nobody can distinguish from a slow inbox. So an
-/// implementation owes the failure to somebody who is not the caller — the
+/// link" into a lie nobody can distinguish from a slow inbox, so an
+/// implementation owes the failure to somebody who is not the caller. The
 /// application log at error, and whatever the deployment watches. What it must
 /// not do is let it change the response.
 /// </para>
 /// <para>
-/// This is about delivery. A programmer or deployment error — no
+/// This is about delivery. A programmer or deployment error (no
 /// implementation registered at all, no sending identity configured, a
-/// malformed URL handed in — is not a delivery failure and still throws, and
+/// malformed URL handed in) is not a delivery failure and still throws, and
 /// cancellation still propagates.
 /// </para>
 /// </remarks>
@@ -60,7 +60,7 @@ public interface IAccountEmailSender
 
     /// <summary>
     /// Sends an already-verified account a link that lets it enrol a new
-    /// passkey — the recovery path for someone who lost every device they had
+    /// passkey. The recovery path for someone who lost every device they had
     /// registered.
     /// </summary>
     /// <remarks>
@@ -129,7 +129,7 @@ public interface IAccountEmailSender
     /// This exists because of what the sign-in endpoint must not do. It cannot
     /// answer differently for an address that has an account and one that does
     /// not, or it becomes a way to test whether a given person has an account
-    /// here. It cannot even take a measurably different amount of time. So both
+    /// here. It cannot even take a measurably different amount of time, so both
     /// branches send exactly one message, and this is the one the unknown
     /// branch sends.
     /// </para>

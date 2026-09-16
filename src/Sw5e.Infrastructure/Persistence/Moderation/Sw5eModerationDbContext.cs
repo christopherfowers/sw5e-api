@@ -21,7 +21,7 @@ namespace Sw5e.Infrastructure.Persistence.Moderation;
 /// would have been a data-loss bug. The importer's job is to make the content
 /// tables match the repository; a table of user reports sitting among them is a
 /// table one careless truncate away from gone, and the reports are the only
-/// copy of knowledge — who drew this picture — that exists nowhere else. Its
+/// copy of knowledge, who drew this picture, that exists nowhere else. Its
 /// own schema, with its own migration history, means the content importer
 /// cannot reach it even by accident.
 /// </para>
@@ -30,8 +30,8 @@ namespace Sw5e.Infrastructure.Persistence.Moderation;
 /// <see cref="ContentFlagRow.TargetType"/> and
 /// <see cref="ContentFlagRow.ReporterUserId"/>: both point at rows owned by a
 /// context that a deployment is free to move to another database, so the
-/// integrity that matters is enforced where it can be — at the endpoint, before
-/// the row is written — rather than by a constraint that would silently forbid
+/// integrity that matters is enforced where it can be (at the endpoint, before
+/// the row is written) rather than by a constraint that would silently forbid
 /// a supported deployment.
 /// </para>
 /// </remarks>
@@ -154,7 +154,7 @@ public sealed class Sw5eModerationDbContext(DbContextOptions<Sw5eModerationDbCon
             // slows a flood down, and this makes the flood pointless. It is
             // filtered on the outstanding states so that a report which was
             // declined a year ago does not permanently bar the same person from
-            // raising it again when circumstances change — a decline is a
+            // raising it again when circumstances change. A decline is a
             // judgement, not a ban.
             //
             // A unique index and not a check in the handler, because two
@@ -214,7 +214,7 @@ public sealed class Sw5eModerationDbContext(DbContextOptions<Sw5eModerationDbCon
     /// index above decides whether two reports are the same report, and it
     /// decides it by comparing text. Under a locale collation, whether two keys
     /// or two reason names are equal depends on the locale the database was
-    /// initialised with — so duplicate suppression would behave differently on
+    /// initialised with, so duplicate suppression would behave differently on
     /// a developer's machine and in production, which is precisely the class of
     /// difference nobody finds until it matters.
     /// </remarks>

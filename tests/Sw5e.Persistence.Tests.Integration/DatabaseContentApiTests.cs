@@ -14,7 +14,7 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// <para>
 /// The repository tests establish that the store behaves; these establish that
 /// the store is actually the one the application uses when it is configured to
-/// be, and that everything between the store and the wire still works — the
+/// be, and that everything between the store and the wire still works. The
 /// registry endpoint, paging, ETags, the item body passing through untouched.
 /// A configuration switch that quietly fell back to the file-backed store would
 /// pass every other test in this project.
@@ -285,8 +285,8 @@ public sealed class DatabaseBackedApi(string connectionString) : WebApplicationF
             Path.Combine(AppContext.BaseDirectory, "TestContent-not-mounted"));
 
         // The database store brings content authoring with it, and authoring
-        // refuses to start without the schemas it validates writes against —
-        // deliberately, because an API that came up without them would accept
+        // refuses to start without the schemas it validates writes against.
+        // Deliberately, because an API that came up without them would accept
         // every write and check none of them. The deployed image bakes them in;
         // this host is given the same ones, copied beside the test assembly.
         //

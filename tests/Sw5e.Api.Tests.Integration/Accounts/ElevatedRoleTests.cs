@@ -19,7 +19,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// have while passkeys were the only credential: mailbox control is the thing
 /// every other account on the internet is recovered through, so an
 /// administrator whose email is compromised would otherwise be an administrator
-/// whose site is compromised — even if they had diligently enrolled a passkey,
+/// whose site is compromised. Even if they had diligently enrolled a passkey,
 /// because the weaker route would still be open.
 /// </para>
 /// <para>
@@ -80,7 +80,7 @@ public sealed class ElevatedRoleTests(PostgresFixture postgres) : IAsyncLifetime
 
         // Machine-readable, so the browser application can say "sign in with
         // your passkey" instead of the generic "you do not have access", which
-        // would be both wrong and unactionable — the account does have access.
+        // would be both wrong and unactionable. The account does have access.
         (await refused.ReadJsonAsync())
             .GetProperty("code").GetString()
             .ShouldBe(Sw5eIdentityServiceCollectionExtensions.StrongAuthenticationRequired);
@@ -118,8 +118,8 @@ public sealed class ElevatedRoleTests(PostgresFixture postgres) : IAsyncLifetime
     [Fact]
     public async Task AContributorWithoutAStrongSessionIsRefusedTheContributorPolicy()
     {
-        // The Contribute policy has no endpoint behind it yet — content upload
-        // is still to come — so it is exercised directly against the real
+        // The Contribute policy has no endpoint behind it yet, content upload
+        // is still to come, so it is exercised directly against the real
         // authorization service, with a principal built by the real claims
         // factory for a real account in the real database. That is the same
         // decision the middleware would make, reached the same way.
@@ -187,7 +187,7 @@ public sealed class ElevatedRoleTests(PostgresFixture postgres) : IAsyncLifetime
         // than left to work it out from the role list.
         body.GetProperty("secondFactorRequired").GetBoolean().ShouldBeFalse();
 
-        // Enrolling a passkey is still available from this session — the offer
+        // Enrolling a passkey is still available from this session. The offer
         // this flow makes to somebody who arrived without one would be empty
         // otherwise.
         (await weak.PostAsync("/api/auth/passkey/register/begin", content: null))
@@ -205,7 +205,7 @@ public sealed class ElevatedRoleTests(PostgresFixture postgres) : IAsyncLifetime
         (await administrator.SignInAsync()).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // An account that has proved its address and has no passkey and no
-        // authenticator — the state somebody who signs in by emailed code is
+        // authenticator. The state somebody who signs in by emailed code is
         // in, and therefore the state a newly-appointed contributor may well be
         // in.
         var newcomer = AccountFlow.For(_factory.CreateBrowserClient(), "elevated-newcomer");
@@ -309,8 +309,8 @@ public sealed class ElevatedRoleTests(PostgresFixture postgres) : IAsyncLifetime
     /// </summary>
     /// <remarks>
     /// The API route is the thing under test in two of the cases above, and
-    /// bootstrapping the first administrator through it is impossible anyway —
-    /// only an administrator can appoint one. This is the equivalent of the
+    /// bootstrapping the first administrator through it is impossible anyway.
+    /// Only an administrator can appoint one. This is the equivalent of the
     /// operator running the bootstrap setting, and it is used only to arrange,
     /// never to assert.
     /// </remarks>

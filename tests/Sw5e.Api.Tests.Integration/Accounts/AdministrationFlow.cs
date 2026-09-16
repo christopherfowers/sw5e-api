@@ -15,7 +15,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// only an administrator can appoint an administrator, so there is no path
 /// through the API from an empty database to a first one. That is what the
 /// bootstrap setting exists for in a deployment, and this stands in for it.
-/// It is used to arrange and never to assert — every test below that cares
+/// It is used to arrange and never to assert. Every test below that cares
 /// whether a grant works goes through the endpoint.
 /// </para>
 /// <para>
@@ -33,7 +33,7 @@ internal static class AdministrationFlow
     /// <remarks>
     /// The second sign-in is not optional. Role claims are written into the
     /// cookie when the session is created, so a grant applied to an open
-    /// session does not reach it — and the role grant rotates the security
+    /// session does not reach it, and the role grant rotates the security
     /// stamp anyway, which is on its way to ending that session regardless.
     /// </remarks>
     public static async Task<AccountFlow> SignInWithRoleAsync(
@@ -83,7 +83,7 @@ internal static class AdministrationFlow
     /// </summary>
     /// <remarks>
     /// This is the session the administrative surface has to refuse. It is a
-    /// real session — the account area is reachable from it — established by
+    /// real session, the account area is reachable from it, established by
     /// proving control of a mailbox and nothing more, which is the thing every
     /// other account on the internet is recovered through.
     /// </remarks>

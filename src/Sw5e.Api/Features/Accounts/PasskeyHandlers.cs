@@ -22,19 +22,19 @@ namespace Sw5e.Api.Features.Accounts;
 /// handling are all <see cref="IPasskeyHandler{TUser}"/>'s, which is the
 /// framework's own WebAuthn implementation. What this file owns is everything
 /// around it: who is allowed to start a ceremony, where the challenge is kept
-/// between the two requests, what a failure is allowed to say, and — the part
-/// that needed the most care — what happens after a signature verifies.
+/// between the two requests, what a failure is allowed to say, and, the part
+/// that needed the most care, what happens after a signature verifies.
 /// </para>
 /// <para>
 /// On that last point, note the deliberate avoidance of
 /// <c>SignInManager.PasskeySignInAsync</c>. It does almost exactly the right
-/// thing, and then calls the internal sign-in with <c>bypassTwoFactor: true</c>
-/// — a defensible framework default, on the reasoning that a user-verifying
+/// thing, and then calls the internal sign-in with <c>bypassTwoFactor: true</c>.
+/// A defensible framework default, on the reasoning that a user-verifying
 /// passkey is already two factors. This platform offers TOTP as a second factor
 /// on top of that, and a user who switches it on has asked for it. Routing
 /// sign-in through that method would have left every one of those accounts
 /// entered without the factor they enabled, and the TOTP feature would have
-/// been decorative. So the assertion is performed directly and the two-factor
+/// been decorative, so the assertion is performed directly and the two-factor
 /// decision is made here, in the open.
 /// </para>
 /// </remarks>
@@ -61,7 +61,7 @@ internal static class PasskeyHandlers
             {
                 // The account's own identifier. This is the value the
                 // authenticator stores and returns on a later assertion, so it
-                // must be stable for the life of the account — which is exactly
+                // must be stable for the life of the account. Which is exactly
                 // why it is the primary key and not the email address, which
                 // can change.
                 Id = user.Id.ToString(),
@@ -130,8 +130,8 @@ internal static class PasskeyHandlers
 
         // The handler already checks that the attested user entity matches the
         // one the challenge was minted for. Checking again is cheap, and the
-        // thing being defended — a credential being attached to an account
-        // other than the one that asked for it — is severe enough that one
+        // thing being defended, a credential being attached to an account
+        // other than the one that asked for it, is severe enough that one
         // redundant comparison is a good trade.
         if (!string.Equals(attestation.UserEntity.Id, user.Id.ToString(), StringComparison.Ordinal))
         {
@@ -190,7 +190,7 @@ internal static class PasskeyHandlers
     /// <para>
     /// The counterpart to enrolment, and the reason the account area is worth
     /// having: a reader who loses a device needs to be able to cut it off
-    /// without asking anybody. It requires a full session — an enrolment ticket
+    /// without asking anybody. It requires a full session. An enrolment ticket
     /// is permission to add a credential after proving mailbox control, and
     /// letting it also remove one would turn an intercepted recovery link into
     /// a way to strip an account of the credentials it already had.
@@ -200,7 +200,7 @@ internal static class PasskeyHandlers
     /// <see cref="AccountProblems.LastCredential"/>. Note that this is checked
     /// against the account's own list rather than against a count held
     /// anywhere, so two concurrent removals cannot both believe they are not
-    /// the last one and empty the account between them — the second one reads a
+    /// the last one and empty the account between them. The second one reads a
     /// list of one and refuses.
     /// </para>
     /// </remarks>
@@ -285,7 +285,7 @@ internal static class PasskeyHandlers
         // That is what makes this endpoint enumeration-proof rather than merely
         // discreet: there is no input to vary, so there is no response to
         // compare. It is also why IdentityPasskeyOptions.ResidentKeyRequirement
-        // is set to "required" — a non-discoverable credential would have to be
+        // is set to "required". A non-discoverable credential would have to be
         // named here, and naming it would mean asking for an email address
         // first.
         var options = await passkeys.MakeRequestOptionsAsync(user: null, context);
@@ -333,7 +333,7 @@ internal static class PasskeyHandlers
 
         // A verified signature is not by itself permission to enter. The
         // account may be locked out, and it may never have confirmed its
-        // address — SignInManager.PasskeySignInAsync would have applied both of
+        // address. SignInManager.PasskeySignInAsync would have applied both of
         // these through PreSignInCheck, and performing the assertion directly
         // means applying them here instead of inheriting them.
         if (await users.IsLockedOutAsync(user))

@@ -12,15 +12,15 @@ namespace Sw5e.Api.Tests.Integration.Authoring;
 /// rather than only against a status code.
 /// </summary>
 /// <remarks>
-/// Every refusal in this suite is asserted twice — once on the response and
-/// once on the database — because a handler that returns 400 and writes anyway
+/// Every refusal in this suite is asserted twice, once on the response and
+/// once on the database, because a handler that returns 400 and writes anyway
 /// passes the first assertion. The second is the one that means anything.
 /// </remarks>
 internal static class AuthoringFlow
 {
     /// <summary>
     /// The content type these tests author. Its schema is four fields, all
-    /// required, with <c>additionalProperties: false</c> — so "valid" and
+    /// required, with <c>additionalProperties: false</c>, so "valid" and
     /// "invalid" are both easy to state exactly, and both are stated by the
     /// real published schema rather than by the test.
     /// </summary>
@@ -135,9 +135,9 @@ internal static class AuthoringFlow
     /// <summary>A key nothing else in the suite will use.</summary>
     /// <remarks>
     /// Trimmed to the shorter of the string and the cut. A range that runs past
-    /// the end throws rather than stopping there, so a short label — which is
+    /// the end throws rather than stopping there, so a short label (which is
     /// most of them, since a name plus a 32-character identifier is only 37
-    /// characters — would fail before the request under test was ever made.
+    /// characters) would fail before the request under test was ever made.
     /// </remarks>
     public static string NewKey(string label)
     {

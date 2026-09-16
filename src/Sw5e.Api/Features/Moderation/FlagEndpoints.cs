@@ -19,9 +19,9 @@ namespace Sw5e.Api.Features.Moderation;
 /// architectural limit, and the distinction is deliberate: the intention is to
 /// open reporting to the wider community, and when that happens it should be a
 /// change to one attribute on one route rather than a redesign. The pieces that
-/// make it a one-line change are already in place — the per-caller limiter
+/// make it a one-line change are already in place (the per-caller limiter
 /// keyed on address, the target-existence check, the bounded free text, the
-/// duplicate index — because every one of them is what an anonymous endpoint
+/// duplicate index) because every one of them is what an anonymous endpoint
 /// would need, and building them later would mean building them under pressure.
 /// </para>
 /// <para>
@@ -50,8 +50,8 @@ internal static class FlagEndpoints
     private static void MapReporting(RouteGroupBuilder group)
     {
         // Any signed-in account, whatever its role. Reporting a problem is not
-        // a privilege — the whole value of it is that the people who notice a
-        // wrong picture are readers rather than contributors — so the only bar
+        // a privilege, the whole value of it is that the people who notice a
+        // wrong picture are readers rather than contributors, so the only bar
         // is an account, which is what makes a duplicate measurable and a
         // quota enforceable.
         group.MapPost("", FlagHandlers.RaiseAsync)
@@ -79,7 +79,7 @@ internal static class FlagEndpoints
         // a filter on it. A reporter sees what they filed and what became of
         // it; that is what stops reporting feeling like writing into a void,
         // and it is the reason this is a separate route rather than a query
-        // parameter on the queue — a parameter would put the two audiences one
+        // parameter on the queue. A parameter would put the two audiences one
         // typo apart.
         group.MapGet("/mine", FlagHandlers.ListMineAsync)
              .WithName("listOwnFlags")
@@ -96,8 +96,8 @@ internal static class FlagEndpoints
 
     private static void MapQueue(RouteGroupBuilder group)
     {
-        // Contributors and administrators, and — because the policy carries it
-        // — only from a session established with a passkey or an authenticator
+        // Contributors and administrators, and, because the policy carries it,
+        // only from a session established with a passkey or an authenticator
         // code. The queue holds the display names of everybody who has reported
         // anything and the text of what they wrote, some of which will be
         // rights complaints. That is not something a session which only proved

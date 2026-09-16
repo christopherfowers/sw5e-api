@@ -122,7 +122,7 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
     {
         // The control for the test above. Without it, an implementation that
         // expired every code immediately would pass the expiry test and fail
-        // nothing else in this file except the happy path — which runs fast
+        // nothing else in this file except the happy path. Which runs fast
         // enough to hide it.
         var client = _factory.CreateBrowserClient();
         var account = await EstablishAsync(client, "code-not-yet-expired");
@@ -330,7 +330,7 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
             // Every one of them is accepted, including the ones that send
             // nothing. Answering 429 to the fourth would confirm to an
             // unauthenticated caller that this address had recently been asked
-            // for — which is a smaller leak than account existence and is still
+            // for. Which is a smaller leak than account existence and is still
             // a leak.
             response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
@@ -380,7 +380,7 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
         // The budget check is a read followed by a write, and a read followed
         // by a write is a race unless something serialises it. Twelve requests
         // arriving together would otherwise each count nothing recent, each
-        // conclude there was room, and each insert — turning a budget of three
+        // conclude there was room, and each insert. Turning a budget of three
         // into a dozen messages in somebody's inbox, which is the exact abuse
         // the budget exists to stop.
         //
@@ -425,7 +425,7 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
 
         second.ShouldNotBe(first);
 
-        // The newest code is the one that works — somebody who asked twice
+        // The newest code is the one that works. Somebody who asked twice
         // because the first message was slow is holding the second.
         (await VerifyCodeAsync(fresh, account.EmailAddress, second))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -506,7 +506,7 @@ public sealed class EmailCodeSignInTests(PostgresFixture postgres) : IAsyncLifet
         // field, the client-side check and the server disagree about what a
         // reader is being asked to type.
         //
-        // Where the code must *not* appear — the log — is pinned in
+        // Where the code must *not* appear, the log, is pinned in
         // Sw5e.Email.Tests, against the provider that does the logging.
         var client = _factory.CreateBrowserClient();
         var account = await EstablishAsync(client, "code-containment");

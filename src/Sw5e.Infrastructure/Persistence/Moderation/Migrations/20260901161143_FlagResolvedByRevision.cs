@@ -18,8 +18,8 @@ namespace Sw5e.Infrastructure.Persistence.Moderation.Migrations
     /// </para>
     /// <para>
     /// A plain bigint with no foreign key. The content schema lives in another
-    /// PostgreSQL schema and may live in another database entirely — the same
-    /// reason this table holds reporter accounts as bare uuids — so the
+    /// PostgreSQL schema and may live in another database entirely, the same
+    /// reason this table holds reporter accounts as bare uuids, so the
     /// constraint could not be declared without welding moderation to content.
     /// The handler verifies the revision exists before storing it.
     /// </para>

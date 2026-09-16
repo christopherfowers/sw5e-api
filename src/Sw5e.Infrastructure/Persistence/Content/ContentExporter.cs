@@ -49,7 +49,7 @@ public readonly record struct ContentExportChange(
 /// <param name="Examined">Documents read out of the database.</param>
 /// <param name="Unchanged">Documents whose file already matched.</param>
 /// <param name="Changes">
-/// Every document that was written, added or removed — in other words, every
+/// Every document that was written, added or removed. In other words, every
 /// way the database and the repository disagreed.
 /// </param>
 /// <param name="Warnings">
@@ -85,8 +85,8 @@ public sealed record ContentExportResult(
 /// which must then be given. Null exports every document of the type.
 /// </param>
 /// <param name="Prune">
-/// Whether to delete files the database no longer publishes. Ignored — and
-/// refused — when <paramref name="Key"/> narrows the run to one document, since
+/// Whether to delete files the database no longer publishes. Ignored, and
+/// refused, when <paramref name="Key"/> narrows the run to one document, since
 /// a single-document export has no opinion about any other file.
 /// </param>
 /// <param name="CheckOnly">
@@ -109,7 +109,7 @@ public sealed record ContentExportRequest(
 /// <b>Why this exists.</b> Content used to move in one direction: a pull request
 /// against the content repository, an image, a deploy, and the importer loaded
 /// it into PostgreSQL. Authoring reversed that for everything edited through the
-/// site — those documents exist only as rows, and the repository, which is still
+/// site. Those documents exist only as rows, and the repository, which is still
 /// the seed and still what the published content image carries, drifts away from
 /// them silently. The next person to rebuild that image reverts the community's
 /// work without any step in the process saying so. This is the other direction.
@@ -117,7 +117,7 @@ public sealed record ContentExportRequest(
 /// <para>
 /// <b>What "published" means here.</b> The catalogue table, and nothing else. A
 /// draft is a row in a different table precisely so that it is not part of the
-/// catalogue, so excluding drafts is not a filter this applies — it is a
+/// catalogue, so excluding drafts is not a filter this applies. It is a
 /// consequence of reading the same rows the read path serves. A revert is a
 /// write to the catalogue like any other, so a reverted document exports as
 /// whatever it was reverted to. Neither needed a special case, and that is the
@@ -130,11 +130,11 @@ public sealed record ContentExportRequest(
 /// held by a process that also holds the whole catalogue. That is a meaningfully
 /// larger thing to get wrong, and it buys nothing that a scheduled job running
 /// <c>git commit</c> next to this one does not: the review still happens in a
-/// pull request either way. So the boundary is the tree.
+/// pull request either way, so the boundary is the tree.
 /// </para>
 /// <para>
 /// <b>Why every document is validated on the way out.</b> The importer does not
-/// validate against the JSON Schemas — it loads whatever the corpus holds — and
+/// validate against the JSON Schemas, it loads whatever the corpus holds, and
 /// a row can also be written by a migration or by hand. The content repository's
 /// CI validates every document on every pull request, so an export that emitted
 /// something the schema rejects would produce a branch that cannot be merged,
@@ -284,9 +284,9 @@ public sealed class ContentExporter(
     /// <summary>Whether the file already holds exactly what was rendered.</summary>
     /// <remarks>
     /// Line endings are normalised before the comparison and only there. Which
-    /// of the two a working tree holds is git's decision — the content
+    /// of the two a working tree holds is git's decision (the content
     /// repository pins them to LF, but a checkout made before it did will hold
-    /// CRLF — and rewriting all 7,877 files to announce that would bury the one
+    /// CRLF) and rewriting all 7,877 files to announce that would bury the one
     /// document somebody actually changed. Everything else about the file, down
     /// to the byte, has to match.
     /// </remarks>

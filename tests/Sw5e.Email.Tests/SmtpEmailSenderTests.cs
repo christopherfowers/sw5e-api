@@ -205,7 +205,7 @@ public sealed class SmtpEmailSenderTests
     /// <remarks>
     /// This is the shape a bad SMTP password really takes, and it is worth
     /// knowing why. The framework's client does not fail when an
-    /// authentication mechanism is rejected — it moves on to the next
+    /// authentication mechanism is rejected. It moves on to the next
     /// mechanism, and having exhausted them it proceeds unauthenticated rather
     /// than throwing. The error therefore surfaces one step later, when the
     /// relay answers MAIL FROM with 530, and it is that reply the adapter

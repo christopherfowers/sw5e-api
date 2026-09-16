@@ -52,7 +52,7 @@ public readonly record struct EmailSignInCodeRedemption(Guid? UserId)
 /// <para>
 /// <b>Nothing here learns whether an account exists.</b> The caller passes an
 /// address and an optional account; both branches perform one key derivation
-/// and one insert, so the work — and therefore the response time — is the same
+/// and one insert, so the work, and therefore the response time, is the same
 /// either way. The only path that does less work is the throttled one, and it
 /// throttles on the address alone, which is a fact about how often that address
 /// has been asked for and not about whether it is registered.
@@ -84,7 +84,7 @@ public sealed class EmailSignInCodeService(
     /// hours of CPU per row, by which time every code in the table has expired.
     /// </para>
     /// <para>
-    /// The price is paid twice per code — once on issue, once on redemption —
+    /// The price is paid twice per code (once on issue, once on redemption)
     /// on endpoints that are rate limited into the low tens of requests per
     /// window. It is not a throughput concern, and it is deliberately paid on
     /// the failure path as well, so the time taken does not say whether a row
@@ -122,7 +122,7 @@ public sealed class EmailSignInCodeService(
         // address, and it has to be, because the budget check that follows is a
         // read followed by a write. Two requests for the same address arriving
         // together would otherwise both count two recent codes, both conclude
-        // there was room for a third, and both insert one — which is a budget
+        // there was room for a third, and both insert one. Which is a budget
         // of three that delivers four messages, and a limit an attacker with a
         // handful of addresses to send from can simply outrun.
         //
@@ -156,8 +156,8 @@ public sealed class EmailSignInCodeService(
             .ToListAsync(cancellationToken);
 
         // Two separate brakes, and they answer different abuses. The cooldown
-        // stops a page with a "resend" button — or a script pretending to be
-        // one — from putting a message a second into somebody's inbox. The
+        // stops a page with a "resend" button, or a script pretending to be
+        // one, from putting a message a second into somebody's inbox. The
         // budget stops the same thing spread over an afternoon.
         if (recent.Count > 0 && recent[0] > now - _options.EmailSignInCodeResendCooldown)
         {
@@ -214,9 +214,9 @@ public sealed class EmailSignInCodeService(
     /// <remarks>
     /// <para>
     /// Every refusal is the same refusal to the caller. Internally there are
-    /// six distinguishable ones — no live code for the address, an expired
+    /// six distinguishable ones (no live code for the address, an expired
     /// code, a spent code, an exhausted attempt budget, wrong digits, and a code
-    /// issued for an address with no account — and the log distinguishes them
+    /// issued for an address with no account) and the log distinguishes them
     /// so an operator can answer a support question. The return value does not,
     /// because each distinction is a fact an attacker would rather have.
     /// </para>
@@ -298,7 +298,7 @@ public sealed class EmailSignInCodeService(
         // Single use, decided by the database rather than by this process. The
         // update only lands if the row is still unconsumed, so two requests
         // carrying the same correct code at the same instant produce exactly
-        // one session between them — the loser is indistinguishable from
+        // one session between them. The loser is indistinguishable from
         // somebody who guessed wrong, which is the correct outcome.
         if (!await ConsumeAsync(candidate.Id, now, cancellationToken))
         {

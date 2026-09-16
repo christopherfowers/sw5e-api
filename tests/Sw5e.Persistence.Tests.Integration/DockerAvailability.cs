@@ -7,8 +7,8 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// <remarks>
 /// <para>
 /// These tests run against a real PostgreSQL container because the things they
-/// check — that a migration applies, that a check constraint refuses a bad row,
-/// that byte-order collation produces the ordering the file-backed store does —
+/// check (that a migration applies, that a check constraint refuses a bad row,
+/// that byte-order collation produces the ordering the file-backed store does)
 /// are properties of PostgreSQL, not of C#. An in-memory or SQLite substitute
 /// would answer every one of them differently and would pass while the real
 /// database was broken.
@@ -16,8 +16,8 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// <para>
 /// Not every machine has a daemon; this one does not. Rather than making the
 /// whole suite unrunnable there, the tests skip themselves when Docker is
-/// unreachable. That is a real risk — a suite that can silently test nothing is
-/// a suite that eventually does — so CI carries a step that fails the build if
+/// unreachable. That is a real risk, a suite that can silently test nothing is
+/// a suite that eventually does, so CI carries a step that fails the build if
 /// anything was skipped on a runner that has a daemon. The skip is a
 /// convenience for a developer's machine, not a way for the database to go
 /// untested.

@@ -331,9 +331,9 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
     /// </summary>
     /// <remarks>
     /// Over an edited copy of the fixture rather than over the fixture itself,
-    /// because no schema in the content repository permits an empty array —
-    /// every one of them carries <c>minItems</c>, on the grounds that an empty
-    /// list and an unfinished document look the same to a reader. So a document
+    /// because no schema in the content repository permits an empty array.
+    /// Every one of them carries <c>minItems</c>, on the grounds that an empty
+    /// list and an unfinished document look the same to a reader, so a document
     /// with one cannot be committed, and the exporter refuses to write one. The
     /// property is still worth pinning: it is a property of jsonb and of the
     /// importer, not of today's schemas, and the first schema to allow an empty
@@ -435,7 +435,7 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
 
     /// <summary>
     /// Two items with the same version token must be byte-identical documents,
-    /// and two different documents must not share one — that is the whole
+    /// and two different documents must not share one. That is the whole
     /// contract the ETag rests on.
     /// </summary>
     [DockerFact]
@@ -529,7 +529,7 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
     /// The site builds its path from <c>readingGroup</c> and <c>order</c>, and
     /// deliberately never from <c>chapterNumber</c>: that field records where a
     /// passage fell in a printed book, and it disagrees with what a reader
-    /// needs — the handbook numbers "What's Different?" below its own
+    /// needs. The handbook numbers "What's Different?" below its own
     /// introduction. Projecting the two authored fields is what lets the site
     /// stop asking about the book at all.
     /// </para>
@@ -577,7 +577,7 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
     /// Its own test rather than a second case on the one above, because the two
     /// go through different entries in the projection table. Adding the fields
     /// to <c>rule</c> and not to <c>starship-rule</c> compiles, imports, and
-    /// leaves the starship pages ordering by the number a PDF printed — with
+    /// leaves the starship pages ordering by the number a PDF printed. With
     /// every rule assertion still green, since a rule is all they look at.
     /// Removing the starship entry's two fields turns this red and nothing
     /// else.

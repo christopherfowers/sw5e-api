@@ -9,8 +9,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <para>
 /// It exists because of what the account endpoints are not allowed to do with a
 /// delivery failure. <c>register</c> and <c>email/code</c> answer identically
-/// whether or not the address has an account — same status, same body, same
-/// work — and a failed send cannot be allowed to disturb that, which rules out
+/// whether or not the address has an account (same status, same body, same
+/// work) and a failed send cannot be allowed to disturb that, which rules out
 /// both an error response and any per-address hint in the successful one. The
 /// caller therefore learns nothing, and something else has to learn everything;
 /// this is that something else.
@@ -19,8 +19,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// The state deliberately has no per-address dimension. It records that mail is
 /// or is not getting out, and nothing about who it was for, so there is no
 /// arrangement of requests that turns a reading of it into an answer about a
-/// particular address. Anything that surfaces it — a health check, an operator
-/// dashboard, a banner on the site — is reading one global fact.
+/// particular address. Anything that surfaces it (a health check, an operator
+/// dashboard, a banner on the site) is reading one global fact.
 /// </para>
 /// <para>
 /// The provider's reply is deliberately <em>not</em> held here. That string is

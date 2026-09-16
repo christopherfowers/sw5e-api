@@ -10,8 +10,8 @@ namespace Sw5e.Identity.TwoFactor;
 /// <para>
 /// There is no RFC for this. The format every authenticator app implements is
 /// the Key Uri Format published alongside Google Authenticator, and the apps
-/// that matter — Google Authenticator, Authy, 1Password, Microsoft
-/// Authenticator, Aegis — agree on it to the character. Getting it subtly wrong
+/// that matter (Google Authenticator, Authy, 1Password, Microsoft
+/// Authenticator, Aegis) agree on it to the character. Getting it subtly wrong
 /// does not produce an error anybody sees: the app happily scans the code and
 /// then generates numbers the server will never accept, and the reader
 /// concludes that two-factor authentication on this site is broken.
@@ -23,7 +23,7 @@ namespace Sw5e.Identity.TwoFactor;
 /// <item>
 /// <description>
 /// <b>The label.</b> It is a URI <em>path</em>, so it is percent-encoded as a
-/// path segment — but the colon separating issuer from account name is
+/// path segment, but the colon separating issuer from account name is
 /// structural and must survive encoding. Encoding the whole label with a
 /// general-purpose escaper turns that colon into <c>%3A</c>, which several apps
 /// then read as part of the account name, producing an entry called
@@ -33,8 +33,8 @@ namespace Sw5e.Identity.TwoFactor;
 /// </item>
 /// <item>
 /// <description>
-/// <b>The issuer.</b> Stated twice — once as the label prefix and once as the
-/// <c>issuer</c> parameter — because the format says both should be present and
+/// <b>The issuer.</b> Stated twice, once as the label prefix and once as the
+/// <c>issuer</c> parameter, because the format says both should be present and
 /// should agree. Apps that read only one of the two are common, and apps that
 /// warn about a mismatch exist.
 /// </description>
@@ -46,7 +46,7 @@ namespace Sw5e.Identity.TwoFactor;
 /// refuses to scan: <c>=</c> is legal in the query string but several parsers
 /// pass the padding straight into a base32 decoder that rejects it. ASP.NET
 /// Core's authenticator key is 160 bits, which encodes to exactly 32 base32
-/// characters and so is never padded — this strips anything anyway, because
+/// characters and so is never padded. This strips anything anyway, because
 /// relying on a length coincidence is not a guarantee.
 /// </description>
 /// </item>
@@ -75,7 +75,7 @@ public static class AuthenticatorUri
     /// Builds the URI for one account and one secret.
     /// </summary>
     /// <param name="accountName">
-    /// What the app displays beneath the issuer — the account's email address,
+    /// What the app displays beneath the issuer. The account's email address,
     /// so that somebody with two accounts on this site can tell their entries
     /// apart.
     /// </param>
@@ -144,7 +144,7 @@ public static class AuthenticatorUri
     /// <remarks>
     /// <see cref="Uri.EscapeDataString(string)"/> rather than a URL encoder,
     /// because the label is a path segment and this escapes everything outside
-    /// the unreserved set — including the <c>@</c> and any <c>+</c> or space an
+    /// the unreserved set. Including the <c>@</c> and any <c>+</c> or space an
     /// address can legitimately contain, and including the colon, which is why
     /// the caller joins the halves rather than passing the whole label through
     /// here.

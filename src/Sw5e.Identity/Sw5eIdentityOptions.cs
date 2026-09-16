@@ -7,7 +7,7 @@ namespace Sw5e.Identity;
 /// </summary>
 /// <remarks>
 /// Bound from the <c>Identity</c> configuration section. Nothing here is a
-/// secret — the connection string is the one exception and it is expected to
+/// secret. The connection string is the one exception and it is expected to
 /// arrive from the environment, never from a committed file.
 /// </remarks>
 public sealed class Sw5eIdentityOptions
@@ -21,8 +21,8 @@ public sealed class Sw5eIdentityOptions
     /// Read from <c>Identity:ConnectionString</c> if set, otherwise from the
     /// standard <c>ConnectionStrings:Sw5eIdentity</c> and
     /// <c>ConnectionStrings:Sw5e</c> keys in that order. Identity is allowed
-    /// its own credential — and should have one, with rights over nothing but
-    /// the <c>identity</c> schema — but sharing the platform connection string
+    /// its own credential (and should have one, with rights over nothing but
+    /// the <c>identity</c> schema) but sharing the platform connection string
     /// is supported so a small deployment is not forced to run two roles.
     /// </remarks>
     public string? ConnectionString { get; set; }
@@ -41,7 +41,7 @@ public sealed class Sw5eIdentityOptions
     /// </para>
     /// <para>
     /// It must be the site's registrable domain with no scheme, no port and no
-    /// path — <c>sw5e.example</c>, not <c>https://sw5e.example/</c>. It may be
+    /// path. <c>sw5e.example</c>, not <c>https://sw5e.example/</c>. It may be
     /// a parent of the origin's host (an origin of <c>app.sw5e.example</c> may
     /// use an RP ID of <c>sw5e.example</c>) but never a child and never an
     /// unrelated domain.
@@ -70,7 +70,7 @@ public sealed class Sw5eIdentityOptions
     /// Empty means "same origin only", which is the correct and safest value
     /// whenever the site and the API are served from one hostname through the
     /// reverse proxy. Add entries only for a front end genuinely hosted
-    /// somewhere else, and add exact origins — scheme, host and port — because
+    /// somewhere else, and add exact origins (scheme, host and port) because
     /// they are compared exactly. There is no wildcard and there will not be
     /// one.
     /// </para>
@@ -116,8 +116,8 @@ public sealed class Sw5eIdentityOptions
     /// How long an emailed sign-in code stays usable.
     /// </summary>
     /// <remarks>
-    /// Long enough to find the message, read six digits and type them —
-    /// including on a phone that fetches mail on a schedule — and short enough
+    /// Long enough to find the message, read six digits and type them,
+    /// including on a phone that fetches mail on a schedule, and short enough
     /// that a code left in an open inbox on a shared machine is worthless by
     /// the time anybody walks past. Ten minutes is the value nearly every
     /// service that sends these settles on, and readers have learned to expect
@@ -175,7 +175,7 @@ public sealed class Sw5eIdentityOptions
     /// a phone whose clock has drifted by a few seconds across a step boundary.
     /// A server that accepts only the current step rejects that person's
     /// perfectly correct code, and no message it could show them would explain
-    /// why. One step either side — a ninety-second acceptance band — absorbs
+    /// why. One step either side, a ninety-second acceptance band, absorbs
     /// ordinary drift and the time it takes to read and type six digits.
     /// </para>
     /// <para>
@@ -208,8 +208,8 @@ public sealed class Sw5eIdentityOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This solves the bootstrap problem — only an administrator can grant the
-    /// administrator role, so the first one has to come from somewhere — while
+    /// This solves the bootstrap problem (only an administrator can grant the
+    /// administrator role, so the first one has to come from somewhere) while
     /// creating nothing. No account is created, no credential is set, no
     /// password is invented. The named person registers through the ordinary
     /// public flow, proves control of the address by email, and enrols a

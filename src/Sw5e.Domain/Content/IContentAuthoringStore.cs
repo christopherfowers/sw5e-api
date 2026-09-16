@@ -18,7 +18,7 @@ namespace Sw5e.Domain.Content;
 /// </para>
 /// <para>
 /// <b>Why a revision is a full snapshot and not a delta.</b> The corpus is
-/// 7,877 documents totalling about ten megabytes — a mean of roughly 1.3 kB,
+/// 7,877 documents totalling about ten megabytes. A mean of roughly 1.3 kB,
 /// with the largest single document at 466 kB. Storing the whole document on
 /// every change is therefore cheap in absolute terms, and PostgreSQL compresses
 /// any jsonb value over a couple of kilobytes out to TOAST storage without
@@ -29,7 +29,7 @@ namespace Sw5e.Domain.Content;
 /// times. Reconstructing an old version becomes a replay of every delta since
 /// the last keyframe, so a diff against revision 2 of a long-lived document is
 /// O(n) reads instead of two. It needs a patch format, a merge implementation
-/// and keyframes anyway, which is two mechanisms where there was one. And it is
+/// and keyframes anyway, which is two mechanisms where there was one, and it is
 /// fragile in the way that matters most here: a single corrupted or missing
 /// delta destroys every version after it, whereas a damaged snapshot costs
 /// exactly one revision. The point of this table is to be the record that can
@@ -43,7 +43,7 @@ namespace Sw5e.Domain.Content;
 /// </para>
 /// <para>
 /// <b>Append-only.</b> Nothing here updates or deletes a revision, and the
-/// database refuses to as well — see the rule installed by the authoring
+/// database refuses to as well. See the rule installed by the authoring
 /// migration. A revert writes a <em>new</em> revision carrying the old body
 /// rather than removing the revisions in between, so the fact that a change was
 /// made and undone survives the undoing. A small group of contributors can
@@ -92,7 +92,7 @@ public interface IContentAuthoringStore
 
     /// <summary>
     /// Makes a draft live: validates it again, writes it to the catalogue,
-    /// records a revision, and clears the draft — all in one transaction.
+    /// records a revision, and clears the draft. All in one transaction.
     /// </summary>
     /// <remarks>
     /// Revalidated at publication even though <see cref="SaveDraftAsync"/>
@@ -129,7 +129,7 @@ public interface IContentAuthoringStore
     /// <remarks>
     /// Validated like any other write. A revision recorded under an older schema
     /// may no longer conform, and restoring it blindly would put a document into
-    /// the corpus that the corpus's own rules reject — which is exactly the
+    /// the corpus that the corpus's own rules reject. Which is exactly the
     /// silent degradation this whole path exists to prevent. Such a revert is
     /// refused with the schema errors, and the fix is to author forward.
     /// </remarks>

@@ -199,7 +199,7 @@ internal static class ContentIndexBuilder
     /// </summary>
     /// <param name="definition">The resolved content type.</param>
     /// <param name="expectedKey">
-    /// The key the document is filed under — the file name for the scanner, the
+    /// The key the document is filed under. The file name for the scanner, the
     /// route value for an authored write. The document's own <c>key</c>
     /// property must agree with it.
     /// </param>
@@ -216,7 +216,7 @@ internal static class ContentIndexBuilder
     /// Shared by the filesystem scan and the authoring store rather than
     /// restated in each. The projected columns are what every list, sort,
     /// filter and search reads, and the two stores are held to parity on all of
-    /// them by an explicit test suite — so a document that arrives through an
+    /// them by an explicit test suite, so a document that arrives through an
     /// endpoint has to be projected by the identical code that projects one
     /// arriving as a file, or the parity that suite asserts becomes a property
     /// only of content that came from disk.
@@ -282,8 +282,8 @@ internal static class ContentIndexBuilder
     /// The change token for a document that never existed as a file.
     /// </summary>
     /// <remarks>
-    /// Same construction as the scanner's — a truncated SHA-256, so the two are
-    /// the same shape and the same width — but over the document as it will be
+    /// Same construction as the scanner's (a truncated SHA-256, so the two are
+    /// the same shape and the same width) but over the document as it will be
     /// stored rather than over file bytes. The token's contract is only that it
     /// changes when the document changes and does not when it has not, and
     /// hashing the stored text satisfies both. It deliberately does not try to

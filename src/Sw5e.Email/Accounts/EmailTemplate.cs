@@ -47,7 +47,7 @@ internal static partial class EmailTemplate
     /// </summary>
     /// <param name="template">
     /// A trusted literal from <see cref="AccountEmailTemplates"/>. Never a
-    /// value that came from outside the process — the whole encoding scheme
+    /// value that came from outside the process. The whole encoding scheme
     /// below assumes the template itself is the safe part.
     /// </param>
     /// <param name="values">The value for each placeholder name.</param>
@@ -81,7 +81,7 @@ internal static partial class EmailTemplate
             // WebUtility rather than HttpUtility: this library has no ASP.NET
             // dependency, and WebUtility.HtmlEncode escapes the five characters
             // that matter (& < > " ') which covers both element content and
-            // quoted attribute values — the only two places a value is ever
+            // quoted attribute values. The only two places a value is ever
             // substituted in these templates.
             return htmlEncode ? WebUtility.HtmlEncode(value) : value;
         });

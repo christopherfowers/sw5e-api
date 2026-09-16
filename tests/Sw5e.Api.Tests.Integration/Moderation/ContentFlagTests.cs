@@ -9,7 +9,7 @@ using Sw5e.Identity;
 namespace Sw5e.Api.Tests.Integration.Moderation;
 
 /// <summary>
-/// Filing a report: who may, what is accepted, and — mostly — what is refused.
+/// Filing a report: who may, what is accepted, and, mostly, what is refused.
 /// </summary>
 /// <remarks>
 /// This is the platform's first endpoint that writes a row on behalf of someone
@@ -130,8 +130,8 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         await FlagFlow.SignInAsync(_factory, client, "phantom-target");
 
         // Well-formed in every respect except that the site publishes no such
-        // document. A report against one could never be reviewed — there is
-        // nothing to look at — and could never be closed, so it would sit in
+        // document. A report against one could never be reviewed, there is
+        // nothing to look at, and could never be closed, so it would sit in
         // the queue forever. Accepting them is the cheapest way for anybody
         // with an account to bury the moderators.
         var response = await FlagFlow.RaiseAsync(
@@ -310,8 +310,8 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         // bytes being rendered as markup is that they are served as JSON, with
         // nosniff so a browser will not second-guess that, under a policy that
         // permits nothing to load. The escaping that matters happens where the
-        // value is rendered — in the browser client, which puts it in a text
-        // node — and is asserted in that repository, where rendering exists.
+        // value is rendered (in the browser client, which puts it in a text
+        // node) and is asserted in that repository, where rendering exists.
         //
         // Asserting on the bytes here would have been the comfortable thing to
         // write and would have proved the wrong property: JSON escaping is not
@@ -344,7 +344,7 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
     /// Three properties together, and none of them is sufficient alone. The
     /// content type says it is data. <c>nosniff</c> stops a browser deciding
     /// otherwise from the bytes, which is the whole attack against a JSON
-    /// endpoint that echoes markup. And the policy denies every source, so even
+    /// endpoint that echoes markup, and the policy denies every source, so even
     /// a document that somehow got parsed as HTML could not fetch or execute
     /// anything.
     /// </remarks>
@@ -387,8 +387,8 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         AssertNotRenderableAsMarkup(queue);
 
         // Carried through exactly, and left for the renderer to escape. The
-        // service accepts angle brackets in a display name — refusing them
-        // would be an arbitrary rule about what a person may be called — so
+        // service accepts angle brackets in a display name, refusing them
+        // would be an arbitrary rule about what a person may be called, so
         // escaping at the point of display is the only thing standing between
         // this and a reviewer's session.
         FlagFlow.FlagsIn(await queue.ReadJsonAsync())
@@ -420,7 +420,7 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         (await FlagFlow.StoredAsync(_factory)).Count.ShouldBe(1);
 
         // A different reason against the same picture is a different report and
-        // is not suppressed — the constraint is about repetition, not about
+        // is not suppressed. The constraint is about repetition, not about
         // limiting how much one person may notice.
         var different = await FlagFlow.RaiseAsync(
             client, "image-replacement-wanted", FlagFlow.ImageType, FlagFlow.ImageKey);
@@ -483,8 +483,8 @@ public sealed class ContentFlagTests(PostgresFixture postgres) : IAsyncLifetime
         flags[0].GetProperty("id").GetGuid().ShouldBe(flagId);
         flags[0].GetProperty("status").GetString().ShouldBe("declined");
 
-        // Closing the loop matters — a report filed into a void is a report
-        // nobody files twice — but the triage note is written between the
+        // Closing the loop matters, a report filed into a void is a report
+        // nobody files twice, but the triage note is written between the
         // people working the queue and is not part of it.
         flags[0].GetProperty("reviewerNote").ValueKind.ShouldBe(JsonValueKind.Null);
         (await own.Content.ReadAsStringAsync()).ShouldNotContain("house style");

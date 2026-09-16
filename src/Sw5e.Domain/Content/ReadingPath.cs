@@ -13,7 +13,7 @@ public readonly record struct PlacedChapter(string Key, int? Order, string? Read
 /// <para>
 /// The order a reader is walked through a book is authored: two fields on each
 /// chapter, a position and a heading, both edited as content. That was the
-/// point — the person who owns the corpus rearranges the book without anybody
+/// point. The person who owns the corpus rearranges the book without anybody
 /// touching the site.
 /// </para>
 /// <para>
@@ -27,8 +27,8 @@ public readonly record struct PlacedChapter(string Key, int? Order, string? Read
 /// </para>
 /// <para>
 /// Deliberately a pure function over the whole set. These are properties of a
-/// book rather than of a document — no schema can express them, because a
-/// schema sees one file — and keeping the reasoning away from the database
+/// book rather than of a document (no schema can express them, because a
+/// schema sees one file) and keeping the reasoning away from the database
 /// means it can be tested exhaustively and quickly, without a container.
 /// </para>
 /// <para>
@@ -58,7 +58,7 @@ public static class ReadingPath
     /// <param name="chapters">
     /// Every chapter of one book, placed or not. Unplaced ones are ignored
     /// rather than reported: a chapter with no position is not on the path, and
-    /// that is a legitimate state — a variant rule has no place in a reading
+    /// that is a legitimate state. A variant rule has no place in a reading
     /// order and should not be made to claim one.
     /// </param>
     public static IReadOnlyList<ContentPublishNotice> Inspect(
@@ -88,7 +88,7 @@ public static class ReadingPath
           Two chapters at one position have no defined order between them, so
           the sequence this reads runs is decided by a tie break rather than by
           anybody. Two chapters sharing a position will usually have different
-          headings, which makes the run look split — and reporting that would
+          headings, which makes the run look split, and reporting that would
           hand somebody a second problem that is really the first one's shadow,
           pointing at chapters that are not at fault.
 
@@ -109,7 +109,7 @@ public static class ReadingPath
     /// </summary>
     /// <remarks>
     /// The failure worth catching most, because it does not look like one. A
-    /// duplicate renders — in whatever order the tie break happens to produce —
+    /// duplicate renders, in whatever order the tie break happens to produce,
     /// so the first anybody knows is a reader meeting the combat chapter before
     /// the one explaining dice.
     /// </remarks>
@@ -134,7 +134,7 @@ public static class ReadingPath
     /// late" would be the wrong answer.
     /// <para>
     /// This is quiet during ordinary authoring. Adding chapters in order never
-    /// produces a gap — only publishing out of order does, and then it is
+    /// produces a gap. Only publishing out of order does, and then it is
     /// telling somebody something true.
     /// </para>
     /// </remarks>

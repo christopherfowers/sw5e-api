@@ -49,7 +49,7 @@ public sealed class FlagRateLimitOptions
     /// <para>
     /// This is the half that survives an attacker who has an account and a
     /// thousand addresses to send from, and it is checked in the handler rather
-    /// than by the limiter because the limiter cannot see who is asking — it
+    /// than by the limiter because the limiter cannot see who is asking. It
     /// partitions on the client address, which is exactly what such an attacker
     /// changes.
     /// </para>
@@ -80,7 +80,7 @@ public sealed class FlagRateLimitOptions
 /// <para>
 /// Its own policies rather than a share of the account budgets. Two reasons.
 /// A shared budget lets somebody exhaust everybody's ability to file a report
-/// by hammering sign-in, and — the one that actually decides it — the numbers
+/// by hammering sign-in, and, the one that actually decides it, the numbers
 /// wanted here are nothing like the numbers wanted there: filing a report is
 /// not a guess that could pay off, so the limit exists to bound volume rather
 /// than to make brute force impractical.
@@ -106,7 +106,7 @@ internal static class FlagRateLimiting
     /// A write sharing a read budget looks careless and is deliberate. That
     /// endpoint is reachable only by a Contributor or an Administrator, nothing
     /// about it rewards guessing, and the traffic it sees is a reviewer
-    /// clicking down a page they are already allowed to read — which is the
+    /// clicking down a page they are already allowed to read. Which is the
     /// same shape as reading it. Giving it a tighter budget would throttle the
     /// people the queue exists for and defend against nobody.
     /// </remarks>

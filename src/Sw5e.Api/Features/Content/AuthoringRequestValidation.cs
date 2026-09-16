@@ -26,7 +26,7 @@ internal static class AuthoringRequestValidation
     /// The same gate the read path applies, and for the same reason: the type
     /// must become a member of the compiled registry before any store sees it,
     /// and the key must match the slug pattern before it reaches a query or a
-    /// path join. A key that cannot exist is a 400 rather than a 404 — the
+    /// path join. A key that cannot exist is a 400 rather than a 404. The
     /// request itself is malformed, and answering 404 would invite a client to
     /// retry it.
     /// </remarks>
@@ -62,7 +62,7 @@ internal static class AuthoringRequestValidation
     /// <remarks>
     /// Size is measured on the parsed document rather than on
     /// <c>Content-Length</c>, because the request is already bound by the time a
-    /// handler runs — the framework's own request-body limit is what stops an
+    /// handler runs. The framework's own request-body limit is what stops an
     /// unbounded upload before that. This check exists to stop a document that
     /// is within the transport limit but far larger than any real content item
     /// from being validated, snapshotted into a revision and stored.

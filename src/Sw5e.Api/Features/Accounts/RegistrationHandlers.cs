@@ -19,8 +19,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// phisher a pre-validated audience.
 /// </para>
 /// <para>
-/// Resisting it costs real usability — nobody is ever told "that address is
-/// already registered" — and the cost is paid deliberately. The information the
+/// Resisting it costs real usability, nobody is ever told "that address is
+/// already registered", and the cost is paid deliberately. The information the
 /// caller needs still reaches them; it goes to the mailbox, which is the one
 /// place where telling the truth is safe, because only the account holder can
 /// read it.
@@ -174,7 +174,7 @@ internal static class RegistrationHandlers
         var user = await users.FindByEmailAsync(emailAddress);
 
         // An unknown address and a bad token produce the same refusal. Anything
-        // else — a 404 here, a 400 there — is an enumeration oracle wearing a
+        // else (a 404 here, a 400 there) is an enumeration oracle wearing a
         // status code.
         if (user is null)
         {
@@ -191,9 +191,9 @@ internal static class RegistrationHandlers
 
         // Rotating the security stamp immediately after a successful
         // verification is what makes this flow safe to reuse for recovery.
-        // Every token generated for this account before now — every recovery
+        // Every token generated for this account before now (every recovery
         // link anybody has ever requested for it, whether they were entitled to
-        // or not — is derived from the old stamp and stops working here. Any
+        // or not) is derived from the old stamp and stops working here. Any
         // session already established is re-evaluated within the security stamp
         // validation interval and dropped, which is the correct outcome when
         // somebody has just proved mailbox control in order to re-credential.

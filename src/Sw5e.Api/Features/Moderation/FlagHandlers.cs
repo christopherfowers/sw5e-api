@@ -27,7 +27,7 @@ namespace Sw5e.Api.Features.Moderation;
 /// <para>
 /// Nothing here touches content. A flag is a note attached to a document from
 /// the outside, and the code that writes it holds no reference to a content
-/// context at all — it holds <see cref="IContentRepository"/>, which is
+/// context at all. It holds <see cref="IContentRepository"/>, which is
 /// read-only by its interface. That is what makes "a report can never change
 /// the reference" a property of the type system rather than a promise.
 /// </para>
@@ -97,7 +97,7 @@ internal static class FlagHandlers
 
         // The target has to exist. A report pointing at nothing can never be
         // reviewed and can never be closed, so accepting one would be accepting
-        // a row that will sit in the queue forever — which is also the cheapest
+        // a row that will sit in the queue forever. Which is also the cheapest
         // way for somebody with an account to fill it.
         //
         // The document is read rather than merely counted, because its name is
@@ -161,8 +161,8 @@ internal static class FlagHandlers
             reporter.Id);
 
         // 201 with the stored report and no Location header. There is no route
-        // that serves one report on its own — a reporter reads theirs at
-        // /api/flags/mine and a reviewer reads the queue — so a Location would
+        // that serves one report on its own, a reporter reads theirs at
+        // /api/flags/mine and a reviewer reads the queue, so a Location would
         // name an address nothing answers, which is worse than omitting it. The
         // body already carries everything a caller could have fetched from one.
         return TypedResults.Created(
@@ -315,8 +315,8 @@ internal static class FlagHandlers
         }
         else if (!string.IsNullOrEmpty(targetKey))
         {
-            // A key without a type is ambiguous — keys are only unique within a
-            // type — so it is refused rather than answered with rows from
+            // A key without a type is ambiguous, keys are only unique within a
+            // type, so it is refused rather than answered with rows from
             // whichever types happen to share the key.
             return FlagProblems.Invalid(
                 "targetType", "Filtering by key also needs the type the key belongs to.");
@@ -383,8 +383,8 @@ internal static class FlagHandlers
         // the most expensive page on the site precisely when it matters.
         //
         // `Max` picks the recorded name rather than the newest one. They are
-        // the same string in every realistic case — a document's name would
-        // have to change between two reports for them to differ — and an
+        // the same string in every realistic case, a document's name would
+        // have to change between two reports for them to differ, and an
         // aggregate is deterministic, translatable, and cannot make two
         // identical requests answer differently.
         var grouped = await outstanding
@@ -551,8 +551,8 @@ internal static class FlagHandlers
     /// <remarks>
     /// Both counts run before the insert rather than being enforced by a
     /// constraint, because neither is a property of a single row. They are
-    /// racy by nature — two concurrent submissions can both see the count one
-    /// under the limit — and that is acceptable here in a way it would not be
+    /// racy by nature, two concurrent submissions can both see the count one
+    /// under the limit, and that is acceptable here in a way it would not be
     /// for the duplicate check: the worst outcome is one report over a soft
     /// ceiling, where the worst outcome there is two copies of one report in
     /// the queue forever.
@@ -601,9 +601,9 @@ internal static class FlagHandlers
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The alternative — a foreign key and a join — is not available: the
+    /// The alternative, a foreign key and a join, is not available: the
     /// moderation schema deliberately has no constraint into identity, because
-    /// a deployment may put account data in a database of its own. So the
+    /// a deployment may put account data in a database of its own, so the
     /// lookup is explicit, batched over the page rather than per row, and it
     /// answers null for an identifier that no longer matches an account.
     /// </para>
@@ -637,8 +637,8 @@ internal static class FlagHandlers
                 .ToDictionaryAsync(account => account.Id, cancellationToken);
         }
 
-        // An identifier with no account behind it is a real state — the report
-        // outlived the person who filed it — so it resolves to a named absence
+        // An identifier with no account behind it is a real state, the report
+        // outlived the person who filed it, so it resolves to a named absence
         // rather than to a missing key the caller has to handle.
         return ids.ToDictionary(
             id => id,
@@ -682,7 +682,7 @@ internal static class FlagHandlers
     /// </summary>
     /// <remarks>
     /// A page past the end is an empty page and not an error, which is what the
-    /// content endpoints already do — a pager that lands one past the last page
+    /// content endpoints already do. A pager that lands one past the last page
     /// should show nothing, not a failure. The size is clamped because it is
     /// the parameter that decides how much work the server does.
     /// </remarks>

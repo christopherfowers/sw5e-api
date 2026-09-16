@@ -134,7 +134,7 @@ public sealed class ReadingPathTests
     /// <remarks>
     /// The noise test. An author adding chapters one at a time from the start
     /// passes through every prefix of a sound path, and a gap check that fired
-    /// on those would warn on almost every publish of a new book — the exact
+    /// on those would warn on almost every publish of a new book. The exact
     /// way a useful signal becomes one people click past.
     /// </remarks>
     [Theory]
@@ -206,7 +206,7 @@ public sealed class ReadingPathTests
     /// A placed chapter with no heading does not count as interleaving.
     /// </summary>
     /// <remarks>
-    /// It is its own problem — the site has nowhere to draw it — but reporting
+    /// It is its own problem, the site has nowhere to draw it, but reporting
     /// it as splitting the heading either side of it would name two chapters
     /// that are not at fault and send somebody to the wrong document.
     /// </remarks>
@@ -251,7 +251,7 @@ public sealed class ReadingPathTests
     /// Two chapters at one position have no defined order between them, so the
     /// sequence read here is settled by a tie break rather than by anybody. Two
     /// such chapters will usually carry different headings, which makes a run
-    /// look split — and that report would be the duplicate's shadow, naming
+    /// look split, and that report would be the duplicate's shadow, naming
     /// chapters that are not at fault.
     /// </para>
     /// <para>

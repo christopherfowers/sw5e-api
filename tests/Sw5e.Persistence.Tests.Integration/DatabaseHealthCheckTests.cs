@@ -35,7 +35,7 @@ public sealed class DatabaseHealthCheckTests(PostgresFixture fixture) : Database
     /// <remarks>
     /// This is the whole reason the check does more than <c>SELECT 1</c>.
     /// Nothing migrates on startup here, so a deploy that ships new code and
-    /// forgets the migrator produces exactly this state — and without the
+    /// forgets the migrator produces exactly this state, and without the
     /// check, the first sign of it is a 500 from whichever endpoint touches the
     /// new column, long after the deploy was declared successful. A plain
     /// connectivity probe reports this state as perfectly healthy.

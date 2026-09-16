@@ -12,7 +12,7 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// exists for one reason: so <c>content_item.content_type</c> can carry a
 /// foreign key. Without it the type column is free text, and a bad importer or
 /// a hand-run <c>UPDATE</c> can put a row in the table under a type the API
-/// will never look for — a row that exists, counts toward nothing, and is
+/// will never look for. A row that exists, counts toward nothing, and is
 /// invisible until someone runs a manual query and finds it.
 /// </para>
 /// <para>
@@ -54,7 +54,7 @@ public sealed class ContentTypeRow
 /// legendary action and spellcasting structures; equipment carries a different
 /// set of fields depending on whether it is a weapon, armour or a consumable.
 /// Shredding all of that into third-normal-form tables is perhaps forty tables,
-/// and it buys nothing the API asks for — no endpoint queries "every species
+/// and it buys nothing the API asks for. No endpoint queries "every species
 /// whose third trait mentions climbing".
 /// </para>
 /// <para>
@@ -62,8 +62,8 @@ public sealed class ContentTypeRow
 /// <c>GET /api/content/{type}/{key}</c> is that the response body <em>is</em>
 /// the type's JSON Schema, passed through unaltered. A shredded model has to
 /// reassemble that document on the way out, which means the schema is now
-/// written down twice — once as the published JSON Schema and once as the
-/// entity model — with no mechanism that keeps them equal. Every schema
+/// written down twice, once as the published JSON Schema and once as the
+/// entity model, with no mechanism that keeps them equal. Every schema
 /// revision becomes a migration plus a mapping change, and a field added in the
 /// content repository silently disappears from the API until someone notices.
 /// Storing the document as jsonb makes the JSON Schema the single definition of
@@ -73,10 +73,10 @@ public sealed class ContentTypeRow
 /// <b>What jsonb alone would cost, and how that is paid for here.</b> A pure
 /// document store cannot cheaply answer "page 3 of the powers, ordered by name,
 /// filtered to the core set", cannot count without scanning, and cannot join
-/// one item to another. So the columns a query touches are lifted out of the
-/// document into real, indexed columns — <see cref="Name"/>,
+/// one item to another, so the columns a query touches are lifted out of the
+/// document into real, indexed columns (<see cref="Name"/>,
 /// <see cref="SourceKey"/>, <see cref="ContentSet"/>, <see cref="NameLower"/>,
-/// <see cref="SearchTextLower"/> — and cross-document links are lifted into
+/// <see cref="SearchTextLower"/>) and cross-document links are lifted into
 /// <see cref="ContentReferenceRow"/>. Those are a <em>projection</em>, not a
 /// second copy of the truth: they are derived from <see cref="Body"/> on every
 /// write by the same projection code the file-backed store uses, so they cannot
@@ -150,7 +150,7 @@ public sealed class ContentItemRow
     /// <remarks>
     /// jsonb rather than json: json keeps the original text byte for byte but
     /// is opaque to the operators and indexes that make this a database rather
-    /// than a filing cabinet. The cost is that jsonb normalises — object member
+    /// than a filing cabinet. The cost is that jsonb normalises. Object member
     /// order is not preserved and duplicate members collapse to the last one.
     /// Neither is significant in JSON (RFC 8259 defines objects as unordered),
     /// no consumer of this API depends on member order, and collapsing
@@ -205,7 +205,7 @@ public sealed class ContentItemRow
     /// heading above a sentence. Without it every free-text match sat in one
     /// tier and the results came back ordered by nothing more meaningful than
     /// the alphabet within whichever content type happened to have the most
-    /// hits — "difficult terrain" returned twenty-nine class features before
+    /// hits. "difficult terrain" returned twenty-nine class features before
     /// the rules chapter that has a section named after the phrase.
     /// </para>
     /// <para>
@@ -241,7 +241,7 @@ public sealed class ContentItemRow
     /// <para>
     /// This does not replace the ladder. Full text search is word-based, so it
     /// cannot find "Acrobat" from "acro" and does not connect "blast" to
-    /// "blaster" — which in this corpus is most of the weapons. The trigram
+    /// "blaster". Which in this corpus is most of the weapons. The trigram
     /// indexes stay exactly as they are and keep owning names and substrings;
     /// this column orders the prose beneath them.
     /// </para>
@@ -265,8 +265,8 @@ public sealed class ContentItemRow
 /// Both kinds exist because the corpus uses both, and pretending otherwise
 /// would mean silently dropping most of the graph. Exactly one field in the
 /// whole of SW5e content points at another item by slug: <c>sourceKey</c>.
-/// Every other cross-reference — a feature's <c>grantedByName</c>, a
-/// background's <c>featOptions[].name</c>, a power's <c>prerequisite</c> —
+/// Every other cross-reference (a feature's <c>grantedByName</c>, a
+/// background's <c>featOptions[].name</c>, a power's <c>prerequisite</c>)
 /// names its target by display name, because the documents were transcribed
 /// from print, where a name is the only identifier there is.
 /// </remarks>
@@ -279,8 +279,8 @@ public enum ContentReferenceTargetKind
     /// The target is named by its display name, matched against <c>name</c>.
     /// </summary>
     /// <remarks>
-    /// Names are not unique across the corpus — the feature schema says so
-    /// outright — so a name match can be ambiguous. The importer resolves a
+    /// Names are not unique across the corpus, the feature schema says so
+    /// outright, so a name match can be ambiguous. The importer resolves a
     /// name reference only when exactly one candidate of the target type
     /// matches, and leaves it unresolved otherwise rather than picking one
     /// arbitrarily and inventing an edge that is probably wrong.
@@ -296,9 +296,9 @@ public enum ContentReferenceTargetKind
 /// <para>
 /// <b>Why this table exists.</b> Cross-content linkability is the point of
 /// putting the catalogue in a database at all. The eventual goal is generating
-/// print-ready documents from arbitrary collections — "the Wookiee species and
+/// print-ready documents from arbitrary collections ("the Wookiee species and
 /// everything it grants", "every feat a background offers", "everything
-/// published in the Player's Handbook" — and each of those is a graph
+/// published in the Player's Handbook") and each of those is a graph
 /// traversal. Answering them from documents alone means fetching an item,
 /// parsing it, reading an identifier out of it, fetching that, and repeating:
 /// one round trip per edge, with every type's link fields hard-coded into
@@ -311,13 +311,13 @@ public enum ContentReferenceTargetKind
 /// archetype's <c>className</c> points at a class, and equipment properties
 /// point at weapon and armour property definitions, none of which have been
 /// authored yet. Several references point at items that simply have not been
-/// written — six of the eight power prerequisites in the seed corpus name a
+/// written. Six of the eight power prerequisites in the seed corpus name a
 /// power that is not in it. Refusing to import any of that would mean the
 /// database can only hold a finished corpus, which is the one state it will
-/// never be in. So <see cref="TargetType"/> and <see cref="TargetIdentifier"/>
+/// never be in, so <see cref="TargetType"/> and <see cref="TargetIdentifier"/>
 /// record what the document said, and <see cref="ResolvedItemId"/> is filled in
-/// only when the target is actually there. An unresolved edge is queryable —
-/// which is how "what is this corpus still missing" stops being a grep and
+/// only when the target is actually there. An unresolved edge is queryable.
+/// Which is how "what is this corpus still missing" stops being a grep and
 /// becomes a report.
 /// </para>
 /// <para>

@@ -5,8 +5,8 @@ using Shouldly;
 namespace Sw5e.Persistence.Tests.Integration;
 
 /// <summary>
-/// Every cross-reference the committed corpus declares reaches something —
-/// except for a named list of things nobody has written yet.
+/// Every cross-reference the committed corpus declares reaches something.
+/// Except for a named list of things nobody has written yet.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,8 +14,8 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// throws, nothing 500s, no import fails: the edge is stored with a null
 /// target and the item's page prints the clause exactly as it was written. So
 /// the guard shoto spent an unknown length of time telling readers it had a
-/// property called "light luminous" — a missing comma between two real
-/// properties — and every deploy was green the whole time.
+/// property called "light luminous", a missing comma between two real
+/// properties, and every deploy was green the whole time.
 /// </para>
 /// <para>
 /// The importer already counts these, and has been reporting six of them on
@@ -31,8 +31,8 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// </para>
 /// <para>
 /// Written here rather than in the content repository on purpose. Resolving a
-/// property clause means parsing it — stripping the parenthetical, then the
-/// numeric argument — and that parser lives in <c>ContentReferenceMap</c>. A
+/// property clause means parsing it (stripping the parenthetical, then the
+/// numeric argument) and that parser lives in <c>ContentReferenceMap</c>. A
 /// copy of it next to the corpus would agree with this one exactly until the
 /// day somebody changed one of them, and the whole value of the check is that
 /// it agrees with what the importer actually does.
@@ -56,8 +56,8 @@ public sealed class ContentCorpusReferenceTests(PostgresFixture fixture) : Datab
     /// exist.
     ///
     /// That is a gap in the corpus rather than a defect in this code, and the
-    /// rules text is the content owner's to write — inventing it here would put
-    /// a game rule nobody agreed to in front of readers. So it is listed,
+    /// rules text is the content owner's to write. Inventing it here would put
+    /// a game rule nobody agreed to in front of readers, so it is listed,
     /// which is the difference between a known gap and an unnoticed one.
     /// </remarks>
     private static readonly (string TargetType, string Identifier, int Count)[] KnownGaps =

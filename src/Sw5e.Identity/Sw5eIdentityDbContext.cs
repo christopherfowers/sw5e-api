@@ -25,9 +25,9 @@ namespace Sw5e.Identity;
 /// <para>
 /// The schema name is fixed rather than configurable. A configurable schema
 /// means two deployments of the same code can disagree about where accounts
-/// live, and the failure mode of that disagreement — an empty identity schema,
+/// live, and the failure mode of that disagreement (an empty identity schema,
 /// therefore no administrators, therefore an open door for whoever registers
-/// first — is far worse than the inconvenience of a constant.
+/// first) is far worse than the inconvenience of a constant.
 /// </para>
 /// </remarks>
 public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext> options)
@@ -66,8 +66,8 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
     /// In the identity schema rather than in moderation's, even though
     /// moderation is where the platform's other actor-and-timestamp record
     /// lives, because this one is <em>about accounts</em>. It has to be present
-    /// in every deployment — accounts are, and a file-backed content deployment
-    /// still has administrators — it has to be restored on the same schedule as
+    /// in every deployment (accounts are, and a file-backed content deployment
+    /// still has administrators) it has to be restored on the same schedule as
     /// the rows it describes, and it must survive a moderation database being
     /// moved, rebuilt or lost. Putting the record of who was made an
     /// administrator somewhere it could disappear separately from the
@@ -148,7 +148,7 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
                   .HasMaxLength(Administration.AccountSuspension.MaxReasonLength);
 
             // The log's own query: everything, newest first. The key is a
-            // version 7 Guid, so it is already in creation order — the explicit
+            // version 7 Guid, so it is already in creation order. The explicit
             // timestamp index is what serves a filtered listing, where the key's
             // ordering is not available to the planner after a predicate on
             // another column.
@@ -186,8 +186,8 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
             code.Property(c => c.CodeSalt).IsRequired();
             code.Property(c => c.CodeHash).IsRequired();
 
-            // Every query in the flow — counting an address's recent codes,
-            // finding the live one, pruning the spent ones — filters on the
+            // Every query in the flow (counting an address's recent codes,
+            // finding the live one, pruning the spent ones) filters on the
             // address and orders by time. One composite index serves all three,
             // and without it the endpoint an unauthenticated caller can reach
             // most cheaply is the one that scans this table.
@@ -196,8 +196,8 @@ public sealed class Sw5eIdentityDbContext(DbContextOptions<Sw5eIdentityDbContext
 
             // No foreign key to the user, and that is deliberate rather than an
             // oversight. Rows are written for addresses that have no account at
-            // all — that is what keeps the request path taking the same time
-            // either way — so the column has to be free to hold an identifier
+            // all, that is what keeps the request path taking the same time
+            // either way, so the column has to be free to hold an identifier
             // that matches nothing. It is also why deleting an account cannot
             // cascade here: the codes expire on their own within minutes, and a
             // cascade would be a second, slower way to say so.

@@ -18,7 +18,7 @@ public sealed record CapturedEmail(EmailMessage Message, DateTimeOffset Captured
 /// <para>
 /// <b>Development.</b> The application starts and every account flow runs end
 /// to end with no MailerSend account, no API token and no relay. The
-/// alternative — real credentials on developer machines — means a shared token
+/// alternative, real credentials on developer machines, means a shared token
 /// in a chat log within a fortnight, and real mail to real strangers whenever
 /// someone types a plausible address into a test form.
 /// </para>
@@ -26,15 +26,15 @@ public sealed record CapturedEmail(EmailMessage Message, DateTimeOffset Captured
 /// It logs the recipient and subject of each message and deliberately not the
 /// body; see the note in <see cref="SendAsync"/>. To actually open a
 /// verification link locally, point <c>Email:Provider</c> at <c>Smtp</c> and run
-/// a catcher such as Mailpit on loopback — the SMTP adapter's cleartext
+/// a catcher such as Mailpit on loopback. The SMTP adapter's cleartext
 /// allowance for loopback hosts exists for exactly that.
 /// </para>
 /// <para>
 /// <b>Tests.</b> <see cref="Sent"/> is what a test asserts against. Note what
 /// this does <i>not</i> license: asserting that this class was called proves
-/// only that this class was called. The useful assertions are about content —
-/// that the reset link reached both body parts, that a display name containing
-/// markup arrived escaped — and those are properties of the message, which is
+/// only that this class was called. The useful assertions are about content
+/// (that the reset link reached both body parts, that a display name containing
+/// markup arrived escaped) and those are properties of the message, which is
 /// why the whole message is kept rather than a call count.
 /// </para>
 /// <para>
@@ -48,7 +48,7 @@ public sealed class CapturingEmailSender : IEmailSender
     /// </summary>
     /// <remarks>
     /// A bound exists because this is a singleton that would otherwise grow for
-    /// as long as the process runs — a slow leak in a development session, and
+    /// as long as the process runs. A slow leak in a development session, and
     /// a real one in any environment where someone selects this provider and
     /// forgets. Far more than any test needs and far more than a developer will
     /// scroll back through.
@@ -114,7 +114,7 @@ public sealed class CapturingEmailSender : IEmailSender
 
         // Recipient and subject only. The body is deliberately not logged, even
         // here: it contains the verification or reset link, and those links are
-        // bearer credentials — anyone who can read the log can take over the
+        // bearer credentials. Anyone who can read the log can take over the
         // account. That is true of a developer's terminal scrollback and far
         // more true of an aggregated log store, which is where this ends up if
         // anyone ever selects this provider outside Development.

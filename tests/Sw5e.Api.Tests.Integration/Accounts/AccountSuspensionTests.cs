@@ -13,7 +13,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// suspension and theatre. Refusing a fresh sign-in is the easy half and the
 /// half everybody implements;
 /// <see cref="ASuspendedAccountsOpenSessionStopsWorkingImmediately"/> is the
-/// other one — the person a suspension is aimed at is by definition somebody
+/// other one. The person a suspension is aimed at is by definition somebody
 /// who is doing something right now, which means they already have a session
 /// cookie in a tab, and a suspension that waited for it to expire would leave
 /// them eight hours to keep doing it.
@@ -94,7 +94,7 @@ public sealed class AccountSuspensionTests(PostgresFixture postgres) : IAsyncLif
         var client = _factory.CreateBrowserClient();
 
         // The request for a code still answers 202, because that endpoint
-        // answers 202 for every address it can parse — including addresses with
+        // answers 202 for every address it can parse. Including addresses with
         // no account at all. Making it refuse for a suspended account would
         // turn it into a way to test whether a given person is suspended.
         var requested = await client.PostAsJsonAsync(
@@ -143,7 +143,7 @@ public sealed class AccountSuspensionTests(PostgresFixture postgres) : IAsyncLif
         // the same cookie is refused.
         //
         // The security stamp rotation that suspension also performs would get
-        // here eventually — the stamp validator re-checks every five minutes —
+        // here eventually, the stamp validator re-checks every five minutes,
         // and eventually is exactly what is not good enough. Nothing in this
         // test moves the clock, so a five-minute mechanism cannot be what makes
         // it pass.
@@ -219,7 +219,7 @@ public sealed class AccountSuspensionTests(PostgresFixture postgres) : IAsyncLif
     {
         // The companion to the rule that already refuses self-demotion. With
         // all three closed, the number of administrators cannot reach zero
-        // through this API — which also removes the most attractive move
+        // through this API. Which also removes the most attractive move
         // available to somebody who has just stolen an administrator's session.
         var client = _factory.CreateBrowserClient();
         var administrator = await AdministrationFlow.AdministratorAsync(
@@ -249,7 +249,7 @@ public sealed class AccountSuspensionTests(PostgresFixture postgres) : IAsyncLif
     {
         // Restating the current state is almost always two administrators
         // acting on the same account, and answering 200 to the second would
-        // tell them they did something they did not do — and would move the
+        // tell them they did something they did not do, and would move the
         // recorded suspension onto their name.
         var admin = _factory.CreateBrowserClient();
         await AdministrationFlow.AdministratorAsync(_factory, admin, "suspend-twice-admin");

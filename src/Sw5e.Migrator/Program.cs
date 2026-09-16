@@ -15,13 +15,13 @@ using Sw5e.Migrator;
 // container reached; a failed migration takes the application down instead of
 // failing a job; and the schema ends up changed by whoever happened to restart a
 // container rather than by a step someone chose to run. As a job it runs once,
-// in a known order, with an exit code — and a deploy that forgets to run it is
+// in a known order, with an exit code, and a deploy that forgets to run it is
 // reported by the API's health check rather than discovered by a user.
 
 // Only settings-shaped arguments are handed to the configuration builder. The
 // command-line provider rejects a bare word such as "migrate" with a format
 // error, so passing args straight through would make the migrator refuse to
-// start whenever it was given something to do — and it rejects a bare flag such
+// start whenever it was given something to do, and it rejects a bare flag such
 // as "--check" for the same reason, which is why the export's own switches are
 // taken out here rather than looked up in configuration.
 var parsed = MigratorArguments.Parse(args);
@@ -31,7 +31,7 @@ var builder = Host.CreateApplicationBuilder(parsed.Settings);
 builder.Services.AddSw5ePersistence(builder.Configuration);
 builder.Services.AddSw5eContentImporter();
 
-// The exporter, when this build has the schemas beside it — which the published
+// The exporter, when this build has the schemas beside it. Which the published
 // image always does, because it bakes them in from the same submodule commit
 // the validator comes from.
 //

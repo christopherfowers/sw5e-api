@@ -15,7 +15,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// <param name="Email">The address to send the link to.</param>
 /// <param name="DisplayName">
 /// The name to show beside contributions. Ignored when the address already has
-/// an account — otherwise anyone could rename a stranger's account by
+/// an account. Otherwise anyone could rename a stranger's account by
 /// "registering" it again.
 /// </param>
 internal sealed record RegisterRequest(string? Email, string? DisplayName);
@@ -147,8 +147,8 @@ internal sealed record PasskeySummary(string Id, string? Name, DateTimeOffset Cr
 /// needed by anything. Revocation changed that: an account area that can only
 /// add passkeys and never remove one leaves somebody who has lost a device with
 /// no way to cut it off, and removing one means being able to name it. The
-/// identifiers are not secret — the authenticator and the browser both hold
-/// them already — and they are only ever disclosed to the account holder.
+/// identifiers are not secret, the authenticator and the browser both hold
+/// them already, and they are only ever disclosed to the account holder.
 /// </remarks>
 /// <param name="AuthenticationMethod">
 /// How this session was established: <c>passkey</c>, <c>totp</c> or
@@ -216,7 +216,7 @@ internal sealed record SignInCodeRequest(string? Email);
 /// <param name="ResendAfterSeconds">
 /// How long the front end should wait before re-enabling its resend control.
 /// A fixed value read from configuration, deliberately not computed from what
-/// this address has recently been sent — a countdown that varied would tell an
+/// this address has recently been sent. A countdown that varied would tell an
 /// unauthenticated caller whether somebody had just asked for a code for that
 /// address.
 /// </param>
@@ -260,7 +260,7 @@ internal sealed record PasskeyRemovedResponse(string Status)
 /// <param name="Roles">
 /// The roles the account should hold afterwards, drawn from
 /// <c>Sw5eRoles.Assignable</c>. Absent roles are revoked, so this is a
-/// declaration of the desired state rather than an increment — which means a
+/// declaration of the desired state rather than an increment. Which means a
 /// replayed request cannot accumulate privilege.
 /// </param>
 internal sealed record AssignRolesRequest(
@@ -276,8 +276,8 @@ internal sealed record AssignRolesRequest(
 /// looks like it worked. Contributor and Administrator can only be exercised
 /// from a session established with a passkey or an authenticator code, so
 /// granting one to somebody who has neither hands them a role and no way to
-/// use it. Rather than refuse the grant — which would make the administrator's
-/// action fail for a reason about somebody else's device — or quietly relax the
+/// use it. Rather than refuse the grant, which would make the administrator's
+/// action fail for a reason about somebody else's device, or quietly relax the
 /// rule, the grant succeeds, the account is emailed and told to enrol, and this
 /// flag lets the administrator see the same thing on screen.
 /// </remarks>
@@ -318,7 +318,7 @@ internal sealed record AccountRolesResponse(
 /// </para>
 /// </remarks>
 /// <param name="SecondFactorEnrolled">
-/// Whether the account holds a passkey or an authenticator app — the thing an
+/// Whether the account holds a passkey or an authenticator app. The thing an
 /// elevated role cannot be exercised without. Present so that an administrator
 /// can see, before granting Contributor, whether the grant will be usable; the
 /// alternative is finding out afterwards from the response's
@@ -359,7 +359,7 @@ internal sealed record AdminUserListResponse(
 /// </summary>
 /// <param name="Reason">
 /// The administrator's own words. Disclosed here, on an administrators-only
-/// route, and never to the account it is about — see <c>AccountSuspension</c>.
+/// route, and never to the account it is about. See <c>AccountSuspension</c>.
 /// </param>
 /// <param name="ByUserId">
 /// Who did it. An identifier rather than a name, because the name is a fact
@@ -393,8 +393,8 @@ internal sealed record AdminUserDetail(
 /// route somebody has to remember exists.
 /// </param>
 /// <param name="Reason">
-/// Why. Required when suspending — a suspension nobody wrote a reason for is
-/// one nobody can review — and refused when reinstating, because there is
+/// Why. Required when suspending, a suspension nobody wrote a reason for is
+/// one nobody can review, and refused when reinstating, because there is
 /// nowhere for it to be stored and silently discarding it would be worse.
 /// </param>
 internal sealed record SetSuspensionRequest(bool? Suspended, string? Reason);

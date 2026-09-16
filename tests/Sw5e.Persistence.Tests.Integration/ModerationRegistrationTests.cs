@@ -15,7 +15,7 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// connection to decide where a report is written, and the migrator resolves it
 /// to decide where the schema is created. If the two ever answer differently,
 /// the deployment succeeds, the schema exists, every health probe is green, and
-/// the first person to report a wrong picture gets a 500 — which is exactly the
+/// the first person to report a wrong picture gets a 500. Which is exactly the
 /// class of failure that only shows up in production.
 /// </para>
 /// <para>
@@ -76,7 +76,7 @@ public sealed class ModerationRegistrationTests
     public void TheIdentityConnectionIsTheLastResort()
     {
         // A deployment serving content from JSON files rather than from
-        // PostgreSQL has no reason to set ConnectionStrings__Sw5e at all — the
+        // PostgreSQL has no reason to set ConnectionStrings__Sw5e at all. The
         // site's own container smoke test is one. Refusing to start there would
         // mean the arrival of flagging broke a configuration that has nothing
         // to do with it, and accounts exist in every deployment.
@@ -127,8 +127,8 @@ public sealed class ModerationRegistrationTests
     /// <remarks>
     /// Asserted rather than left as a comment, because adding one is the
     /// obvious next thing somebody does and the consequence is severe:
-    /// <c>/health/ready</c> would report the whole deployment unhealthy — and a
-    /// load balancer would take it out of rotation — because nobody can file a
+    /// <c>/health/ready</c> would report the whole deployment unhealthy, and a
+    /// load balancer would take it out of rotation, because nobody can file a
     /// typo report. The reference is served from an entirely different store.
     /// </remarks>
     [Fact]

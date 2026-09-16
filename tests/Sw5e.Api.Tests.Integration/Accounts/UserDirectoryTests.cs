@@ -14,8 +14,8 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// This is the endpoint that made the rest of the administrative surface
 /// usable, and it is also the most dangerous thing on the platform to get
 /// wrong. It is a list of real people's email addresses. Every other response
-/// the API produces withholds somebody else's address on principle — the flag
-/// queue shows Contributors a display name and never an address — and this one
+/// the API produces withholds somebody else's address on principle, the flag
+/// queue shows Contributors a display name and never an address, and this one
 /// does not, because "somebody wrote to me asking to contribute, find them" is
 /// a task with no other answer.
 /// </para>
@@ -108,7 +108,7 @@ public sealed class UserDirectoryTests(PostgresFixture postgres) : IAsyncLifetim
         await AdministrationFlow.SignInWithEmailedCodeAsync(
             _factory, weak, administrator.EmailAddress);
 
-        // The session is real — the account area answers it — which is the
+        // The session is real, the account area answers it, which is the
         // whole reason the weaker route exists.
         (await weak.GetAsync("/api/auth/me")).StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -175,7 +175,7 @@ public sealed class UserDirectoryTests(PostgresFixture postgres) : IAsyncLifetim
         // The property that keeps this from being an enumeration oracle. A
         // caller who is not an administrator must not be able to tell a real
         // account identifier from one they invented, and the mechanism is that
-        // authorization refuses before any handler runs — so there is no query,
+        // authorization refuses before any handler runs, so there is no query,
         // no branch and nothing for the two answers to differ on.
         var client = _factory.CreateBrowserClient();
         await AdministrationFlow.MemberAsync(_factory, client, "directory-oracle");

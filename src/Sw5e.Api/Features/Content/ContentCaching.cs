@@ -19,7 +19,7 @@ internal static class ContentCaching
     /// </summary>
     /// <remarks>
     /// The headers are set before the answer is returned, so a 304 carries them
-    /// too — a 304 that omits the ETag makes the next request unconditional
+    /// too. A 304 that omits the ETag makes the next request unconditional
     /// again and undoes the saving.
     /// </remarks>
     /// <param name="context">The request being answered.</param>

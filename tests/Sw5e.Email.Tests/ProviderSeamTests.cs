@@ -20,8 +20,8 @@ namespace Sw5e.Email.Tests;
 /// what is transmitted or who asked for it.
 /// </para>
 /// <para>
-/// So the test runs the <b>same</b> call — the same local function, the same
-/// arguments, resolved through the same interface — against two providers that
+/// So the test runs the <b>same</b> call (the same local function, the same
+/// arguments, resolved through the same interface) against two providers that
 /// share nothing below <see cref="IEmailSender"/>: JSON over HTTP in one case,
 /// a stateful text protocol over a socket in the other. It then recovers the
 /// subject and both body parts from each wire format and asserts they are
@@ -30,7 +30,7 @@ namespace Sw5e.Email.Tests;
 /// <para>
 /// That last assertion is the load-bearing one. Checking that each provider
 /// sent "something reasonable" would pass against two implementations that had
-/// quietly diverged — a template applied on one path and not the other, an
+/// quietly diverged. A template applied on one path and not the other, an
 /// encoding difference, a dropped reply-to. Comparing the two recovered
 /// messages to each other means any divergence fails, including one nobody
 /// thought to write an assertion for.
@@ -159,8 +159,8 @@ public sealed class ProviderSeamTests
 
     /// <summary>
     /// One configuration, differing between the two runs only in the provider
-    /// name and the settings that provider requires. Everything a reader sees —
-    /// sender identity, reply-to, product name — is shared, which is what makes
+    /// name and the settings that provider requires. Everything a reader sees
+    /// (sender identity, reply-to, product name) is shared, which is what makes
     /// the comparison meaningful.
     /// </summary>
     private static IConfiguration Configuration(

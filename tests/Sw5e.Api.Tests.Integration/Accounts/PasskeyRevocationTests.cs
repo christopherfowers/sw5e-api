@@ -18,9 +18,9 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// <para>
 /// The interesting boundary is the last credential. Passkeys are the only
 /// credential this platform issues, so removing the final one does not lock an
-/// account down, it strands it — the owner is locked out along with everybody
+/// account down, it strands it. The owner is locked out along with everybody
 /// else, and the only route back is a recovery email that re-credentials the
-/// account from scratch. So the endpoint refuses, and says why in a form the
+/// account from scratch, so the endpoint refuses, and says why in a form the
 /// front end can act on.
 /// </para>
 /// </remarks>
@@ -140,8 +140,8 @@ public sealed class PasskeyRevocationTests(PostgresFixture postgres) : IAsyncLif
     /// <remarks>
     /// This is the property that keeps the recovery flow from being a way to
     /// strip an account. Somebody who intercepts a verification link can attach
-    /// a credential of their own — that is the flow working as designed, and the
-    /// owner is emailed about it — but they must not be able to remove the
+    /// a credential of their own (that is the flow working as designed, and the
+    /// owner is emailed about it) but they must not be able to remove the
     /// owner's existing credentials and take the account away entirely.
     /// </remarks>
     [Fact]
