@@ -43,7 +43,7 @@ Three deliberate choices, each of which would be easy to give up and expensive
 to get back:
 
 - **Two live implementations.** An interface with one implementation has never
-  been shown to abstract anything — the first thing to leak is always a detail
+  been shown to abstract anything. The first thing to leak is always a detail
   the sole implementation happened to expose. MailerSend and SMTP share nothing
   below the interface: one is JSON over HTTP, the other a stateful text
   protocol over a socket. `ProviderSeamTests` runs the same call through both
@@ -53,8 +53,8 @@ to get back:
   email into a vendor dashboard, where it stops being reviewable, diffable,
   testable, and portable.
 - **Resilience is a decorator, not a provider concern.** Retry is expressed
-  against `EmailFailureKind`, so each adapter contributes one thing — a correct
-  transient/permanent classification — and inherits the rest.
+  against `EmailFailureKind`, so each adapter contributes one thing, a correct
+  transient/permanent classification, and inherits the rest.
 
 ### The contract for implementers
 
@@ -91,16 +91,16 @@ public interface IAccountEmailService
 ```
 
 Resolve `IAccountEmailService` from the container. Do not resolve `IEmailSender`
-for account mail — that is the lower-level seam, and using it directly means
+for account mail. That is the lower-level seam, and using it directly means
 composing the message yourself.
 
-- `recipient` — an `EmailAddress`, built with `EmailAddress.Create` or
+- `recipient`. An `EmailAddress`, built with `EmailAddress.Create` or
   `TryCreate`. Carries an optional display name used in the greeting and treated
   as untrusted throughout.
-- `verificationUrl` / `resetUrl` — an absolute `http` or `https` URL. Anything
+- `verificationUrl` / `resetUrl`. An absolute `http` or `https` URL. Anything
   else throws `ArgumentException`; the scheme allow-list is what stops a
   `javascript:` URL reaching an `href`.
-- `validFor` — how long the link is good for, if the reader should be told.
+- `validFor`. How long the link is good for, if the reader should be told.
   Rendered as a sentence, rounded to a whole unit. This library does not enforce
   it; the identity system does.
 
@@ -119,8 +119,8 @@ if (!result.Succeeded)
 ```
 
 `result.Failure.Kind` distinguishes `Transient` (already retried and still
-failing — worth telling the user to try again) from `Permanent` (the address or
-the configuration is wrong — retrying will not help).
+failing (worth telling the user to try again) from `Permanent` (the address or
+the configuration is wrong) retrying will not help).
 
 What this library does **not** do, and will not start doing: generate tokens,
 validate them, enforce expiry, or build URLs. Those belong to the identity
@@ -135,7 +135,7 @@ will send through.
 SendPulse offers two routes and this deployment deliberately takes the plainer
 one. Their REST API (`POST /smtp/emails`) authenticates by exchanging a client
 id and secret for an access token that expires, base64-encodes the HTML body,
-and — per their own reference — deprecates the `smtpSendMail()` helper in
+and, per their own reference, deprecates the `smtpSendMail()` helper in
 favour of generic HTTP methods. That is a provider class worth writing only if
 something is needed that plain submission cannot give: per-message tracking,
 delivery webhooks, their template system. None of that is needed to send an
@@ -145,7 +145,7 @@ Their SMTP relay, by contrast, needs no code at all. `SmtpEmailSender` already
 exists, is exercised against a real SMTP conversation in the tests, and is one
 of the two implementations that keep this seam honest. Pointing it at SendPulse
 is four configuration values. If the REST API is wanted later it is a new class
-beside the other two, not a change to anything above the seam — which is the
+beside the other two, not a change to anything above the seam, which is the
 whole reason the seam is shaped this way.
 
 Note the credential rule this runs into: cleartext submission is refused
@@ -175,17 +175,17 @@ variables, where a nested key uses a double underscore.
 | Key | Required | Default | Notes |
 |---|---|---|---|
 | `Email:Provider` | Yes outside Development | `Capture` in Development | `MailerSend`, `Smtp` or `Capture`. |
-| `Email:FromAddress` | Yes | — | Must be on a MailerSend-verified domain when that provider is used. |
-| `Email:FromName` | No | — | An unnamed sender in an inbox list is the shape of spam. |
-| `Email:ReplyToAddress` | No | — | Point it somewhere a human reads. |
+| `Email:FromAddress` | Yes |: | Must be on a MailerSend-verified domain when that provider is used. |
+| `Email:FromName` | No |: | An unnamed sender in an inbox list is the shape of spam. |
+| `Email:ReplyToAddress` | No |: | Point it somewhere a human reads. |
 | `Email:ProductName` | No | `SW5e` | Appears in every subject and body. |
-| `Email:MailerSend:ApiToken` | With MailerSend | — | **Secret.** Never committed. |
+| `Email:MailerSend:ApiToken` | With MailerSend |: | **Secret.** Never committed. |
 | `Email:MailerSend:BaseAddress` | No | `https://api.mailersend.com/` | Overridable for a stub or proxy. |
 | `Email:MailerSend:Timeout` | No | `00:00:10` | Per attempt. |
-| `Email:Smtp:Host` | With Smtp | — | |
-| `Email:Smtp:Port` | No | `587` | Port 465 is rejected — see below. |
-| `Email:Smtp:UserName` | No | — | Omit both if the relay authenticates by IP. |
-| `Email:Smtp:Password` | With UserName | — | **Secret.** Never committed. |
+| `Email:Smtp:Host` | With Smtp |: | |
+| `Email:Smtp:Port` | No | `587` | Port 465 is rejected: see below. |
+| `Email:Smtp:UserName` | No |: | Omit both if the relay authenticates by IP. |
+| `Email:Smtp:Password` | With UserName |: | **Secret.** Never committed. |
 | `Email:Smtp:UseStartTls` | No | `true` | Cannot be disabled with credentials to a remote relay. |
 | `Email:Smtp:Timeout` | No | `00:00:20` | Per attempt. |
 | `Email:Retry:MaxAttempts` | No | `4` | Includes the first attempt; `1` disables retrying. |
@@ -200,7 +200,7 @@ default, a placeholder, or a committed file to live in. Supply them as
 secret, an App Service application setting, or a gitignored `.env`.
 
 A missing or invalid value throws `EmailConfigurationException` during service
-registration — before the host is even built. The message names the exact key in
+registration. Before the host is even built. The message names the exact key in
 both forms. This is deliberate: the failure being designed out is the quiet one,
 where a deployment starts happily with no token, every send returns a failure
 nobody reads, and the first person to notice is a locked-out user at three in
@@ -208,15 +208,15 @@ the morning.
 
 ### Development
 
-With no `Email:Provider` set — and no `Email:FromAddress` either — a Development
+With no `Email:Provider` set, and no `Email:FromAddress` either, a Development
 host uses the capture provider with a placeholder sending identity. It logs the
 recipient and subject of each message and delivers nothing. The application runs
 with no credentials of any kind, and no developer machine ever holds a real
 sending token.
 
 The body is deliberately **not** logged. A verification or reset link is a
-bearer credential, and anyone who can read the log can take over the account —
-true of terminal scrollback and much more so of anywhere those logs get
+bearer credential, and anyone who can read the log can take over the account.
+True of terminal scrollback and much more so of anywhere those logs get
 shipped. To open a link, or to see how a message actually renders, run a local
 catcher and point the SMTP provider at it:
 
@@ -250,7 +250,7 @@ composed message.
   change confined to one file.
 - **At-least-once, not exactly-once.** A send that reaches the provider and then
   fails on the way back is retried, which can deliver twice. Two verification
-  emails beats none, so this is the chosen policy — but it is a policy. An
+  emails beats none, so this is the chosen policy, but it is a policy. An
   outbox with idempotency keys is where it gets solved properly.
 - **One recipient per message.** `EmailMessage.To` is singular by design. These
   messages carry bearer tokens; a collection would make "reset link delivered to

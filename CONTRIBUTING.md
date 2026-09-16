@@ -40,7 +40,7 @@ It is there for one reason. The write path validates every authored document
 against the JSON Schemas in that repository, and its CI validates the whole
 corpus against the same ones. If those two checks were separate implementations
 they would eventually disagree, and the way you would find out is a document
-this API accepted and that repository's CI later rejected — by which point it is
+this API accepted and that repository's CI later rejected, by which point it is
 already in the corpus. Referencing the one validator makes that impossible
 rather than unlikely.
 
@@ -54,5 +54,5 @@ documents the API accepts.
 ## Reviewing content changes
 
 Changes to canonical game content are reviewed like code. A content pull request
-should state its source — the book and page it comes from — so a reviewer can
+should state its source (the book and page it comes from) so a reviewer can
 verify it against the original text.
