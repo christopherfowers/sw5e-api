@@ -91,6 +91,24 @@ public static class ContentTypeRegistry
         new("credit-category", "Credit category", "Credit categories", "credit-categories"),
         new("credit", "Credit", "Credits", "credits"),
         new("asset-credit", "Asset credit", "Asset credits", "asset-credits"),
+
+        // The front page's own furniture. Also not game content, and here for
+        // the same reason the credits are: they were already documents with
+        // published schemas, sitting in the content repository and read by the
+        // site's build, and the only thing missing was this list. Until they
+        // were on it the API would not serve them and the authoring screens
+        // could not see them, so the two shelves an administrator most wants to
+        // rearrange were the two nobody could touch.
+        new("resource", "Resource", "Resources", "resources"),
+        new("channel", "Channel", "Channels", "channels"),
+
+        // The words a built page carries that are not drawn from the corpus.
+        // One document per page, and every slot in it optional: a page with no
+        // document renders the wording it was built with, so this type can be
+        // absent without anything looking broken. That fallback is what lets it
+        // be introduced at all, because the alternative is a release where the
+        // front page is blank until somebody fills a form in.
+        new("page", "Page", "Pages", "pages"),
     ];
 
     private static readonly Dictionary<string, ContentTypeDefinition> ByName =

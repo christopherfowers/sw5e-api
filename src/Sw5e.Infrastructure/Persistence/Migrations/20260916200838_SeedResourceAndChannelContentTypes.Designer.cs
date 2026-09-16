@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using Sw5e.Infrastructure.Persistence.Content;
 namespace Sw5e.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(Sw5eContentDbContext))]
-    partial class Sw5eContentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916200838_SeedResourceAndChannelContentTypes")]
+    partial class SeedResourceAndChannelContentTypes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -721,14 +724,6 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                             PluralName = "Channels",
                             RouteSegment = "channels",
                             SortOrder = 32
-                        },
-                        new
-                        {
-                            Key = "page",
-                            DisplayName = "Page",
-                            PluralName = "Pages",
-                            RouteSegment = "pages",
-                            SortOrder = 33
                         });
                 });
 
