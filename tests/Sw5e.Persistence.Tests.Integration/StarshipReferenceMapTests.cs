@@ -101,7 +101,7 @@ public sealed class StarshipReferenceMapTests
 
     /// <summary>
     /// A venture can be gated on a rank in a named deployment, on another
-    /// venture, or on something with no target — and one document can carry two
+    /// venture, or on something with no target, and one document can carry two
     /// of the three at once.
     /// </summary>
     [Fact]

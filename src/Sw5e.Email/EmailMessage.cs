@@ -6,9 +6,9 @@ namespace Sw5e.Email;
 /// <remarks>
 /// <para>
 /// This is the currency of <see cref="IEmailSender"/>. It carries only what
-/// every sending path can express — MailerSend's JSON body, an RFC 5322
+/// every sending path can express (MailerSend's JSON body, an RFC 5322
 /// message over SMTP, and the in-memory capture used in development all
-/// represent exactly these fields — so adding a provider never means widening
+/// represent exactly these fields) so adding a provider never means widening
 /// the type, and no caller ever learns which provider is configured.
 /// </para>
 /// <para>
@@ -78,7 +78,7 @@ public sealed class EmailMessage
         }
 
         // The subject is a header, so it splits on CR or LF exactly the way an
-        // address does — and unlike an address it is the field most likely to
+        // address does, and unlike an address it is the field most likely to
         // contain something a user typed. EmailAddress rejects the whole
         // control range for the same reason; see the note there.
         foreach (var c in subject)
@@ -107,7 +107,7 @@ public sealed class EmailMessage
     /// </summary>
     /// <remarks>
     /// Singular by design, not by omission. Every message this subsystem
-    /// exists to send — verify your address, reset your password — carries a
+    /// exists to send (verify your address, reset your password) carries a
     /// bearer token in its body, and a bearer token is exactly as valuable as
     /// the account it unlocks. A collection here would make "reset link
     /// delivered to two people" a plausible bug; a single address makes it

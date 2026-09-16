@@ -104,7 +104,7 @@ public sealed class RequestDefenceTests(PostgresFixture postgres) : IAsyncLifeti
         // The only content types an HTML form can send cross-origin without CORS
         // approval are urlencoded, multipart and text/plain. Refusing all three
         // is what closes the last route a forged form could take, and it is the
-        // framework's own binder that does it — the handler is never reached.
+        // framework's own binder that does it. The handler is never reached.
         var response = await client.PostAsync(
             "/api/auth/register",
             new FormUrlEncodedContent(new Dictionary<string, string>
@@ -115,9 +115,9 @@ public sealed class RequestDefenceTests(PostgresFixture postgres) : IAsyncLifeti
 
         response.IsSuccessStatusCode.ShouldBeFalse();
 
-        // The exact refusal depends on where in the pipeline the request dies —
-        // the binder answers 415, and the deny-by-default authorization policy
-        // can get there first — so the status is asserted as "refused" rather
+        // The exact refusal depends on where in the pipeline the request dies
+        // (the binder answers 415, and the deny-by-default authorization policy
+        // can get there first) so the status is asserted as "refused" rather
         // than pinned to one code that a framework ordering change could move.
         response.StatusCode.ShouldBeOneOf(
             HttpStatusCode.UnsupportedMediaType,
@@ -126,7 +126,7 @@ public sealed class RequestDefenceTests(PostgresFixture postgres) : IAsyncLifeti
 
         // This is the assertion with teeth. If form binding ever started
         // working, the handler would run, an account would be created and a
-        // verification link would go out — and no status-code check would
+        // verification link would go out, and no status-code check would
         // notice, because the endpoint answers 202 for everything.
         _factory.Email.Messages.ShouldBeEmpty();
     }
@@ -136,7 +136,7 @@ public sealed class RequestDefenceTests(PostgresFixture postgres) : IAsyncLifeti
     {
         // The account work installs a fallback authorization policy that denies
         // anything which has not explicitly opted out. This is the check that
-        // the public catalogue is one of the things that opted out — a
+        // the public catalogue is one of the things that opted out. A
         // regression here would take the whole site offline for visitors.
         var client = _factory.CreateBrowserClient();
 

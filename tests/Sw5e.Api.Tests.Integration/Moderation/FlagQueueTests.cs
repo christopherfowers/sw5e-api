@@ -111,7 +111,7 @@ public sealed class FlagQueueTests(PostgresFixture postgres) : IAsyncLifetime
 
         signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // The session is real — the account area is reachable, which is the
+        // The session is real. The account area is reachable, which is the
         // whole point of the weaker door existing.
         (await weak.GetAsync("/api/auth/me")).StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -383,8 +383,8 @@ public sealed class FlagQueueTests(PostgresFixture postgres) : IAsyncLifetime
         (await reviewer.GetAsync("/api/flags?reason=nonsense")).StatusCode
             .ShouldBe(HttpStatusCode.BadRequest);
 
-        // A key without the type it belongs to is ambiguous — keys are unique
-        // within a type and not across them — so it is refused rather than
+        // A key without the type it belongs to is ambiguous, keys are unique
+        // within a type and not across them, so it is refused rather than
         // answered with rows from whichever types happen to share it.
         (await reviewer.GetAsync($"/api/flags?targetKey={FlagFlow.DocumentKey}")).StatusCode
             .ShouldBe(HttpStatusCode.BadRequest);

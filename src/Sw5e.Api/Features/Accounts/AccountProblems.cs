@@ -21,8 +21,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// </para>
 /// <para>
 /// Each of these builds a fresh result rather than handing out a cached one.
-/// The problem details middleware decorates the object it is given — it stamps
-/// a trace identifier onto it, among other things — so a single shared instance
+/// The problem details middleware decorates the object it is given (it stamps
+/// a trace identifier onto it, among other things) so a single shared instance
 /// would be mutated by every request that returned it, and two concurrent
 /// refusals could hand each other's correlation data to the wrong caller.
 /// </para>
@@ -83,7 +83,7 @@ internal static class AccountProblems
     /// who was confirming a credential they already hold.
     /// </para>
     /// <para>
-    /// One answer for every cause — no challenge in flight, an expired one, a
+    /// One answer for every cause. No challenge in flight, an expired one, a
     /// signature that did not verify, and a credential belonging to a different
     /// account. The last of those is the interesting one, and it is deliberately
     /// not distinguished: telling a caller that their credential is valid but
@@ -130,7 +130,7 @@ internal static class AccountProblems
     /// <remarks>
     /// Refused rather than obeyed. Passkeys are the only credential this
     /// platform issues, so removing the last one does not lock the account
-    /// down, it strands it: nobody — including the owner — can sign in again,
+    /// down, it strands it: nobody, including the owner, can sign in again,
     /// and the only way back is the recovery email, which re-credentials the
     /// account rather than restoring it. A reader who genuinely wants to stop
     /// using a device enrols the replacement first, which is what the
@@ -161,8 +161,8 @@ internal static class AccountProblems
     /// 403 rather than 400, because there is nothing wrong with the request:
     /// it is well-formed and the server understood it perfectly, and is
     /// declining to act on it until the caller has paid. Nothing here says
-    /// which check failed — a missing solution, a stale one and a replayed one
-    /// all get this same document — because the only useful next step is the
+    /// which check failed (a missing solution, a stale one and a replayed one
+    /// all get this same document) because the only useful next step is the
     /// same in every case, and itemising them would be free tuning feedback for
     /// somebody probing the mechanism.
     /// </para>
@@ -196,7 +196,7 @@ internal static class AccountProblems
     /// two other ways of reaching the same end state. The administrator role is
     /// the only thing that can grant the administrator role, so any action that
     /// takes the last one out of circulation leaves the platform with no way to
-    /// appoint another short of editing the database by hand — and combined
+    /// appoint another short of editing the database by hand, and combined
     /// with the self-demotion rule, refusing every self-directed removal is
     /// what makes "the set of administrators can never reach zero through this
     /// API" a property rather than a hope.
@@ -220,7 +220,7 @@ internal static class AccountProblems
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A draft is not history — it is a proposal somebody has not finished, and
+    /// A draft is not history. It is a proposal somebody has not finished, and
     /// it holds the only editing slot for the document it names. Deleting its
     /// author and leaving it behind would leave a draft attributed to nobody
     /// blocking everybody else from editing that entry; deleting it silently

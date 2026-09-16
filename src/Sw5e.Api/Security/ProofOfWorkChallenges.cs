@@ -37,9 +37,9 @@ public sealed class ProofOfWorkOptions
     /// <remarks>
     /// Thirty-two characters, because the secret is the only thing standing
     /// between an attacker and minting their own challenges at difficulty zero.
-    /// Everything about a challenge except this key is public — the salt and
+    /// Everything about a challenge except this key is public (the salt and
     /// the expiry are handed to the caller, and the signed string's shape is in
-    /// this file — so a short secret is not obscured by anything and is simply
+    /// this file) so a short secret is not obscured by anything and is simply
     /// brute-forced offline from one issued challenge.
     /// </remarks>
     public const int MinimumSecretLength = 32;
@@ -108,7 +108,7 @@ public sealed class ProofOfWorkOptions
 /// <param name="ExpiresAt">
 /// ISO-8601, round-trip format. A string rather than a
 /// <see cref="DateTimeOffset"/> all the way through, because it is covered by
-/// the signature and therefore has to come back byte for byte — see
+/// the signature and therefore has to come back byte for byte. See
 /// <see cref="ProofOfWorkChallenges"/> for why that is not fussiness.
 /// </param>
 /// <param name="Signature">Lowercase hex HMAC-SHA256 over the three above.</param>
@@ -133,7 +133,7 @@ internal sealed record ProofOfWorkSolution(
 /// <remarks>
 /// <para>
 /// The problem this answers is narrow and worth stating precisely. Two
-/// endpoints — opening a registration and asking for a sign-in code — can be
+/// endpoints, opening a registration and asking for a sign-in code, can be
 /// reached by a stranger and cause the platform to do real work on their
 /// say-so: a database write in the first case, and an outbound message to an
 /// address the caller chose in the second. Rate limiting already caps how fast
@@ -166,7 +166,7 @@ internal sealed class ProofOfWorkChallenges
 {
     /// <summary>Sixteen bytes, which is the thirty-two hex characters the protocol specifies.</summary>
     /// <remarks>
-    /// The salt is not a secret — it goes out in the response — so its length
+    /// The salt is not a secret, it goes out in the response, so its length
     /// is about collisions rather than guessing. 128 bits means two honest
     /// clients never draw the same salt, which matters because the second one
     /// to arrive would be refused as a replay.
@@ -181,9 +181,9 @@ internal sealed class ProofOfWorkChallenges
     /// The upper bound exists so that lowering the lifetime takes effect on
     /// challenges already in flight rather than only on new ones. The skew
     /// exists because this process's clock and the clock that stamped the
-    /// challenge may not be the same one — a deployment with two instances
+    /// challenge may not be the same one, a deployment with two instances
     /// behind a load balancer routinely issues on one and verifies on the
-    /// other — and a minute of drift between two NTP-disciplined machines
+    /// other, and a minute of drift between two NTP-disciplined machines
     /// should not read as an attack.
     /// </remarks>
     private static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(1);
@@ -211,18 +211,18 @@ internal sealed class ProofOfWorkChallenges
     /// and does not cost.
     /// </para>
     /// <para>
-    /// What it costs: for the few seconds after a restart — or on a second
-    /// instance that never saw the first one's traffic — a solution that was
+    /// What it costs: for the few seconds after a restart, or on a second
+    /// instance that never saw the first one's traffic, a solution that was
     /// already spent can be spent again. The blast radius is bounded by the
     /// expiry, because every other check still applies: the replay must carry a
     /// signature we issued, at the current difficulty, that has not yet
-    /// expired. So the worst case is one extra use per outstanding challenge
+    /// expired, so the worst case is one extra use per outstanding challenge
     /// per instance, inside a ten-minute window, on top of a rate limit that is
     /// untouched by any of this.
     /// </para>
     /// <para>
-    /// What the alternative costs: a shared store — the database, or a cache
-    /// server — written to by an anonymous, unauthenticated request. That is a
+    /// What the alternative costs: a shared store (the database, or a cache
+    /// server) written to by an anonymous, unauthenticated request. That is a
     /// write an attacker can trigger at will, on the exact endpoints this
     /// mechanism exists to protect, which is a strictly worse position than the
     /// one above. It would also make the registration endpoint fail when the
@@ -292,7 +292,7 @@ internal sealed class ProofOfWorkChallenges
     /// which check refused them for the same reason no sign-in failure in this
     /// API is itemised: "your signature was fine but the salt was spent" tells
     /// somebody probing the mechanism exactly which of their assumptions was
-    /// right, and there is no legitimate client that needs to know — the honest
+    /// right, and there is no legitimate client that needs to know. The honest
     /// answer to every refusal is to fetch a new challenge and solve it.
     /// </para>
     /// <para>
@@ -328,7 +328,7 @@ internal sealed class ProofOfWorkChallenges
 
         // 2. Freshness, in both directions. A challenge past its expiry is
         //    refused, and so is one claiming an expiry further out than the
-        //    configured lifetime allows — which is how lowering the lifetime
+        //    configured lifetime allows. Which is how lowering the lifetime
         //    takes effect immediately instead of waiting out the challenges
         //    already issued under the old one.
         if (!DateTimeOffset.TryParse(
@@ -383,7 +383,7 @@ internal sealed class ProofOfWorkChallenges
     /// </summary>
     /// <remarks>
     /// Bits, not hex characters, because counting characters can only express
-    /// difficulty in steps of four bits — every increment would multiply the
+    /// difficulty in steps of four bits. Every increment would multiply the
     /// attacker's cost by sixteen and the honest client's with it, which leaves
     /// no setting between "barely noticeable" and "unusable on a phone".
     /// </remarks>
@@ -423,8 +423,8 @@ internal sealed class ProofOfWorkChallenges
 
         // The byte straddling the boundary: only the top `remainder` bits are
         // required to be zero, so shift the rest out rather than comparing the
-        // whole byte. Getting this wrong in the lenient direction — ignoring
-        // the partial byte — silently rounds every difficulty down to a
+        // whole byte. Getting this wrong in the lenient direction, ignoring
+        // the partial byte, silently rounds every difficulty down to a
         // multiple of eight.
         return remainder == 0 || (hash[wholeBytes] >> (8 - remainder)) == 0;
     }
@@ -435,8 +435,8 @@ internal sealed class ProofOfWorkChallenges
 
         Span<byte> supplied = stackalloc byte[HMACSHA256.HashSizeInBytes];
 
-        // Length and shape first. These are not secrets — the signature's size
-        // is fixed and public — and rejecting a malformed value here keeps the
+        // Length and shape first. These are not secrets, the signature's size
+        // is fixed and public, and rejecting a malformed value here keeps the
         // comparison below operating on two buffers of equal, known length,
         // which is what FixedTimeEquals requires to be constant time.
         if (Convert.FromHexString(solution.Signature, supplied, out var consumed, out var written)
@@ -449,7 +449,7 @@ internal sealed class ProofOfWorkChallenges
 
         // Fixed time, not string equality and not SequenceEqual. An ordinary
         // comparison returns as soon as it finds a differing byte, so how long
-        // it took reveals how many leading bytes were right — and an attacker
+        // it took reveals how many leading bytes were right, and an attacker
         // who can measure that recovers a valid signature one byte at a time,
         // in a few hundred requests per byte, without ever learning the key.
         // The endpoints this guards are anonymous and unlimited in how often
@@ -474,8 +474,8 @@ internal sealed class ProofOfWorkChallenges
     /// <remarks>
     /// An entry whose expiry has passed is already refused by the freshness
     /// check, so keeping it buys nothing and costs memory that an anonymous
-    /// caller decides the size of. Only one thread does the work — the rest see
-    /// the deadline has already moved and carry on — because a sweep is
+    /// caller decides the size of. Only one thread does the work, the rest see
+    /// the deadline has already moved and carry on, because a sweep is
     /// housekeeping and a request should never wait behind one.
     /// </remarks>
     private void Sweep(DateTimeOffset now)
@@ -547,8 +547,8 @@ internal static class ProofOfWorkServiceCollectionExtensions
                 "be solved.");
         }
 
-        // Fail closed, and fail loudly. The alternative — starting with a
-        // generated key, or with the gate quietly switched back off — is a
+        // Fail closed, and fail loudly. The alternative (starting with a
+        // generated key, or with the gate quietly switched back off) is a
         // deployment that believes it is protected and is not, which is worse
         // than one that will not start. The message names the key rather than
         // the value, because the value is a secret and startup logs are not.

@@ -59,8 +59,8 @@ internal static class PlainText
 
             // A pipe is a cell boundary rather than decoration, so it collapses
             // to a space instead of being dropped. Deleting it glues the last
-            // word of one cell to the first word of the next — "Experience
-            // Points|Level" becomes "PointsLevel" — which reads as a typo in a
+            // word of one cell to the first word of the next, "Experience
+            // Points|Level" becomes "PointsLevel", which reads as a typo in a
             // summary line and, worse, makes both words unfindable by search.
             // That was invisible while tables only appeared inside a monster's
             // prose; reference tables are nothing but a table, and a rule

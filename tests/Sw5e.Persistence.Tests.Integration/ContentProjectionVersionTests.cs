@@ -9,7 +9,7 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// </summary>
 /// <remarks>
 /// Its own class, with no database fixture, because none of this needs one: it
-/// reads a static table and hashes it. That matters beyond tidiness — every
+/// reads a static table and hashes it. That matters beyond tidiness. Every
 /// other test in this project starts a PostgreSQL container, so on a machine
 /// with no Docker daemon the whole project is unavailable, and this is the one
 /// assertion most likely to be wanted exactly then. Changing a projection is a
@@ -29,7 +29,7 @@ public sealed class ContentProjectionVersionTests
     /// headings were harvested into their own column, the release imported
     /// cleanly, reported "175 updated, 7,702 unchanged", and left the new
     /// column empty on 7,876 of 7,877 rows. The feature was inert, and every
-    /// test in this suite was green — because they all import into an empty
+    /// test in this suite was green. Because they all import into an empty
     /// database, where every document is an insert and no version is compared.
     /// </para>
     /// <para>
@@ -40,7 +40,7 @@ public sealed class ContentProjectionVersionTests
     /// </para>
     /// <para>
     /// It fingerprints the table and nothing else. It will not notice a change
-    /// in how a field becomes text — the heading harvest, the summary cap — and
+    /// in how a field becomes text (the heading harvest, the summary cap) and
     /// that limit is stated in <c>ContentProjection.Fingerprint</c> rather than
     /// left to be discovered. What it removes is the case where the change is
     /// right there in the diff as an edited list, and the version two lines

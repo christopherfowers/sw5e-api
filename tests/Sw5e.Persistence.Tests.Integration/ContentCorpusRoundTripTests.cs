@@ -8,14 +8,14 @@ namespace Sw5e.Persistence.Tests.Integration;
 
 /// <summary>
 /// Import the content repository's whole corpus, export it again, and get back
-/// the files that are committed there — byte for byte.
+/// the files that are committed there. Byte for byte.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This is the property the exporter exists for, and it is not a property of
 /// the exporter alone. PostgreSQL stores each document as <c>jsonb</c>, which
 /// keeps the values and discards the text: member order, indentation and
-/// whitespace are all gone by the time a row is read back. So the file that
+/// whitespace are all gone by the time a row is read back, so the file that
 /// comes out is derived, not remembered, and if the derivation disagrees with
 /// the committed file in any way at all, every export produces a pull request
 /// full of reformatting with the actual change buried somewhere inside it.
@@ -25,7 +25,7 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// It runs against the real corpus at the pinned submodule commit rather than
 /// against the small fixture the rest of this project uses. The fixture holds
 /// 321 documents chosen for the shapes they exercise; the corpus holds 7,877
-/// including every awkward one — the em dash, the replacement character the
+/// including every awkward one. The em dash, the replacement character the
 /// scrape left behind, <c>0.0</c> and <c>0.3333333333333333</c>, an em space in
 /// a starship rule. Those are exactly the documents a formatting difference
 /// hides in.
@@ -90,8 +90,8 @@ public sealed class ContentCorpusRoundTripTests(PostgresFixture fixture) : Datab
                 differing.Take(10).Select(path => $"  {path}: {Difference(committed[path], exported[path])}")));
 
         // Importing what was just exported has to change nothing. Byte
-        // equality above already implies it, but only through the change token
-        // — which is a hash of the file as it sits on disk — so stating it
+        // equality above already implies it, but only through the change token,
+        // which is a hash of the file as it sits on disk, so stating it
         // separately is what would catch a version scheme that stopped
         // depending on the bytes. It is also the property a deploy relies on: a
         // pull request built from an export must not churn every row when it
@@ -133,8 +133,8 @@ public sealed class ContentCorpusRoundTripTests(PostgresFixture fixture) : Datab
     /// </summary>
     /// <remarks>
     /// Line endings are normalised and nothing else is. A working tree's line
-    /// endings belong to git — the content repository pins them to LF, and a
-    /// checkout made before it did holds CRLF — and this compares what the
+    /// endings belong to git (the content repository pins them to LF, and a
+    /// checkout made before it did holds CRLF) and this compares what the
     /// exporter derived against what was committed, not what git handed out.
     /// </remarks>
     internal static Dictionary<string, string> Tree(string root)

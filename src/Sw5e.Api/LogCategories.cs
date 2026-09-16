@@ -9,8 +9,8 @@ namespace Sw5e.Api;
 /// a category is not a cosmetic thing to get wrong. It is what an operator
 /// filters on: <c>Logging:LogLevel:Sw5e.Api.Accounts</c> in configuration
 /// turns the account routes up or down without touching anything else, and a
-/// single mistyped literal quietly moves one file's output out of that filter
-/// — where it is neither raised with the rest nor silenced with the rest, and
+/// single mistyped literal quietly moves one file's output out of that filter.
+/// Where it is neither raised with the rest nor silenced with the rest, and
 /// nobody notices until the day somebody is reading logs in a hurry.
 /// </para>
 /// <para>
@@ -28,7 +28,7 @@ internal static class LogCategories
     /// administrative account routes.
     /// </summary>
     /// <remarks>
-    /// One place outside this assembly writes under this name as well —
+    /// One place outside this assembly writes under this name as well.
     /// <c>Sw5e.Identity.Administration.AccountSuspension</c>, which ends a
     /// live session when an account is suspended and belongs in the same
     /// stream as the routes that suspended it. It cannot reference this

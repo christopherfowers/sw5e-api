@@ -20,13 +20,13 @@ namespace Sw5e.Api.Features.Content;
 /// database content store, so on a file-backed deployment the parameter arrives
 /// null and the handler answers 503. Resolving it optionally rather than
 /// mapping the routes conditionally keeps one route table for every
-/// deployment — a client gets the same answer shape everywhere, and the reason
+/// deployment. A client gets the same answer shape everywhere, and the reason
 /// authoring is unavailable is stated instead of being indistinguishable from a
 /// typo in the URL.
 /// </para>
 /// <para>
 /// Authorization is not done here. It is on the routes, as policy names, where
-/// it can be read alongside everything else about the endpoint — and the
+/// it can be read alongside everything else about the endpoint, and the
 /// policies themselves carry the second-factor requirement, so a handler cannot
 /// forget it.
 /// </para>

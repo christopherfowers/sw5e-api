@@ -14,15 +14,15 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// <para>
 /// <see cref="ContentCorpusRoundTripTests"/> compares two strings and requires
 /// them to be equal. On its own that establishes only that the two sides agree
-/// today — not that the comparison could ever have caught them disagreeing, and
+/// today. Not that the comparison could ever have caught them disagreeing, and
 /// not which parts of the format it actually pins. A test suite where the only
 /// evidence is a passing equality is a suite that would keep passing if the
 /// exporter and the corpus drifted together.
 /// </para>
 /// <para>
-/// So each case below is a plausible way the writer could have been wrong —
-/// members in the order <c>jsonb</c> hands them back, four-space indentation,
-/// no indentation, CRLF, no trailing newline, non-ASCII escaped — rendered from
+/// So each case below is a plausible way the writer could have been wrong
+/// (members in the order <c>jsonb</c> hands them back, four-space indentation,
+/// no indentation, CRLF, no trailing newline, non-ASCII escaped) rendered from
 /// real documents and required to produce something the round trip would
 /// reject. If a mutation slipped through, the exporter could change that thing
 /// freely and the suite would stay green.
@@ -83,7 +83,7 @@ public sealed class ExportFormatSensitivityTests
     /// the database's happen to agree.
     /// </summary>
     /// <remarks>
-    /// A four-member glossary entry — key, name, contentSet, description — is
+    /// A four-member glossary entry (key, name, contentSet, description) is
     /// already in length-then-bytes order, and so are a lightsaber form and a
     /// starship venture. Listed rather than counted so that the day a large
     /// type joins them, this says so instead of quietly widening.
@@ -134,13 +134,13 @@ public sealed class ExportFormatSensitivityTests
     /// <para>
     /// It is precisely what the exporter produces if it writes a document out
     /// the way it comes off the row instead of ordering it from the schema, and
-    /// it is the single most likely way for this to go wrong. So it is checked
+    /// it is the single most likely way for this to go wrong, so it is checked
     /// across the whole corpus rather than over three documents.
     /// </para>
     /// <para>
     /// Not every document is affected: <c>jsonb</c> orders members by key
-    /// length and then by bytes, and a four-member glossary entry — key, name,
-    /// contentSet, description — happens to already be in that order. There are
+    /// length and then by bytes, and a four-member glossary entry (key, name,
+    /// contentSet, description) happens to already be in that order. There are
     /// a hundred or so of those, which is why the bound is "almost all" rather
     /// than "all".
     /// </para>
@@ -227,8 +227,8 @@ public sealed class ExportFormatSensitivityTests
     /// canonical format.
     /// </summary>
     /// <remarks>
-    /// Same indentation, same newline, same encoder, same trailing newline —
-    /// everything the canonical writer does except consult the schema. What is
+    /// Same indentation, same newline, same encoder, same trailing newline.
+    /// Everything the canonical writer does except consult the schema. What is
     /// left is exactly the one difference under test.
     /// </remarks>
     private static string AsRead(JsonElement document)

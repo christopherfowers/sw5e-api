@@ -15,7 +15,7 @@ namespace Sw5e.Identity.EmailSignIn;
 /// </para>
 /// <para>
 /// The code itself is never stored. What is stored is a PBKDF2 hash over the
-/// address and the code together, with a per-row salt — see
+/// address and the code together, with a per-row salt. See
 /// <see cref="EmailSignInCodeService"/> for why a deliberately slow hash is
 /// worth it over six digits.
 /// </para>
@@ -63,7 +63,7 @@ public sealed class EmailSignInCode
     /// <remarks>
     /// Set by a conditional update that requires the column to still be null,
     /// so two requests arriving with the same correct code at the same instant
-    /// cannot both succeed. Also set — without any code being accepted — when
+    /// cannot both succeed. Also set, without any code being accepted, when
     /// the attempt budget runs out, and when a newer code for the same address
     /// is redeemed.
     /// </remarks>

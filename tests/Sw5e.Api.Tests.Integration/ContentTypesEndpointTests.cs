@@ -70,8 +70,8 @@ public sealed class ContentTypesEndpointTests(ContentApiFactory factory)
     /// counted from their own directories rather than folded into it.
     /// </summary>
     /// <remarks>
-    /// Enhanced items are emphatically not equipment — no price, no weight, no
-    /// armour class — and the reason they are a separate type is that a list of
+    /// Enhanced items are emphatically not equipment (no price, no weight, no
+    /// armour class) and the reason they are a separate type is that a list of
     /// 507 shoppable rows and a list of 1,918 rows with no price are different
     /// pages. A regression that merged them would leave every other assertion
     /// in this file passing.

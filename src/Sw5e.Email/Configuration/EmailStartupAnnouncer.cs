@@ -8,7 +8,7 @@ namespace Sw5e.Email.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Configuration that fails is loud already — registration throws. This covers
+/// Configuration that fails is loud already. Registration throws. This covers
 /// the other half: configuration that succeeds, but not the way anyone
 /// intended. The startup log is where "why did nobody get their reset email"
 /// gets answered in one line, and it is written before the first request rather
@@ -16,8 +16,8 @@ namespace Sw5e.Email.Configuration;
 /// </para>
 /// <para>
 /// <see cref="EmailProvider.Capture"/> outside Development gets a warning
-/// rather than a refusal. It is legitimate — a staging environment exercising
-/// account flows without emailing anyone is a reasonable thing to want — but it
+/// rather than a refusal. It is legitimate, a staging environment exercising
+/// account flows without emailing anyone is a reasonable thing to want, but it
 /// is also exactly what a misconfigured production environment looks like, so
 /// it does not get to be quiet.
 /// </para>

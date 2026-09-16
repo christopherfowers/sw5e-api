@@ -10,7 +10,7 @@ namespace Sw5e.Api.Features.Site;
 /// <para>
 /// It began with one: the QA site has to say, visibly, that it is QA and that
 /// nothing entered there is kept. It could not say so on its own. It now
-/// carries a second — whether account email is getting out — for the same
+/// carries a second, whether account email is getting out, for the same
 /// reason and by the same route. See <em>Why the mail flag lives here</em>
 /// below.
 /// </para>
@@ -18,9 +18,9 @@ namespace Sw5e.Api.Features.Site;
 /// The web tier is a static nginx image serving HTML that was rendered at build
 /// time. There is no server-side render at request time, so no environment
 /// variable can be read per request on that side, and baking one in at build
-/// time would mean QA and production are different images — which destroys the
+/// time would mean QA and production are different images. Which destroys the
 /// only property that makes a promotion trustworthy, that the artifact which
-/// passed QA is the artifact that reaches production, byte for byte. So the
+/// passed QA is the artifact that reaches production, byte for byte, so the
 /// question has to be answered by something that already differs between the
 /// two deployments, at runtime, and that is this service: it has its own
 /// configuration, its own database and its own mail provider in each
@@ -39,9 +39,9 @@ namespace Sw5e.Api.Features.Site;
 /// gives <c>IWebHostEnvironment.EnvironmentName</c> the value
 /// <c>Production</c>, which is the framework's own default, and a name that is
 /// present but blank is normalised to the same thing by
-/// <see cref="Describe"/> — see there for why that second case needs saying.
+/// <see cref="Describe"/>. See there for why that second case needs saying.
 /// Second, the client draws nothing unless it receives an
-/// explicit "not production" — an unreachable endpoint, a timeout, a proxy
+/// explicit "not production". An unreachable endpoint, a timeout, a proxy
 /// answering with HTML during a partial deploy and a malformed body are all
 /// treated as production. Silence is never read as QA.
 /// </para>
@@ -49,7 +49,7 @@ namespace Sw5e.Api.Features.Site;
 /// The predicate is <see cref="IHostEnvironment.IsProduction"/> rather than a
 /// list of names that count as test environments, and that is a deliberate
 /// choice between two imperfect failure modes. An allow-list would mean a
-/// deployment named something nobody thought of — <c>Preview</c>, <c>UAT</c> —
+/// deployment named something nobody thought of (<c>Preview</c>, <c>UAT</c>)
 /// silently gets no banner, which is the exact failure the banner exists to
 /// prevent and is invisible when it happens. The convention below inverts that:
 /// a misspelled environment name in production shows a banner that should not
@@ -66,14 +66,14 @@ namespace Sw5e.Api.Features.Site;
 /// about "which environment this is" to be cacheable. That expectation is
 /// already false: this response has been <c>no-store</c> since it was written,
 /// because a one-line body naming an environment is exactly what a shared cache
-/// would hold and later hand to the wrong deployment. So the lifetime objection
-/// costs nothing here — there was never a cache to invalidate.
+/// would hold and later hand to the wrong deployment, so the lifetime objection
+/// costs nothing here. There was never a cache to invalidate.
 /// </para>
 /// <para>
 /// The case for is that a second anonymous endpoint is a second thing to route,
 /// a second thing to leave unmounted during a partial deploy, a second thing to
 /// name in a policy, and a second thing whose absence the client has to have an
-/// opinion about — all of it to carry one boolean. The honest description of
+/// opinion about. All of it to carry one boolean. The honest description of
 /// this endpoint was never "the environment" but "what the prerendered site has
 /// to ask, because it was built before the answer existed", and a relay
 /// refusing everything is squarely that: the site cannot observe it, cannot
@@ -118,7 +118,7 @@ public static class SiteEnvironmentEndpoint
                   // resource: one is a property of the deployment, the other of
                   // a relay in the last few minutes, and this is exactly the
                   // kind of one-line body a shared cache would happily hold and
-                  // hand to the wrong environment — or, now, hand back long
+                  // hand to the wrong environment. Or, now, hand back long
                   // after the outage it described was over. Both cost a field
                   // read to compute, so there is nothing to save.
                   context.Response.Headers.CacheControl = "no-store";
@@ -171,9 +171,9 @@ public static class SiteEnvironmentEndpoint
     /// <see cref="IHostEnvironment.IsProduction"/> alone is not quite enough,
     /// and the gap is not theoretical. An <c>ASPNETCORE_ENVIRONMENT</c> that is
     /// never set gives the host the name <c>Production</c> and everything works.
-    /// An <c>ASPNETCORE_ENVIRONMENT</c> that is set to nothing — an empty value
+    /// An <c>ASPNETCORE_ENVIRONMENT</c> that is set to nothing (an empty value
     /// in a compose file, a variable substituted from an unset shell variable, a
-    /// deploy template rendering an absent field — gives the host an empty name,
+    /// deploy template rendering an absent field) gives the host an empty name,
     /// and an empty name is not production as far as the framework is concerned.
     /// Left alone, that reports the live site as a test environment, which is
     /// precisely the failure this whole endpoint is arranged to make impossible.
@@ -213,7 +213,7 @@ public static class SiteEnvironmentEndpoint
 
     /// <summary>What deployment this is.</summary>
     /// <param name="Name">
-    /// The host environment name — <c>Production</c>, <c>QA</c>, <c>Development</c>.
+    /// The host environment name. <c>Production</c>, <c>QA</c>, <c>Development</c>.
     /// Returned for operators reading the response by hand and for a log line
     /// worth keeping; the site itself branches on <paramref name="IsProduction"/>
     /// alone, so renaming an environment can never change what a reader sees.
@@ -225,7 +225,7 @@ public static class SiteEnvironmentEndpoint
     /// <param name="AccountEmailDelivering">
     /// True when nothing has failed to send recently. The site stops telling
     /// people to go and check an inbox when, and only when, this is explicitly
-    /// false — an older service that does not send this field, an unreachable
+    /// false. An older service that does not send this field, an unreachable
     /// endpoint and a malformed body all leave the wording as it was.
     /// <para>
     /// One global boolean, and nothing else. No address appears in it, because

@@ -5,7 +5,7 @@ namespace Sw5e.Domain.Content;
 /// </summary>
 /// <remarks>
 /// Constants rather than magic numbers at the endpoint because the same limits
-/// are enforced twice — once by the request validator, so an oversized field is
+/// are enforced twice. Once by the request validator, so an oversized field is
 /// refused before it reaches a database round trip, and once by the column
 /// width, so a writer that bypasses the endpoint cannot store something the
 /// endpoint would have refused. Two enforcement points reading one number
@@ -49,8 +49,8 @@ public static class ContentAuthoringLimits
 /// </summary>
 /// <remarks>
 /// Written out as an explicit table rather than derived from the enum member
-/// names. These strings are two contracts at once — the JSON a client parses
-/// and the text stored in a column — so renaming a C# member must not be able
+/// names. These strings are two contracts at once, the JSON a client parses
+/// and the text stored in a column, so renaming a C# member must not be able
 /// to silently rewrite either. The mapping is the thing under review; the enum
 /// is an implementation detail behind it.
 /// </remarks>

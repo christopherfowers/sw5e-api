@@ -12,9 +12,9 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// </summary>
 /// <remarks>
 /// Asserting on the model would only prove that EF agrees with itself. Every
-/// property checked here — that a check constraint refuses a bad row, that the
+/// property checked here (that a check constraint refuses a bad row, that the
 /// text columns carry the C collation, that the trigram indexes exist and use
-/// the right operator class — is a property of the schema PostgreSQL ended up
+/// the right operator class) is a property of the schema PostgreSQL ended up
 /// with, and each of them can be broken by a change that leaves the model
 /// looking correct.
 /// </remarks>
@@ -96,8 +96,8 @@ public sealed class ContentSchemaTests(PostgresFixture fixture) : DatabaseTest(f
     /// history in <c>public.__EFMigrationsHistory</c> they would each read the
     /// other's rows as migrations of their own that had already been applied,
     /// and the next <c>Migrate</c> on either would try to create tables that
-    /// exist. Nothing about the content schema looks wrong when that happens —
-    /// it breaks the other feature, months later, which is exactly the kind of
+    /// exist. Nothing about the content schema looks wrong when that happens.
+    /// It breaks the other feature, months later, which is exactly the kind of
     /// thing nobody thinks to test.
     /// </remarks>
     [DockerFact]

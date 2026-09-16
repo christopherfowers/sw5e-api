@@ -93,7 +93,7 @@ public sealed class ContentListEndpointTests(ContentApiFactory factory)
     /// <remarks>
     /// The chapter numbers are the awkward part of this type and are asserted
     /// as printed: the archive numbers a preface -1, so a projection that
-    /// treated the field as a positive index — or dropped it as invalid —
+    /// treated the field as a positive index, or dropped it as invalid,
     /// would lose the front matter of both books. A variant rule has no
     /// position at all and must carry no chapterNumber rather than a zero.
     /// </remarks>
@@ -128,7 +128,7 @@ public sealed class ContentListEndpointTests(ContentApiFactory factory)
     /// <remarks>
     /// The summary matters more here than it looks. A table's body is pipe
     /// markdown, and the flattening has to treat a cell boundary as a word
-    /// boundary — otherwise the heading reads "Experience PointsLevel" and
+    /// boundary. Otherwise the heading reads "Experience PointsLevel" and
     /// neither word can be searched for.
     /// </remarks>
     [Fact]
@@ -157,7 +157,7 @@ public sealed class ContentListEndpointTests(ContentApiFactory factory)
     /// <remarks>
     /// The empty facet map is the assertion, not an oversight. Every field
     /// either glossary carries is already a column on the row, so a facet here
-    /// could only be a second copy of one — and a filter control built from it
+    /// could only be a second copy of one, and a filter control built from it
     /// would narrow nothing. The two glossaries are separate types because
     /// Strength is published in both with different rules, which is why the
     /// same key is fetched from both below.
@@ -416,9 +416,9 @@ public sealed class ContentListEndpointTests(ContentApiFactory factory)
     }
 
     /// <summary>
-    /// A lightsaber form has no top-level prose at all — its rules text is
+    /// A lightsaber form has no top-level prose at all, its rules text is
     /// split into the effect that fires on adoption and the one that holds
-    /// while the form is worn — so its summary has to be read out of that
+    /// while the form is worn, so its summary has to be read out of that
     /// array. A row with no summary is what a broken projection looks like.
     /// </summary>
     [Fact]

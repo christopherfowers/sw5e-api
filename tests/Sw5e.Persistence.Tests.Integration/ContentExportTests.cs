@@ -249,7 +249,7 @@ public sealed class ContentExportTests(PostgresFixture fixture) : DatabaseTest(f
     /// the importer does not, and neither does a migration or a hand-written
     /// UPDATE. The content repository's CI validates every document on every
     /// pull request, so an export that emitted one of these would produce a
-    /// branch that cannot be merged — discovered by whoever opened the pull
+    /// branch that cannot be merged. Discovered by whoever opened the pull
     /// request rather than by whoever ran the export.
     /// </remarks>
     [DockerFact]

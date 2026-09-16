@@ -10,7 +10,7 @@ namespace Sw5e.Email;
 /// <remarks>
 /// <para>
 /// The type exists so that "is this a usable address" is answered once, at the
-/// edge, instead of separately by every provider adapter — and so that an
+/// edge, instead of separately by every provider adapter, and so that an
 /// adapter can never be handed something a provider will reject or, worse,
 /// misinterpret.
 /// </para>
@@ -100,13 +100,13 @@ public sealed class EmailAddress : IEquatable<EmailAddress>
         // whitespace, so trimming first would quietly delete a trailing
         // carriage return and accept the value instead of rejecting it. The
         // result would still be safe, but the rule would no longer be one
-        // sentence — and a security control nobody can state in one sentence
+        // sentence, and a security control nobody can state in one sentence
         // is one that will eventually be relaxed by accident.
         //
         // For an address this check is currently redundant: MailAddress and the
         // round-trip comparison further down reject the same inputs between
-        // them. It stays because that redundancy is incidental — it depends on
-        // how strict somebody else's parser happens to be — and a header
+        // them. It stays because that redundancy is incidental, it depends on
+        // how strict somebody else's parser happens to be, and a header
         // injection guard should not rest on a property nobody wrote down. For
         // a display name, which no parser sees, it is the only guard there is.
         if (ContainsControlCharacter(address))
@@ -143,8 +143,8 @@ public sealed class EmailAddress : IEquatable<EmailAddress>
         // MailAddress is the framework's own RFC 5322 parser and is what the
         // SMTP adapter will hand the value to anyway, so validating with it
         // guarantees the two agree. A hand-rolled regex would inevitably
-        // diverge, and the interesting direction of divergence — this type
-        // accepts what MailAddress later rejects — is a crash at send time.
+        // diverge, and the interesting direction of divergence, this type
+        // accepts what MailAddress later rejects, is a crash at send time.
         if (!MailAddress.TryCreate(address, out var parsed))
         {
             error = "That is not a valid email address.";

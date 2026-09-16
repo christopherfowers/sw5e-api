@@ -40,8 +40,8 @@ namespace Sw5e.Api.Security;
 /// </item>
 /// <item>
 /// <description>
-/// A JSON body. HTML forms — the only way to make a browser issue a
-/// cross-origin POST without CORS approval — can send exactly three content
+/// A JSON body. HTML forms, the only way to make a browser issue a
+/// cross-origin POST without CORS approval, can send exactly three content
 /// types, and <c>application/json</c> is not among them. Minimal APIs reject
 /// anything else with a 415 before a handler runs, so the simple-request escape
 /// hatch is closed by the framework rather than by anything written here.
@@ -53,8 +53,8 @@ namespace Sw5e.Api.Security;
 /// a <c>Sec-Fetch-Site</c> header is refused rather than waved through: every
 /// browser has sent <c>Origin</c> on unsafe requests for years, so the absence
 /// of one means the caller is not the browser application this API exists to
-/// serve. Command-line clients are affected, and that is the intended trade —
-/// they can set the header.
+/// serve. Command-line clients are affected, and that is the intended trade.
+/// They can set the header.
 /// </para>
 /// </remarks>
 internal sealed class CrossSiteRequestFilter(IOptions<Sw5eIdentityOptions> options) : IEndpointFilter
@@ -69,8 +69,8 @@ internal sealed class CrossSiteRequestFilter(IOptions<Sw5eIdentityOptions> optio
 
         // Safe methods change nothing, so forging one achieves nothing. The
         // account API has no safe method that returns anything an attacker's
-        // page could read anyway — the browser's same-origin policy sees to
-        // that — but the exemption is stated rather than assumed.
+        // page could read anyway, the browser's same-origin policy sees to
+        // that, but the exemption is stated rather than assumed.
         if (HttpMethods.IsGet(request.Method) ||
             HttpMethods.IsHead(request.Method) ||
             HttpMethods.IsOptions(request.Method))

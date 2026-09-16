@@ -14,7 +14,7 @@ namespace Sw5e.Api.Tests.Integration.Authoring;
 /// <remarks>
 /// Before this, a reviewer could agree with a report and then had nowhere to
 /// go: the queue could record that somebody agreed, and nothing else. These
-/// tests walk the whole loop — a reader reports a mistake, a reviewer accepts
+/// tests walk the whole loop. A reader reports a mistake, a reviewer accepts
 /// it, a contributor drafts the correction naming the report, an administrator
 /// publishes, and the report closes pointing at the revision that closed it.
 /// </remarks>
@@ -100,7 +100,7 @@ public sealed class FlagResolutionTests(PostgresFixture postgres) : IAsyncLifeti
     /// <remarks>
     /// An open report has not been looked at, and a declined one was somebody's
     /// decision. Neither should be closed as a side effect of publishing
-    /// something that happens to name it — that would let a draft silently
+    /// something that happens to name it. That would let a draft silently
     /// dispose of a report a reviewer had not agreed with.
     /// </remarks>
     [Fact]

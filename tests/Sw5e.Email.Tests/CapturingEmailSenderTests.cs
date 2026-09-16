@@ -27,7 +27,7 @@ public sealed class CapturingEmailSenderTests
     /// <para>
     /// Asserted in both directions. Checking only that the body is absent would
     /// pass against a provider that logged nothing at all, which would be a
-    /// different bug — a developer running the capture provider needs to see
+    /// different bug. A developer running the capture provider needs to see
     /// that a message was produced and who it was for.
     /// </para>
     /// </remarks>

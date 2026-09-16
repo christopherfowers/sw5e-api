@@ -12,7 +12,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// Written out by hand rather than obtained by asking the server's own
 /// <c>UserManager</c> to generate one, and the distinction matters. A test that
 /// generates a code with the same code that validates it proves only that the
-/// implementation agrees with itself — it would pass just as well if the
+/// implementation agrees with itself. It would pass just as well if the
 /// algorithm were wrong in a way that made the codes useless in a real
 /// authenticator app.
 /// </para>
@@ -20,7 +20,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// This computes what Google Authenticator, 1Password or Aegis would compute
 /// from the <c>otpauth://</c> URI the enrolment endpoint hands out: base32
 /// secret, HMAC-SHA1, thirty-second steps, six digits. If the server ever
-/// stopped agreeing with that, the tests would fail — which is the correct
+/// stopped agreeing with that, the tests would fail. Which is the correct
 /// outcome, because at that point real users could no longer sign in.
 /// </para>
 /// </remarks>

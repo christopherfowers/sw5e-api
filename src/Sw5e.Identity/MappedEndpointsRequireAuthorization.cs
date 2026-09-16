@@ -15,8 +15,8 @@ namespace Sw5e.Identity;
 /// <c>RequireAuthorization</c> call silently ships an open endpoint. On a
 /// platform where that mistake is a breach, the default should be the other way
 /// round: closed until somebody writes down that it is open. The genuinely
-/// public endpoints — the content catalogue, the health probes, the OpenAPI
-/// document — all say <c>AllowAnonymous</c> explicitly, and now they have to.
+/// public endpoints (the content catalogue, the health probes, the OpenAPI
+/// document) all say <c>AllowAnonymous</c> explicitly, and now they have to.
 /// </para>
 /// <para>
 /// The second half exists because the framework's own

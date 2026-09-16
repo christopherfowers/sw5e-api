@@ -49,16 +49,16 @@ public sealed record ContentImportResult(
 /// deploy-time migrator, and a deploy can be retried: a network blip, a rolled
 /// back release, an operator who is not sure whether the last one finished. An
 /// importer that appended, or that deleted and re-inserted, would make "run it
-/// again to be sure" a destructive act — it would churn every row, bump every
+/// again to be sure" a destructive act. It would churn every row, bump every
 /// version, and invalidate every cached response in front of the API for a
-/// corpus that did not change. So the unit of work is a comparison: each
+/// corpus that did not change, so the unit of work is a comparison: each
 /// document's content hash is checked against the stored one, and a row is
 /// written only when it actually differs.
 /// </para>
 /// <para>
 /// <b>Why it reuses the file store's scanner.</b> Which files count as content,
 /// how a display name is found on a type that calls it "title", how the row
-/// projection and search text are derived — every one of those is a decision
+/// projection and search text are derived. Every one of those is a decision
 /// both stores have to make the same way, or switching stores changes what the
 /// site shows. Rather than restating them, this reads the corpus through
 /// <see cref="ContentIndexBuilder"/>, the same scan the file-backed repository
@@ -94,7 +94,7 @@ public sealed class ContentImporter(
 
         // The connection is configured to retry transient failures, and EF
         // refuses to combine that with a transaction opened by hand unless the
-        // whole unit of work is handed to the execution strategy — because a
+        // whole unit of work is handed to the execution strategy. Because a
         // retry has to restart the transaction, not resume it. Wrapping the run
         // is safe precisely because the run is idempotent: a second attempt
         // over the same corpus reaches the same end state as the first.
@@ -124,8 +124,8 @@ public sealed class ContentImporter(
         }
 
         // One transaction for the whole run. A half-applied import leaves the
-        // API serving a catalogue that is internally inconsistent — items whose
-        // references point at rows that were never written — and there is no
+        // API serving a catalogue that is internally inconsistent, items whose
+        // references point at rows that were never written, and there is no
         // safe way to resume from it, so the only sane outcome of a failure is
         // that nothing happened.
         await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
@@ -211,8 +211,8 @@ public sealed class ContentImporter(
         CancellationToken cancellationToken)
     {
         // Types the scan actually produced content for. A type absent from this
-        // set was not "emptied by the content repository", it was not read —
-        // an unmounted volume, a wrong path, a directory that failed to copy —
+        // set was not "emptied by the content repository", it was not read
+        // (an unmounted volume, a wrong path, a directory that failed to copy)
         // and treating the two the same is how a deploy accident becomes data
         // loss.
         var scannedTypes = items
@@ -266,8 +266,8 @@ public sealed class ContentImporter(
     /// <remarks>
     /// Delete-then-insert per item rather than a diff: an item has a handful of
     /// edges, they are wholly determined by its document, and reconciling them
-    /// individually would be more code guarding a case — an edge whose path
-    /// survived but whose target changed — that a rewrite handles for free.
+    /// individually would be more code guarding a case, an edge whose path
+    /// survived but whose target changed, that a rewrite handles for free.
     /// Untouched items keep their edges, which is why an unchanged import does
     /// no writes here either.
     /// </remarks>

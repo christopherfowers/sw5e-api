@@ -34,7 +34,7 @@ internal static class SessionHandlers
 
         // And every partial credential alongside it. A caller who signs out
         // midway through a two-factor challenge, or with an enrolment window
-        // open, must not leave either behind on a shared machine — signing out
+        // open, must not leave either behind on a shared machine. Signing out
         // has to mean the browser holds nothing that gets anybody anywhere.
         await context.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
         await context.SignOutAsync(IdentityConstants.TwoFactorRememberMeScheme);

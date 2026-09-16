@@ -8,9 +8,9 @@ namespace Sw5e.Identity;
 /// <remarks>
 /// <para>
 /// Deriving from <see cref="IdentityUser{TKey}"/> rather than modelling an
-/// account by hand is the whole point: every field an attacker cares about —
-/// the security stamp, the lockout counters, the normalized identifiers used
-/// for uniqueness — is maintained by the framework, on the framework's
+/// account by hand is the whole point: every field an attacker cares about
+/// (the security stamp, the lockout counters, the normalized identifiers used
+/// for uniqueness) is maintained by the framework, on the framework's
 /// schedule, and none of it can be forgotten here by accident.
 /// </para>
 /// <para>
@@ -49,7 +49,7 @@ public sealed class Sw5eUser : IdentityUser<Guid>
     /// <remarks>
     /// <para>
     /// A timestamp rather than a <see langword="bool"/>, because the question a
-    /// reviewer asks about a suspension is almost never "is it on" — it is
+    /// reviewer asks about a suspension is almost never "is it on". It is
     /// "since when", and a boolean answers that with a shrug. It also makes the
     /// column its own audit trail of last resort if the administrative log is
     /// ever unavailable.
@@ -79,8 +79,8 @@ public sealed class Sw5eUser : IdentityUser<Guid>
     /// <remarks>
     /// Written by an administrator and read by administrators. It is never sent
     /// to the account it is about: a suspension notice that quoted the reason
-    /// would hand somebody the exact wording to argue with, and — where the
-    /// reason is an investigation — would tell them what is being investigated.
+    /// would hand somebody the exact wording to argue with, and, where the
+    /// reason is an investigation, would tell them what is being investigated.
     /// The account is told that it is suspended and who to contact, which is
     /// the part that concerns them.
     /// </remarks>

@@ -49,7 +49,7 @@ internal static class ContentRequestLimits
     /// <remarks>
     /// Derived from the registry rather than written down. The cap exists to
     /// stop a caller sending an unbounded list, not to be a number in its own
-    /// right, and asking for every type at once is a legitimate request — so
+    /// right, and asking for every type at once is a legitimate request. So
     /// the only correct value is however many types there are. Held as a
     /// constant it silently became a refusal of a valid search the moment a
     /// type was added, and the type that broke it would not be the type whose

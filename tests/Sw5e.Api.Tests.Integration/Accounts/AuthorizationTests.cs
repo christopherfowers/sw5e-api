@@ -177,7 +177,7 @@ public sealed class AuthorizationTests(PostgresFixture postgres) : IAsyncLifetim
     /// </summary>
     /// <remarks>
     /// This stands in for the bootstrap promotion, which is the only way the
-    /// first administrator ever comes into being — there is no endpoint that
+    /// first administrator ever comes into being. There is no endpoint that
     /// creates one, by design, because an endpoint that could would be the most
     /// attractive target on the platform.
     /// </remarks>

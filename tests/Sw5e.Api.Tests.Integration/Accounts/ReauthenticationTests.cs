@@ -15,8 +15,8 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// <para>
 /// The rule these tests sit next to is the one in <see cref="ElevatedRoleTests"/>:
 /// an elevated role is unusable from a session that only proved mailbox
-/// control. That rule was correct and, on its own, produced a genuine dead end
-/// — an administrator with a passkey on the desk in front of them, signed in by
+/// control. That rule was correct and, on its own, produced a genuine dead end.
+/// An administrator with a passkey on the desk in front of them, signed in by
 /// code, was told to go and add a passkey. These tests are about the way out of
 /// it, and about the way out not being a way around it.
 /// </para>

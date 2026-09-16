@@ -12,7 +12,7 @@ namespace Sw5e.Infrastructure.Content;
 /// The lowercased fields exist so that neither listing nor searching allocates
 /// a lowercased copy of every candidate on every request. They are the
 /// in-memory counterpart of the expression indexes a database implementation
-/// would create — <c>lower(name)</c> for the name filter, a full-text vector
+/// would create. <c>lower(name)</c> for the name filter, a full-text vector
 /// for the search blob.
 /// </para>
 /// <para>

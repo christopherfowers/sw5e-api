@@ -13,8 +13,8 @@ namespace Sw5e.Api.Tests.Integration;
 /// rather than markup a developer edits, which means the API has to carry the
 /// parts that make a credit worth anything: the specific contribution text,
 /// and the separation between categories. Both are things a projection could
-/// silently drop while every existing test stayed green — a credit reduced to
-/// a bare name still lists, still pages and still resolves by key. So the
+/// silently drop while every existing test stayed green. A credit reduced to
+/// a bare name still lists, still pages and still resolves by key, so the
 /// assertions below are on the content, not on the plumbing.
 /// </remarks>
 public sealed class CreditEndpointTests(ContentApiFactory factory)
@@ -56,8 +56,8 @@ public sealed class CreditEndpointTests(ContentApiFactory factory)
     /// individually.
     /// </summary>
     /// <remarks>
-    /// A summary is plain text — the projection strips markup so a snippet can
-    /// be rendered anywhere without being parsed — so the emphasis around
+    /// A summary is plain text, the projection strips markup so a snippet can
+    /// be rendered anywhere without being parsed, so the emphasis around
     /// "epic" is gone from the row while the words are not. Both halves are
     /// asserted: the row must still carry the whole sentence, and the item
     /// body must still carry it exactly as the credit was written, because the

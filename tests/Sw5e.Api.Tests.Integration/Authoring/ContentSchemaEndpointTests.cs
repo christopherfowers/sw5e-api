@@ -17,7 +17,7 @@ namespace Sw5e.Api.Tests.Integration.Authoring;
 /// same document the write path validates against, so the two cannot describe
 /// different shapes. The test that matters most is therefore the last one: it
 /// takes the schema the endpoint serves, builds a document that satisfies it,
-/// and saves that document — proving the two agree rather than asserting they
+/// and saves that document. Proving the two agree rather than asserting they
 /// look similar.
 /// </para>
 /// <para>
@@ -53,8 +53,8 @@ public sealed class ContentSchemaEndpointTests(PostgresFixture postgres) : IAsyn
     [Fact]
     public async Task ACommunityAccountCannotReadASchema()
     {
-        // The schemas are public information — they live in a public
-        // repository — so this is not protecting a secret. It keeps the
+        // The schemas are public information, they live in a public
+        // repository, so this is not protecting a secret. It keeps the
         // anonymous surface of a content-management API to the endpoints that
         // serve readers, and it costs the one caller that wants this nothing,
         // because that caller already holds the role.
@@ -179,7 +179,7 @@ public sealed class ContentSchemaEndpointTests(PostgresFixture postgres) : IAsyn
             {
                 "key" => key,
                 // An enum is answered with one of its own values, read out of
-                // the schema rather than written down here — so a schema that
+                // the schema rather than written down here, so a schema that
                 // changed its vocabulary would still produce a valid document.
                 _ when property.TryGetProperty("enum", out var choices) =>
                     choices.EnumerateArray().First().GetString(),

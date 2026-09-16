@@ -22,7 +22,7 @@ internal sealed record MimePart(string ContentType, string Body)
 /// reason: the adapter's output is a <c>multipart/alternative</c> whose parts
 /// are quoted-printable, so a naive "does the raw DATA contain the reset link"
 /// assertion would fail the moment quoted-printable inserted a soft line break
-/// into the middle of a long URL — which for a signed token URL is every time.
+/// into the middle of a long URL. Which for a signed token URL is every time.
 /// </para>
 /// <para>
 /// Decoding it here means the assertions are about what a mail client would

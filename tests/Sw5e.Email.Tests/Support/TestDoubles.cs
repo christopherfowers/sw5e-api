@@ -18,8 +18,8 @@ internal static class TestOptions
 /// scripted inner is the right tool: the decorator's whole job is deciding what
 /// to do with a sequence of outcomes, so a test of it has to be able to state
 /// the sequence. Note that the assertions built on this are about the
-/// decorator's observable behaviour — how many attempts it made, how long it
-/// waited between them — and never merely that it called something.
+/// decorator's observable behaviour (how many attempts it made, how long it
+/// waited between them) and never merely that it called something.
 /// </remarks>
 internal sealed class ScriptedEmailSender : IEmailSender
 {

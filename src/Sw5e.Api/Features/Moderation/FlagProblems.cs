@@ -69,7 +69,7 @@ internal static class FlagProblems
     /// </para>
     /// <para>
     /// 404 rather than 400 because the request was well-formed and named
-    /// something that is simply not here — which is also the answer
+    /// something that is simply not here. Which is also the answer
     /// <c>/api/content/{type}/{key}</c> gives for the same key, so the two
     /// cannot disagree about what exists.
     /// </para>

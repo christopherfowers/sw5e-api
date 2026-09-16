@@ -117,7 +117,7 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// The two numbers are the front end's whole model of the flow: how long to
     /// disable the resend control, and how long to tell the reader their code
     /// lasts. They are constants read from configuration rather than facts
-    /// about the code that was just issued — a countdown that varied with what
+    /// about the code that was just issued. A countdown that varied with what
     /// this address had recently been sent would answer, from an
     /// unauthenticated endpoint, a question about somebody else's sign-in.
     /// </remarks>
@@ -151,8 +151,8 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// Redeeming a code answers the same union a passkey sign-in does.
     /// </summary>
     /// <remarks>
-    /// Deliberately the same two literals — <c>authenticated</c> and
-    /// <c>mfaRequired</c>, camel case, no hyphen — so the browser application
+    /// Deliberately the same two literals (<c>authenticated</c> and
+    /// <c>mfaRequired</c>, camel case, no hyphen) so the browser application
     /// has one branch for "the sign-in finished" and one for "now do the second
     /// factor", rather than one per route in.
     /// </remarks>
@@ -223,7 +223,7 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// Capitalised, and the highest privilege is spelled <c>Administrator</c>
     /// rather than <c>admin</c>. A client comparing against lowercase strings
     /// discards every role the server sent and silently treats an administrator
-    /// as an ordinary reader — which is exactly what the browser client did
+    /// as an ordinary reader. Which is exactly what the browser client did
     /// before this was written down.
     /// </remarks>
     [Fact]
@@ -268,8 +268,8 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// This is the shape the browser client was most wrong about: it expected a
     /// <c>user</c> here and a session with it, on the reasoning that otherwise a
     /// new account could never enrol its first passkey. The reasoning was sound
-    /// and the conclusion was wrong — the ticket cookie is what makes enrolment
-    /// reachable — so the test asserts both halves: the body carries
+    /// and the conclusion was wrong, the ticket cookie is what makes enrolment
+    /// reachable, so the test asserts both halves: the body carries
     /// <c>enrollmentExpiresAt</c> and no account detail, and <c>/me</c> is still
     /// 401 immediately afterwards.
     /// </remarks>
@@ -456,7 +456,7 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// <remarks>
     /// The content type matters as much as the body. It is
     /// <c>application/problem+json</c>, which does not contain the substring
-    /// <c>application/json</c> — a client checking for that substring classifies
+    /// <c>application/json</c>. A client checking for that substring classifies
     /// every error as "the service is not there", which is what the browser
     /// client did. The message field is <c>detail</c>.
     /// </remarks>
@@ -496,8 +496,8 @@ public sealed class AccountWireContractTests(PostgresFixture postgres) : IAsyncL
     /// <para>
     /// This is the assertion that would have caught the worst defect of the
     /// set. The link used to be built against <c>/account/verify</c>, which the
-    /// browser application does not serve — it prerenders a fixed list of paths
-    /// and answers anything else with its not-found page — so every
+    /// browser application does not serve, it prerenders a fixed list of paths
+    /// and answers anything else with its not-found page, so every
     /// verification and recovery message this service sent led nowhere and no
     /// account created through the front door could ever be finished.
     /// </para>

@@ -23,9 +23,9 @@ namespace Sw5e.Identity;
 /// <remarks>
 /// One entry point on purpose. Authentication configuration that is spread
 /// across a composition root is configuration nobody can audit, and the
-/// questions a reviewer needs to answer — is the session cookie
+/// questions a reviewer needs to answer (is the session cookie
 /// <c>HttpOnly</c>, does an unverified account get in, how many failures
-/// before a lockout — should all be answerable by reading one file.
+/// before a lockout) should all be answerable by reading one file.
 /// </remarks>
 public static class Sw5eIdentityServiceCollectionExtensions
 {
@@ -35,7 +35,7 @@ public static class Sw5eIdentityServiceCollectionExtensions
     /// <remarks>
     /// The <c>__Host-</c> prefix is not decoration. A browser refuses to store
     /// a cookie with this prefix unless it is <c>Secure</c>, has
-    /// <c>Path=/</c> and carries no <c>Domain</c> attribute — which means no
+    /// <c>Path=/</c> and carries no <c>Domain</c> attribute. Which means no
     /// sibling subdomain can set it, and nothing served over plain HTTP can
     /// either. That closes cookie fixation and subdomain-takeover cookie
     /// injection at the browser, where it holds even if a future change here
@@ -119,8 +119,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
         // Data protection keys sign and encrypt the session cookie, the
         // two-factor cookie, the passkey challenge cookies and every token
         // emailed to a user. Left on the default file-system key ring inside a
-        // container they are lost on every restart — silently logging every
-        // user out and invalidating every outstanding verification link — and
+        // container they are lost on every restart, silently logging every
+        // user out and invalidating every outstanding verification link, and
         // are not shared between replicas at all, so a two-replica deployment
         // rejects half its own cookies.
         //
@@ -158,8 +158,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
 
                 // Lockout applies to every account from the moment it is
                 // created, new ones included. The framework's default excludes
-                // new users, which would leave the freshest accounts — the ones
-                // an attacker just created a target list from — as the only
+                // new users, which would leave the freshest accounts, the ones
+                // an attacker just created a target list from, as the only
                 // ones with unlimited attempts.
                 identity.Lockout.AllowedForNewUsers = true;
                 identity.Lockout.MaxFailedAccessAttempts = 5;
@@ -191,9 +191,9 @@ public static class Sw5eIdentityServiceCollectionExtensions
             .AddDefaultTokenProviders()
 
             // Replaces the authenticator provider that line just registered,
-            // under the same name, so that every existing caller —
-            // VerifyTwoFactorTokenAsync during enrolment,
-            // TwoFactorAuthenticatorSignInAsync during sign-in — resolves to
+            // under the same name, so that every existing caller
+            // (VerifyTwoFactorTokenAsync during enrolment,
+            // TwoFactorAuthenticatorSignInAsync during sign-in) resolves to
             // this one without being changed. Registering under a new name
             // instead would leave the framework's provider in place as a
             // second, differently-behaved way to satisfy the same check.
@@ -208,8 +208,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
         // EmailConfirmed and nothing else. This one additionally refuses a
         // suspended account, and it is registered here rather than checked in
         // the sign-in handlers because SignInManager.CanSignInAsync is the one
-        // gate every route in — a passkey assertion, an emailed code, and the
-        // authenticator step that can follow either — already passes through.
+        // gate every route in (a passkey assertion, an emailed code, and the
+        // authenticator step that can follow either) already passes through.
         // See SuspensionAwareUserConfirmation.
         services.Replace(ServiceDescriptor
             .Scoped<IUserConfirmation<Sw5eUser>, SuspensionAwareUserConfirmation>());
@@ -276,8 +276,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
             //
             // The body matters as much as the status. Setting the status alone
             // produces a 401 with no content type and no payload, which is
-            // indistinguishable — to a client that decides what happened by
-            // looking at the body — from a reverse proxy answering while the
+            // indistinguishable, to a client that decides what happened by
+            // looking at the body, from a reverse proxy answering while the
             // API is not mounted. A browser client that made that mistake would
             // tell every signed-out reader the service was unreachable instead
             // of offering them a way to sign in. Every other refusal in this
@@ -319,8 +319,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // in front of us still stands for anything.
             //
             // AddIdentityCookies installs SecurityStampValidator here. That is
-            // kept — it is what makes a role revocation or a passkey removal
-            // take effect on a session that is already open — and one check is
+            // kept, it is what makes a role revocation or a passkey removal
+            // take effect on a session that is already open, and one check is
             // added after it. Assigning the delegate replaces the framework's,
             // so calling it explicitly is not politeness: omitting the call
             // would silently switch off stamp validation altogether, and the
@@ -356,9 +356,9 @@ public static class Sw5eIdentityServiceCollectionExtensions
                 cookie.SlidingExpiration = false;
             });
 
-        // Neither of the remaining identity cookies is used by any flow here —
-        // there are no external login providers, and no flow asks to be
-        // remembered past its second factor — but the schemes are registered by
+        // Neither of the remaining identity cookies is used by any flow here
+        // (there are no external login providers, and no flow asks to be
+        // remembered past its second factor) but the schemes are registered by
         // AddIdentityCookies, so they are locked down rather than left on
         // framework defaults in case something later reaches for one.
         foreach (var scheme in new[]
@@ -386,8 +386,8 @@ public static class Sw5eIdentityServiceCollectionExtensions
             // configuration. Every deployed environment sets it.
             passkey.ServerDomain = options.RelyingPartyId;
 
-            // Require the authenticator to verify the human — biometric, PIN or
-            // equivalent — before it will sign. This is what makes a single
+            // Require the authenticator to verify the human (biometric, PIN or
+            // equivalent) before it will sign. This is what makes a single
             // passkey two factors rather than one: possession of the
             // authenticator, plus something only its owner can supply. It is
             // also the framework default, restated because the whole
@@ -455,7 +455,7 @@ public static class Sw5eIdentityServiceCollectionExtensions
         }
 
         // With no allow-list configured, the request's own origin is the only
-        // acceptable one — the same-origin deployment behind the reverse proxy.
+        // acceptable one. The same-origin deployment behind the reverse proxy.
         var request = context.HttpContext.Request;
         return string.Equals(origin.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase)
             && string.Equals(origin.Authority, request.Host.Value, StringComparison.OrdinalIgnoreCase);

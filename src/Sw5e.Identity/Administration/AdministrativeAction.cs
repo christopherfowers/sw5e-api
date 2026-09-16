@@ -31,7 +31,7 @@ namespace Sw5e.Identity.Administration;
 /// <b>What is copied is the display name and never the address.</b> This
 /// platform's rule everywhere else is that an email address is disclosed to the
 /// account that owns it and to nobody else, and an audit table is not an
-/// exception it gets to make for itself — it is a table that outlives the
+/// exception it gets to make for itself. It is a table that outlives the
 /// account, which makes it exactly the wrong place to keep an address after the
 /// person asked to be deleted.
 /// </para>
@@ -84,7 +84,7 @@ public sealed class AdministrativeAction
     /// <remarks>
     /// Stored as text rather than as a relation. Three role names is not a
     /// dimension worth a join table, and the value being read here is a
-    /// historical statement — what the roles <em>were</em> — which a foreign
+    /// historical statement, what the roles <em>were</em>, which a foreign
     /// key to a live role table could not express anyway.
     /// </remarks>
     public string? RolesBefore { get; set; }
@@ -99,7 +99,7 @@ public sealed class AdministrativeAction
     /// Bounded and stored verbatim, exactly like a reviewer's note on a flag:
     /// never sanitised on the way in, escaped at every point of output. It is
     /// written by an administrator, which makes it less hostile than a
-    /// reporter's prose and not trustworthy — an administrator's session can be
+    /// reporter's prose and not trustworthy. An administrator's session can be
     /// stolen, and this text is rendered to other administrators.
     /// </remarks>
     public string? Reason { get; set; }
@@ -116,7 +116,7 @@ public sealed class AdministrativeAction
 /// that records everything is one nobody reads; this records the four things
 /// that change what an account is allowed to be, and every one of them is
 /// something a person decided rather than something the system did on its own.
-/// Lockouts are absent for that reason — a lockout is the framework counting
+/// Lockouts are absent for that reason. A lockout is the framework counting
 /// failures, and putting it here would bury the four decisions under a stream
 /// of automation.
 /// </remarks>

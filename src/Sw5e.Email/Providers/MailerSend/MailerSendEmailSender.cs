@@ -19,7 +19,7 @@ namespace Sw5e.Email.Providers.MailerSend;
 /// </para>
 /// <para>
 /// No retry logic lives here. Retrying is a decorator applied above
-/// <see cref="IEmailSender"/> — see <c>RetryingEmailSender</c> — so this type
+/// <see cref="IEmailSender"/>, see <c>RetryingEmailSender</c>, so this type
 /// only has to classify a failure correctly, and every other provider gets the
 /// same retry behaviour without reimplementing it.
 /// </para>
@@ -109,7 +109,7 @@ public sealed class MailerSendEmailSender : IEmailSender
         }
         catch (TaskCanceledException exception)
         {
-            // HttpClient.Timeout elapsed. Transient by definition — the request
+            // HttpClient.Timeout elapsed. Transient by definition. The request
             // may well have been fine and the provider merely slow.
             _logger.LogWarning(
                 exception,
@@ -169,35 +169,35 @@ public sealed class MailerSendEmailSender : IEmailSender
     /// </para>
     /// <list type="bullet">
     ///   <item><description>
-    ///     <b>2xx</b> — accepted. Specifically <c>202</c>, with an empty body
+    ///     <b>2xx</b>. Accepted. Specifically <c>202</c>, with an empty body
     ///     and the message handle in <c>x-message-id</c>. Any other 2xx is
     ///     treated the same rather than being called an error, because a
     ///     provider adding a success code should not break sending.
     ///   </description></item>
     ///   <item><description>
-    ///     <b>429</b> — rate limited. MailerSend allows 120 requests a minute
+    ///     <b>429</b>. Rate limited. MailerSend allows 120 requests a minute
     ///     to this endpoint and returns <c>retry-after</c> in seconds. Purely a
     ///     matter of timing, so transient, and the header is passed up so the
     ///     retry decorator can obey it instead of guessing.
     ///   </description></item>
     ///   <item><description>
-    ///     <b>408, 421, 425 and 5xx</b> — transient. 421 is the one worth
+    ///     <b>408, 421, 425 and 5xx</b>. Transient. 421 is the one worth
     ///     naming: MailerSend uses it for planned maintenance, which is exactly
     ///     the case retrying is for.
     ///   </description></item>
     ///   <item><description>
-    ///     <b>401 and 403</b> — permanent, and separately logged as an error,
+    ///     <b>401 and 403</b>. Permanent, and separately logged as an error,
     ///     because these mean the token is missing, wrong, revoked or lacking
     ///     the sending scope. Retrying a rejected credential just spends the
     ///     retry budget on a certainty.
     ///   </description></item>
     ///   <item><description>
-    ///     <b>422</b> — permanent. MailerSend's validation failure: an
+    ///     <b>422</b>. Permanent. MailerSend's validation failure: an
     ///     unverified sending domain, a malformed recipient, an oversized body.
     ///     The same payload will fail identically every time.
     ///   </description></item>
     ///   <item><description>
-    ///     <b>Every other 4xx</b> — permanent, on the general principle that a
+    ///     <b>Every other 4xx</b>. Permanent, on the general principle that a
     ///     request the server calls wrong does not become right by repetition.
     ///   </description></item>
     /// </list>
@@ -291,7 +291,7 @@ public sealed class MailerSendEmailSender : IEmailSender
     /// redacted out of it.
     /// </para>
     /// <para>
-    /// The redaction is belt and braces — MailerSend does not echo the
+    /// The redaction is belt and braces. MailerSend does not echo the
     /// <c>Authorization</c> header back, and nothing here puts it in the body.
     /// It costs one comparison, and the failure it guards against is a bearer
     /// token in plain text in an aggregated log store, which is not a failure

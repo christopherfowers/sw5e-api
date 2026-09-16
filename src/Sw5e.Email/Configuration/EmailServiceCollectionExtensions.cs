@@ -26,7 +26,7 @@ namespace Sw5e.Email.Configuration;
 /// <c>ValidateOnStart</c> or on first use. It is the earliest and loudest
 /// moment available: the host does not merely fail to start, it fails before
 /// it is even built, with an exception naming the exact key. The failure this
-/// is designed to prevent is the quiet one — no token configured, every send
+/// is designed to prevent is the quiet one. No token configured, every send
 /// returning a failure nobody reads, discovered by a locked-out user at three
 /// in the morning.
 /// </para>
@@ -102,7 +102,7 @@ public static class EmailServiceCollectionExtensions
 
         var provider = ResolveProvider(options.Provider, fallbackProvider);
 
-        // Nothing at all configured, and a fallback was offered — which only
+        // Nothing at all configured, and a fallback was offered. Which only
         // happens in Development. Filling in a sending identity here is what
         // lets the repository be cloned and run with no email configuration
         // whatsoever, and it is safe precisely because the fallback provider
@@ -226,7 +226,7 @@ public static class EmailServiceCollectionExtensions
     /// Without it, resolving the relative path <c>v1/email</c> against
     /// <c>https://api.mailersend.com</c> replaces the last segment rather than
     /// appending to it. Harmless at the root, silently wrong the moment anyone
-    /// configures a base address with a path in it — which a stub or a proxy
+    /// configures a base address with a path in it. Which a stub or a proxy
     /// will.
     /// </remarks>
     private static string NormaliseBaseAddress(string baseAddress) =>
@@ -245,7 +245,7 @@ public static class EmailServiceCollectionExtensions
         }
 
         // An explicit match rather than Enum.TryParse, which also accepts the
-        // underlying numbers — "Email__Provider=1" quietly meaning Smtp is not
+        // underlying numbers. "Email__Provider=1" quietly meaning Smtp is not
         // a configuration surface worth having.
         return configured.Trim().ToLowerInvariant() switch
         {

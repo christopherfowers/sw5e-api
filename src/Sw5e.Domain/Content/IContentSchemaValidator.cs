@@ -11,8 +11,8 @@ namespace Sw5e.Domain.Content;
 /// This lives in the domain, and the authoring store depends on it directly,
 /// because validation is a rule about what the corpus is allowed to contain
 /// rather than a rule about what a request is allowed to say. Putting it at the
-/// endpoint would leave it in exactly one code path: the next writer — a bulk
-/// import, a migration backfill, a repair script — would reach the store
+/// endpoint would leave it in exactly one code path: the next writer (a bulk
+/// import, a migration backfill, a repair script) would reach the store
 /// without passing through it, and the corpus would be degraded by the tool
 /// written to improve it.
 /// </para>
@@ -128,7 +128,7 @@ public sealed record ContentValidation(
 /// <remarks>
 /// The API publishes these so an editor can put each error beside the control
 /// that caused it. Before they existed the same three facts were formatted into
-/// one line and the browser took them back apart with a regular expression — a
+/// one line and the browser took them back apart with a regular expression. A
 /// guess at a format nothing promised, which a reworded message would have
 /// broken silently.
 /// </remarks>

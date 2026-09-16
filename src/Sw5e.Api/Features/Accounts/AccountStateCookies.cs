@@ -26,7 +26,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// </para>
 /// <para>
 /// Expiry is enforced twice over. The cookie carries a <c>Max-Age</c>, which is
-/// a request to the browser and nothing more — a caller who keeps the value can
+/// a request to the browser and nothing more. A caller who keeps the value can
 /// send it forever. The payload is additionally protected with a time-limited
 /// protector, and that one is checked by the server on every read, so a
 /// preserved cookie is worthless the moment its window closes.
@@ -101,8 +101,8 @@ internal sealed class AccountStateCookies(IDataProtectionProvider dataProtection
     /// <remarks>
     /// The payload binds the ticket to the account's security stamp as well as
     /// its identifier. The stamp changes whenever anything security-relevant
-    /// about the account does — including every time a fresh recovery link is
-    /// issued — so an older outstanding ticket stops working the moment a newer
+    /// about the account does, including every time a fresh recovery link is
+    /// issued, so an older outstanding ticket stops working the moment a newer
     /// one is minted. Without that binding, every recovery email ever sent for
     /// an account would remain a live key to it until it expired.
     /// </remarks>
@@ -185,8 +185,8 @@ internal sealed class AccountStateCookies(IDataProtectionProvider dataProtection
         {
             // Covers every way a value can fail to be ours: expired, truncated,
             // re-signed with a key we do not hold, or minted for a different
-            // purpose. All of them are the same answer — there is no valid
-            // state here — and none of them is worth distinguishing to the
+            // purpose. All of them are the same answer, there is no valid
+            // state here, and none of them is worth distinguishing to the
             // caller, who is at best holding a stale cookie and at worst
             // probing.
             return null;

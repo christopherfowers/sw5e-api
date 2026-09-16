@@ -11,7 +11,7 @@ namespace Sw5e.Identity;
 /// The connection string here is a syntactically valid placeholder and nothing
 /// more. Migration scaffolding needs a provider so it knows PostgreSQL's types
 /// and quoting rules; it never opens the connection. Pointing this at a real
-/// database — or at a real credential — would put a connection string in the
+/// database, or at a real credential, would put a connection string in the
 /// repository for no benefit whatsoever, so it does not.
 /// </remarks>
 public sealed class Sw5eIdentityDbContextFactory : IDesignTimeDbContextFactory<Sw5eIdentityDbContext>

@@ -10,7 +10,7 @@ namespace Sw5e.Email.Resilience;
 /// provider timeout, plus the backoff between them, and that total has to stay
 /// under what a user and a reverse proxy will both tolerate. With the defaults
 /// here and MailerSend's ten-second timeout that is roughly forty seconds of
-/// requests and under eight of waiting — bad, but bounded, and only reached
+/// requests and under eight of waiting. Bad, but bounded, and only reached
 /// when the provider is genuinely broken.
 /// </remarks>
 public sealed class EmailRetryOptions
@@ -20,8 +20,8 @@ public sealed class EmailRetryOptions
     /// three retries; one disables retrying without needing a separate flag.
     /// </summary>
     /// <remarks>
-    /// Four rather than more because the failures worth retrying are brief —
-    /// a rate-limit window, a rolling deploy on the provider's side, a dropped
+    /// Four rather than more because the failures worth retrying are brief.
+    /// A rate-limit window, a rolling deploy on the provider's side, a dropped
     /// connection. Anything still failing after four attempts is an outage, and
     /// an outage is not fixed by a fifth attempt made while a user waits.
     /// </remarks>
@@ -40,7 +40,7 @@ public sealed class EmailRetryOptions
     /// <remarks>
     /// The second half of that is the important half. MailerSend answers a
     /// rate-limited request with <c>retry-after: 59</c>, and sleeping fifty-nine
-    /// seconds inside an HTTP request is not resilience — it exhausts the
+    /// seconds inside an HTTP request is not resilience. It exhausts the
     /// thread pool and trips every timeout upstream. When the provider asks for
     /// longer than this, the send fails as transient and the decision about
     /// what to do next belongs to the caller.

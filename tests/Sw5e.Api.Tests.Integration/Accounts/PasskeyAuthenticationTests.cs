@@ -9,7 +9,7 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// to refuse is actually refused.
 /// </summary>
 /// <remarks>
-/// Every negative test here checks two things — the status code, and that no
+/// Every negative test here checks two things. The status code, and that no
 /// session was issued. The second is the one that matters. An endpoint can
 /// return 401 and still have called SignInAsync, and a test that only read the
 /// status code would pass against exactly that bug.
@@ -99,7 +99,7 @@ public sealed class PasskeyAuthenticationTests(PostgresFixture postgres) : IAsyn
         // The signature is valid, the credential is registered, and the
         // challenge is the one this server just issued. The only thing wrong is
         // that the authenticator was told it was signing for somebody else's
-        // site — which is precisely the phishing case WebAuthn exists to stop.
+        // site. Which is precisely the phishing case WebAuthn exists to stop.
         var response = await account.SignInAsync(originOverride: "https://sw5e-phishing.example");
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

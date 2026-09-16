@@ -18,14 +18,14 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// <para>
 /// One container for the whole assembly, and one database per test class inside
 /// it. Starting a container costs seconds; creating a database on a running one
-/// costs milliseconds, so per-class isolation is affordable — and it is worth
+/// costs milliseconds, so per-class isolation is affordable, and it is worth
 /// having, because these tests import, mutate and delete content and would
 /// otherwise be reading each other's rows.
 /// </para>
 /// <para>
 /// The image is pinned to the same major version the QA stack runs. Testing
 /// against a different one would leave exactly the behaviour these tests exist
-/// to pin down — collation, jsonb normalisation, index method support —
+/// to pin down (collation, jsonb normalisation, index method support)
 /// unverified for the version that actually serves the site.
 /// </para>
 /// </remarks>
@@ -86,7 +86,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <para>
     /// Removing it is what this deliberately does not do. Dropping a database
     /// that another connection still holds needs <c>WITH (FORCE)</c>, which
-    /// terminates those backends — and the connections it terminates belong to
+    /// terminates those backends, and the connections it terminates belong to
     /// a pool the previous test handed back rather than closed, so the next
     /// query on one fails with "terminating connection due to administrator
     /// command" somewhere unrelated to the drop. Never reusing a name removes
@@ -168,7 +168,7 @@ public sealed class ContentDatabase : IAsyncDisposable
         // migrator registers it: `migrate` and `all` bring both schemas up, and
         // a provider holding only one of them cannot run the command the
         // deployment runs. It resolves ConnectionStrings:Sw5e above, so it
-        // lands in this test's own database in a schema of its own — which is
+        // lands in this test's own database in a schema of its own. Which is
         // also what a single-database deployment gets.
         services.AddSw5eModeration(configuration);
 

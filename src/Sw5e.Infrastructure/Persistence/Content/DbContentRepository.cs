@@ -34,7 +34,7 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// returned rows in a different order, or matched a different set of names,
 /// the swap would be a visible change to every user. The comments below mark
 /// each place where reproducing .NET's semantics in SQL took a deliberate
-/// choice — collation, wildcard escaping, null ordering — because each of those
+/// choice (collation, wildcard escaping, null ordering) because each of those
 /// is somewhere a straightforward translation would have silently diverged.
 /// </para>
 /// <para>
@@ -251,14 +251,14 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
         if (!string.IsNullOrEmpty(nameFilter))
         {
             // LIKE rather than the more obvious string.Contains, which Npgsql
-            // translates to strpos() — correct, but not something a trigram
+            // translates to strpos(). Correct, but not something a trigram
             // index can serve, so every name filter would scan the type.
             //
             // The filter is escaped first. Without that, a caller searching for
             // a literal "%" matches every row and a caller searching for "_"
             // matches every single-character name: LIKE metacharacters in
-            // caller-supplied text. That is not an injection — the value is a
-            // parameter either way — but it is the same class of mistake, and
+            // caller-supplied text. That is not an injection, the value is a
+            // parameter either way, but it is the same class of mistake, and
             // it is a real behaviour difference from the file-backed store,
             // which treats the filter as a plain substring.
             var pattern = $"%{EscapeLikePattern(nameFilter)}%";
@@ -268,8 +268,8 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
 
         // Compared against the stored value directly rather than through
         // lower() on both sides. Both columns hold values the JSON Schemas
-        // constrain to lowercase — source keys are slugs, content sets are an
-        // enum of two lowercase strings — so folding the caller's input is
+        // constrain to lowercase (source keys are slugs, content sets are an
+        // enum of two lowercase strings) so folding the caller's input is
         // enough to reproduce the file-backed store's case-insensitive match,
         // and it leaves the column bare so the index on it is usable.
         if (query.SourceKey is { } sourceKey)
@@ -335,8 +335,8 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
 
             // Ordered on the folded copy rather than on `name` itself, because
             // the file-backed store orders case-insensitively. The two agree
-            // for every character below 'A' — every space, apostrophe, comma,
-            // hyphen and parenthesis the corpus actually contains — and would
+            // for every character below 'A' (every space, apostrophe, comma,
+            // hyphen and parenthesis the corpus actually contains) and would
             // differ only for a name containing one of the six characters that
             // sit between 'Z' and 'a'. The parity test over the fixture is what
             // holds that assumption honest.
@@ -353,8 +353,8 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     /// <para>
     /// This is the query <see cref="IContentRepository.SearchAsync"/>'s remarks
     /// describe: <c>row_number()</c> partitioned by content type, so each group
-    /// is ranked and cut inside the database. The alternative — fetching every
-    /// match and bucketing them in memory — over-fetches by however many types
+    /// is ranked and cut inside the database. The alternative, fetching every
+    /// match and bucketing them in memory, over-fetches by however many types
     /// the results cluster into, which for a one-word query against a corpus
     /// where the same word appears in prose across fourteen types is most of the
     /// catalogue.
@@ -830,7 +830,7 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
             // 5 a heading, and 6 and 7 the body prose. The snippet is whatever
             // the reader needs to see to understand the match: the value that
             // matched for the first four, and the phrase in context for the
-            // rest — including a heading, whose words are part of the prose the
+            // rest. Including a heading, whose words are part of the prose the
             // window is cut from.
             return Tier switch
             {
@@ -862,8 +862,8 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     /// Reads the projected display fields out of their jsonb column.
     /// </summary>
     /// <remarks>
-    /// Sorted, because jsonb returns members in its own internal order — by key
-    /// length, then by bytes — and the file-backed store produces them sorted
+    /// Sorted, because jsonb returns members in its own internal order (by key
+    /// length, then by bytes) and the file-backed store produces them sorted
     /// by name. Nothing reads these positionally, but the two stores emitting
     /// the same object in a different member order would be a gratuitous
     /// difference in the response body.

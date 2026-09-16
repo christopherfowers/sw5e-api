@@ -90,7 +90,7 @@ public sealed class MigratorCommandTests(PostgresFixture fixture) : DatabaseTest
     /// <remarks>
     /// The only realistic way to reach this is a content volume that did not
     /// mount. Succeeding would leave the API serving nothing while every health
-    /// check reported green, so the job refuses — and, because the importer
+    /// check reported green, so the job refuses. And, because the importer
     /// never deletes on an empty scan, whatever was already there is still
     /// there afterwards.
     /// </remarks>
@@ -104,7 +104,7 @@ public sealed class MigratorCommandTests(PostgresFixture fixture) : DatabaseTest
         using var empty = TempCorpus.Empty();
 
         // The same database, reached through services whose content root holds
-        // nothing — which is what an unmounted volume looks like from inside
+        // nothing. Which is what an unmounted volume looks like from inside
         // the job.
         await using var pointedAtNothing = Database.WithContentRoot(empty.Root);
 

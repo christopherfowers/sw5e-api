@@ -33,7 +33,7 @@ internal static class ContentProjection
     /// <para>
     /// This is not hypothetical. Harvesting Markdown headings into their own
     /// column shipped, imported cleanly against a database that had been up for
-    /// days, reported "175 updated, 7,702 unchanged" — and left the new column
+    /// days, reported "175 updated, 7,702 unchanged", and left the new column
     /// empty on 7,876 of 7,877 rows, because those documents had not changed.
     /// The tier that reads it was inert, and every test passed, because tests
     /// import into an empty database where every row is an insert.
@@ -41,7 +41,7 @@ internal static class ContentProjection
     /// <para>
     /// Mixing this into the version fixes it in the direction that is also
     /// correct for callers. The version is the ETag, and a projection change
-    /// genuinely changes the response — a client holding the old one is holding
+    /// genuinely changes the response. A client holding the old one is holding
     /// something stale, and should be told so.
     /// </para>
     /// <para>
@@ -69,7 +69,7 @@ internal static class ContentProjection
     /// It fingerprints the table below and nothing else, and that limit is
     /// worth stating: it will notice a field added, removed or moved between
     /// name, summary and facets, and it will not notice a change in how a field
-    /// is turned into text — the heading harvest, the summary cap, the search
+    /// is turned into text. The heading harvest, the summary cap, the search
     /// text. Those still need somebody to think. What it removes is the case
     /// where the change is visible in a diff as an edited list and the version
     /// two lines above it was simply not looked at.
@@ -113,7 +113,7 @@ internal static class ContentProjection
     /// Sized to the corpus, not to a round number: the longest rule chapter is
     /// roughly 460,000 characters, and a rule exists precisely so a reader can
     /// find a half-remembered passage inside it. A cap below the longest
-    /// legitimate document does not protect anything — it silently drops most
+    /// legitimate document does not protect anything. It silently drops most
     /// of the rules corpus out of the index, and the symptom is a search that
     /// returns nothing and looks exactly like a passage that was never written.
     /// So the cap is set past the largest real document and left there; what it
@@ -226,7 +226,7 @@ internal static class ContentProjection
                 ["category", "costInCredits", "weight", "weaponClassification", "armorClassification"]),
 
             // Enhanced items are the largest type in the corpus by an order of
-            // magnitude — 1,918 documents — and nothing in them is a price, so
+            // magnitude (1,918 documents) and nothing in them is a price, so
             // the fields below are the only way a reader narrows the list to
             // something they can read. rarity is the ladder the game places
             // loot on, itemType says what a reader has to own before the item
@@ -241,7 +241,7 @@ internal static class ContentProjection
                 ["rarity", "itemType", "requiresAttunement", "subtype", "prerequisite"]),
 
             // No facets at all, deliberately. Either glossary entry is four
-            // fields — key, name, contentSet and the rules text — and the first
+            // fields (key, name, contentSet and the rules text) and the first
             // three are already columns on every row, so anything listed here
             // could only repeat what the row carries. A facet that duplicates a
             // column is worse than none: it is a second copy of the same value
@@ -300,15 +300,15 @@ internal static class ContentProjection
             // The summary comes from the body, which for a chapter is up to
             // 460,000 characters of Markdown; MaxSummaryLength cuts it to an
             // opening line like every other type's. ruleType is the one field
-            // that changes how a passage is read — a chapter is a sequence, a
-            // variant is a switch a table turns on — and chapterNumber orders a
+            // that changes how a passage is read (a chapter is a sequence, a
+            // variant is a switch a table turns on) and chapterNumber orders a
             // table of contents. Neither identifies a rule: the archive numbers
             // a preface -2 and a changelog 99, and two chapters of Wretched
             // Hives share the number 1.
             /*
               readingGroup and order are what the site builds its path from, and
               chapterNumber is deliberately still here beside them. It is true
-              about the archive — where the passage fell in a printed book — and
+              about the archive, where the passage fell in a printed book, and
               a facet is exactly the right place for a fact nobody navigates by
               but somebody may want to see. What changed is that it stopped
               being the only thing available to order by, which is how it ended
@@ -323,7 +323,7 @@ internal static class ContentProjection
             // subject is the only thing thirty otherwise unrelated tables have
             // to group by, and grouping is the whole of what a list of them can
             // offer. The body is the table itself, so the summary line is its
-            // first row flattened — thin, but a caption plus a subject is what
+            // first row flattened. Thin, but a caption plus a subject is what
             // a reader actually picks from.
             ["reference-table"] = new(
                 "name",
@@ -362,8 +362,8 @@ internal static class ContentProjection
     /// <summary>The type-specific display fields for a row, absent fields omitted.</summary>
     /// <remarks>
     /// Ordered by field name rather than by the order of the list above.
-    /// Nothing about a row's rendering depends on the order — the site reads
-    /// these by name — but search does: when a query matches more than one
+    /// Nothing about a row's rendering depends on the order, the site reads
+    /// these by name, but search does: when a query matches more than one
     /// display field, the first match is the one reported as the explanation,
     /// so the iteration order decides which field a user is told about. A
     /// database-backed store cannot reproduce "the order this array happens to
@@ -455,7 +455,7 @@ internal static class ContentProjection
     /// </para>
     /// <para>
     /// Headings are found with the same rule the browser's markdown parser
-    /// uses — one to six hashes, whitespace, text, on a trimmed line — and that
+    /// uses (one to six hashes, whitespace, text, on a trimmed line) and that
     /// dialect has no fenced code blocks, so a line scan finds exactly the
     /// headings that will be rendered. The two live in different repositories;
     /// if the parser ever learns about fences, this has to learn with it.
@@ -611,7 +611,7 @@ internal static class ContentProjection
     /// <remarks>
     /// A segment applied to an array resolves against that array's first
     /// element. This exists for the types whose prose is a list rather than a
-    /// field — a lightsaber form's <c>effects</c> — and first is the right
+    /// field, a lightsaber form's <c>effects</c>, and first is the right
     /// element rather than an arbitrary one: these lists are stored in printed
     /// order, so the first entry is the one the books lead with and the one a
     /// single-line summary should show. An empty array resolves to nothing,

@@ -25,7 +25,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// already refused self-demotion, on the grounds that the administrator role is
 /// the only thing that can grant the administrator role. Suspension and
 /// deletion reach the same end state by other doors, so both are closed the
-/// same way — and with all three closed, the number of administrators cannot
+/// same way, and with all three closed, the number of administrators cannot
 /// reach zero through this API at all, which is a property rather than a
 /// warning in a document.
 /// </para>
@@ -143,7 +143,7 @@ internal static class AccountLifecycleHandlers
         }
 
         // Rotates the security stamp, which invalidates every outstanding
-        // emailed token and — on its own — would drop the account's live
+        // emailed token and, on its own, would drop the account's live
         // sessions at the stamp validator's next interval. Suspension does not
         // rely on that: AccountSuspension ends the session on the very next
         // request. The rotation is here so that reinstatement is equally
@@ -211,7 +211,7 @@ internal static class AccountLifecycleHandlers
     /// revision table is append-only at the database precisely so that the
     /// people who can make those changes cannot quietly unmake the record of
     /// having made them. An account deletion that reached in and erased
-    /// authorship would be exactly that, with a friendlier name — and it would
+    /// authorship would be exactly that, with a friendlier name, and it would
     /// be available to any administrator, against any contributor, at any time.
     /// A history that can be edited by deleting an account is not a history.
     /// </para>
@@ -223,8 +223,8 @@ internal static class AccountLifecycleHandlers
     /// Authorship does not vanish; the person does.
     /// </para>
     /// <para>
-    /// <b>Drafts are neither.</b> A draft is not history — it is unfinished
-    /// work holding the only editing slot for the document it names — so it is
+    /// <b>Drafts are neither.</b> A draft is not history, it is unfinished
+    /// work holding the only editing slot for the document it names, so it is
     /// the one thing that will refuse a deletion outright. See
     /// <c>AccountProblems.DraftsOutstanding</c>.
     /// </para>
@@ -237,9 +237,9 @@ internal static class AccountLifecycleHandlers
         // access log and proxy log between the browser and the process.
         //
         // Both halves of the attribute are load-bearing. Minimal APIs refuse to
-        // *infer* a body on DELETE — the endpoint fails to map at startup, which
-        // takes the whole application down rather than one route — so the source
-        // has to be stated. And EmptyBodyBehavior.Allow is what keeps a caller
+        // *infer* a body on DELETE (the endpoint fails to map at startup, which
+        // takes the whole application down rather than one route) so the source
+        // has to be stated, and EmptyBodyBehavior.Allow is what keeps a caller
         // who has no reason to give from having to send `{}`; without it the
         // parameter is required and a bodiless DELETE is a 400.
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DeleteAccountRequest? request,

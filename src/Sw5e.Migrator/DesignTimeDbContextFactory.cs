@@ -11,14 +11,14 @@ namespace Sw5e.Migrator;
 /// <para>
 /// Without this, the tooling would have to build the application's own service
 /// graph to find a context, and that graph refuses to be built without a real
-/// connection string — so scaffolding a migration would require a configured
+/// connection string, so scaffolding a migration would require a configured
 /// database on the developer's machine. Adding a migration is a compile-time
 /// activity: it reads the model and writes C#, and it never opens a connection.
 /// </para>
 /// <para>
 /// The connection string below is therefore a placeholder and is deliberately
-/// unusable. If a command that genuinely needs a database is run — <c>dotnet ef
-/// database update</c>, say — it fails to connect rather than quietly reaching a
+/// unusable. If a command that genuinely needs a database is run (<c>dotnet ef
+/// database update</c>, say) it fails to connect rather than quietly reaching a
 /// real one, which is the right outcome: applying migrations is the migrator's
 /// job, run deliberately against a database named by the deployment. A real
 /// connection string can still be supplied for a one-off through the

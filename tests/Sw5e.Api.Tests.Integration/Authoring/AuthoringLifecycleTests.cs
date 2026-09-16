@@ -37,7 +37,7 @@ public sealed class AuthoringLifecycleTests(PostgresFixture postgres) : IAsyncLi
     /// violated.
     /// <para>
     /// Removing the validator call from the authoring store turns this into a
-    /// 204 with a stored draft — which is exactly the silent corpus degradation
+    /// 204 with a stored draft. Which is exactly the silent corpus degradation
     /// the check exists to prevent.
     /// </para>
     /// </remarks>
@@ -70,7 +70,7 @@ public sealed class AuthoringLifecycleTests(PostgresFixture postgres) : IAsyncLi
           each one beside the control that caused it.
 
           Before this field existed the browser recovered the pointer from the
-          line with a regular expression — a guess at a format produced in a
+          line with a regular expression. A guess at a format produced in a
           different repository, promised by nothing here and asserted by no
           test. A reworded validator message would have quietly stopped errors
           landing on fields, and every suite would have stayed green.
@@ -89,7 +89,7 @@ public sealed class AuthoringLifecycleTests(PostgresFixture postgres) : IAsyncLi
             // `additionalProperties: false` is implemented as a false schema,
             // and a false schema fails with no keyword at all. Requiring one
             // here would be asserting that the validator invents a name for
-            // something that has none — which is exactly what the front end's
+            // something that has none. Which is exactly what the front end's
             // regular expression used to require, and why a property that does
             // not belong to a content type could not be placed on a field.
             keyword.ShouldNotBeNull();

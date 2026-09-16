@@ -39,7 +39,7 @@ public sealed class PersistenceRegistrationTests
     /// a database of its own. An unkeyed <see cref="NpgsqlDataSource"/>
     /// singleton would sit in the container looking exactly like the thing to
     /// resolve "to share the pool", and the account tables would quietly move
-    /// onto the content connection — a change with no error, no log line and no
+    /// onto the content connection. A change with no error, no log line and no
     /// failing test, discovered only by noticing that a role which should have
     /// no rights over content has them.
     /// </para>

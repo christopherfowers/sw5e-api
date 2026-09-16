@@ -12,7 +12,7 @@ namespace Sw5e.Email.Resilience;
 /// Resilience sits here, above the seam, for the same reason the templates do:
 /// so that it is written once. A retry loop inside the MailerSend adapter
 /// would understand HTTP status codes and would have to be rewritten, in SMTP
-/// reply codes, for the next provider — and the third provider would get a
+/// reply codes, for the next provider, and the third provider would get a
 /// third variant with its own subtly different backoff. Expressing the policy
 /// against <see cref="EmailFailureKind"/> means every adapter contributes one
 /// thing, a correct classification, and inherits the rest.
@@ -38,7 +38,7 @@ namespace Sw5e.Email.Resilience;
 /// </list>
 /// <para>
 /// One thing it cannot do anything about: a send that reaches the provider and
-/// then fails on the way back — a timeout after the message was accepted, say.
+/// then fails on the way back. A timeout after the message was accepted, say.
 /// Retrying that delivers the email twice. Two verification emails is a far
 /// better outcome than none, so the policy is deliberate, but it is a policy
 /// and not an oversight. A future outbox with idempotency keys is where that
@@ -56,8 +56,8 @@ public sealed class RetryingEmailSender : IEmailSender
     /// </summary>
     /// <remarks>
     /// A seam so that tests can assert the exact backoff schedule instead of
-    /// sleeping through it. A test that really waited would be slow, and — far
-    /// worse — would have to assert the delay loosely enough to survive a busy
+    /// sleeping through it. A test that really waited would be slow, and, far
+    /// worse, would have to assert the delay loosely enough to survive a busy
     /// build agent, which is another way of saying it would pass whether or not
     /// the backoff were correct.
     /// </remarks>
@@ -191,9 +191,9 @@ public sealed class RetryingEmailSender : IEmailSender
     /// budget, null.
     /// </para>
     /// <para>
-    /// Otherwise the wait is exponential — doubling from
+    /// Otherwise the wait is exponential (doubling from
     /// <see cref="EmailRetryOptions.InitialDelay"/>, capped at
-    /// <see cref="EmailRetryOptions.MaxDelay"/> — with equal jitter applied:
+    /// <see cref="EmailRetryOptions.MaxDelay"/>) with equal jitter applied:
     /// half the computed delay, plus a random share of the other half. The
     /// randomness is not decoration. Every instance of this application behind
     /// a load balancer sees a provider outage at the same moment; a fixed

@@ -9,7 +9,7 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// <b>Append-only, and the database says so.</b> The authoring migration
 /// installs a trigger that raises on any <c>UPDATE</c> or <c>DELETE</c> against
 /// this table. Application code never attempts either, so the trigger is not
-/// there to catch this codebase — it is there because the value of an audit
+/// there to catch this codebase. It is there because the value of an audit
 /// trail is exactly the confidence that it has not been edited, and "we do not
 /// write that statement anywhere" is a weaker claim than "the statement is
 /// refused". A contributor group small enough to rewrite canonical rules for the
@@ -52,7 +52,7 @@ public sealed class ContentRevisionRow
     /// 3 of the Wookiee" and mean something. Allocated under the same
     /// transaction that writes the row, and carrying a unique constraint with
     /// the type and key, so two concurrent publishes cannot both take the same
-    /// number — one fails and retries rather than silently interleaving.
+    /// number. One fails and retries rather than silently interleaving.
     /// </remarks>
     public int Number { get; set; }
 
@@ -72,8 +72,8 @@ public sealed class ContentRevisionRow
     /// The account responsible, or null for the deploy-time importer.
     /// </summary>
     /// <remarks>
-    /// Not a foreign key. Identity lives in a separate database — deliberately,
-    /// so that a content-side mistake cannot reach the passkey tables — and a
+    /// Not a foreign key. Identity lives in a separate database (deliberately,
+    /// so that a content-side mistake cannot reach the passkey tables) and a
     /// constraint across that boundary would either fail to exist or force the
     /// two together. The same soft-reference approach the moderation schema
     /// already takes for its reporters.
@@ -107,8 +107,8 @@ public sealed class ContentRevisionRow
 /// <remarks>
 /// <para>
 /// <b>Why drafts are their own table rather than a status column.</b> Putting a
-/// <c>status</c> on <see cref="ContentItemRow"/> would mean every read query —
-/// list, get, search, count, and the search SQL's four-stage CTE — grows a
+/// <c>status</c> on <see cref="ContentItemRow"/> would mean every read query
+/// (list, get, search, count, and the search SQL's four-stage CTE) grows a
 /// predicate, and forgetting it in any one of them publishes unfinished work to
 /// the whole community. It would also make editing a published document
 /// destructive: the live row would have to hold the half-finished version while
@@ -166,7 +166,7 @@ public sealed class ContentDraftRow
     /// survives the work: a reviewer accepts a report, starts the fix, and the
     /// draft knows what it is for. At publication the store copies the revision
     /// it wrote back onto the flag, which is what closes the loop the flag
-    /// queue opened. Not a foreign key — moderation is its own schema, and may
+    /// queue opened. Not a foreign key. Moderation is its own schema, and may
     /// be its own database.
     /// </remarks>
     public Guid? ResolvesFlagId { get; set; }

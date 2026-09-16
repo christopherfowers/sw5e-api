@@ -54,7 +54,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// <b>A code is not a substitute for a second factor.</b> An account with an
 /// authenticator app still has to produce a code from it, exactly as it would
 /// after a passkey. An account with an elevated role gets a session that cannot
-/// use the elevated role — see <c>StrongAuthenticationRequirement</c> — because
+/// use the elevated role, see <c>StrongAuthenticationRequirement</c>, because
 /// a mailbox is what every other credential on the internet is recovered
 /// through, and privilege that a mailbox alone unlocks is privilege protected
 /// by one factor.
@@ -129,7 +129,7 @@ internal static class EmailCodeHandlers
 
         // One response for every branch above: address known, address unknown,
         // address throttled. The throttled branch answers identically on
-        // purpose — saying "wait" would confirm that somebody recently asked
+        // purpose. Saying "wait" would confirm that somebody recently asked
         // for a code for this address, which is a smaller leak than account
         // existence but is still a leak, and the front end already counts the
         // cooldown down from the fixed value below.
@@ -150,7 +150,7 @@ internal static class EmailCodeHandlers
         var logger = loggerFactory.CreateLogger(LogCategories.Accounts);
 
         // Every refusal below is this same value. A caller learns that it did
-        // not work and nothing else — not whether the address exists, not
+        // not work and nothing else. Not whether the address exists, not
         // whether a code was outstanding, not whether this one had expired, and
         // not whether the digits were close.
         if (!AccountInput.TryReadEmail(request.Email, out var emailAddress, out _))

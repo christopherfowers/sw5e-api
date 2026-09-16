@@ -77,7 +77,7 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
 
         // Exhaustive rather than a subset check. An operation added without an
         // id would otherwise slip through, and the generated client would name
-        // its method after the route — which then changes whenever the route
+        // its method after the route. Which then changes whenever the route
         // does.
         ids.ShouldBe(
             [

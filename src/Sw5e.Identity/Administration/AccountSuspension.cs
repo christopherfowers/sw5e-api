@@ -16,14 +16,14 @@ namespace Sw5e.Identity.Administration;
 /// A suspension that only stopped new sign-ins would be theatre. The person it
 /// is aimed at is, by definition, somebody who is doing something right now,
 /// and "right now" is exactly when they already have a session cookie in a tab
-/// and a passkey in their pocket. So suspension is enforced twice, at the two
+/// and a passkey in their pocket, so suspension is enforced twice, at the two
 /// points where a request becomes an identity:
 /// </para>
 /// <list type="number">
 /// <item><description>
 /// <b>No new session.</b> <see cref="SuspensionAwareUserConfirmation"/> makes
 /// <c>SignInManager.CanSignInAsync</c> answer false, which every sign-in route
-/// on the platform already consults through <c>PreSignInCheck</c> — the passkey
+/// on the platform already consults through <c>PreSignInCheck</c>. The passkey
 /// assertion, the emailed code, and the authenticator step that follows either.
 /// Putting the rule there rather than in three handlers means a fourth route
 /// added later inherits it instead of forgetting it.
@@ -32,7 +32,7 @@ namespace Sw5e.Identity.Administration;
 /// <b>No use of an old one.</b> <see cref="RejectSuspendedAsync"/> runs on
 /// every authenticated request, alongside the security stamp check, and signs
 /// the caller out the moment it finds a suspension. Suspending also rotates the
-/// security stamp, which would drop the session on its own — but only at the
+/// security stamp, which would drop the session on its own, but only at the
 /// stamp validator's next interval, up to five minutes later. Five minutes is a
 /// defensible ceiling for a role revocation and an indefensible one for
 /// somebody who is being removed because of what they are doing with the
@@ -41,8 +41,8 @@ namespace Sw5e.Identity.Administration;
 /// </list>
 /// <para>
 /// <b>Passkeys are left on the account.</b> They are inert while the suspension
-/// stands — a valid assertion is refused at the check above, with the same
-/// unhelpful 401 every other sign-in failure gets — and revoking them would
+/// stands (a valid assertion is refused at the check above, with the same
+/// unhelpful 401 every other sign-in failure gets) and revoking them would
 /// make reinstatement a re-credentialling exercise, turning a reversible
 /// decision into an irreversible one. Suspension is meant to be reversible;
 /// deletion is the door that does not open again.
@@ -82,8 +82,8 @@ public static class AccountSuspension
     /// <remarks>
     /// <para>
     /// Costs one indexed read by primary key, projected to a single nullable
-    /// column, on authenticated requests only. Anonymous traffic — which on
-    /// this site is nearly all of it, because the reference is public — never
+    /// column, on authenticated requests only. Anonymous traffic (which on
+    /// this site is nearly all of it, because the reference is public) never
     /// reaches here at all, and an authenticated request already reads the
     /// account row in its handler. Doubling the cheapest query on the least
     /// busy path is the price of a suspension that means something.
@@ -99,7 +99,7 @@ public static class AccountSuspension
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // Null when an earlier validator — the security stamp check — already
+        // Null when an earlier validator, the security stamp check, already
         // refused this principal. There is nothing left to reject.
         if (context.Principal is null)
         {
@@ -116,8 +116,8 @@ public static class AccountSuspension
 
         var store = services.GetRequiredService<Sw5eIdentityDbContext>();
 
-        // Projected rather than materialised. Nothing here needs the account —
-        // only the answer to one question — and loading the whole row would
+        // Projected rather than materialised. Nothing here needs the account,
+        // only the answer to one question, and loading the whole row would
         // also put it in the change tracker of a context the request's own
         // handler is about to use.
         var suspendedAt = await store.Users
@@ -137,7 +137,7 @@ public static class AccountSuspension
 
         // Logged under the API's account category rather than this assembly's
         // own, so that an operator turning the account routes up gets this
-        // with them — it is the same story, told from one layer down. The
+        // with them. It is the same story, told from one layer down. The
         // literal cannot be Sw5e.Api.LogCategories.Accounts because the
         // dependency runs the other way; if that constant is ever renamed,
         // this is the one place that has to be renamed with it.

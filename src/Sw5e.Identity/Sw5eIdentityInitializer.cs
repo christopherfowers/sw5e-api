@@ -69,8 +69,8 @@ internal sealed class Sw5eIdentityInitializer(
                 // A role that failed to seed is not a cosmetic problem: every
                 // authorization policy on the site is written against these
                 // names, so carrying on would serve traffic whose permission
-                // checks can only ever fail closed for legitimate users, or —
-                // far worse — pass for nobody and leave content unmanageable.
+                // checks can only ever fail closed for legitimate users, or,
+                // far worse, pass for nobody and leave content unmanageable.
                 throw new InvalidOperationException(
                     $"Could not seed the '{name}' role: " +
                     string.Join("; ", result.Errors.Select(error => error.Description)));

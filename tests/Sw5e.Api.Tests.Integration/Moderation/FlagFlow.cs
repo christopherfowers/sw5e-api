@@ -18,7 +18,7 @@ namespace Sw5e.Api.Tests.Integration.Moderation;
 /// <para>
 /// Reading the table is the point of the second half. Almost every test in this
 /// area is about something <em>not</em> happening, and a refusal is only worth
-/// asserting alongside the absence of the row it refused — a 403 from an
+/// asserting alongside the absence of the row it refused. A 403 from an
 /// endpoint that has already written is theatre, and a status-code check on its
 /// own cannot tell the two apart.
 /// </para>
@@ -66,7 +66,7 @@ internal static class FlagFlow
     /// <remarks>
     /// The second sign-in is not optional. Role claims are written into the
     /// cookie when the session is created, so a grant applied to an open
-    /// session does not reach it — which is the behaviour the platform wants
+    /// session does not reach it. Which is the behaviour the platform wants
     /// and would make this fixture silently produce a Community session under a
     /// Contributor's name.
     /// </remarks>

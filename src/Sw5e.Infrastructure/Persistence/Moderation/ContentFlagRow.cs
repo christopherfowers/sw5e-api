@@ -31,8 +31,8 @@ public sealed class ContentFlagRow
     /// <remarks>
     /// Flag identifiers appear in URLs that a signed-in account addresses. A
     /// sequential integer would publish how many reports the platform has ever
-    /// received and let anybody holding one identifier guess its neighbours —
-    /// which, on a queue that will carry rights complaints and the names of the
+    /// received and let anybody holding one identifier guess its neighbours.
+    /// Which, on a queue that will carry rights complaints and the names of the
     /// people who raised them, is a disclosure rather than a curiosity.
     /// </remarks>
     public Guid Id { get; set; }
@@ -66,7 +66,7 @@ public sealed class ContentFlagRow
     /// <remarks>
     /// Copied rather than joined, which is a denormalisation and is the right
     /// one. The queue has to be readable without a query against the content
-    /// store — the two may not share a database — and, more importantly, a
+    /// store, the two may not share a database, and, more importantly, a
     /// report about a document that has since been retired or renamed must
     /// still say what the reporter was looking at. A join would render it as a
     /// bare key or as the new name, and in both cases the reviewer loses the
@@ -87,7 +87,7 @@ public sealed class ContentFlagRow
     /// any sanitiser. Encoding at rest is the classic mistake: it makes the
     /// column's contents depend on which writer inserted them, double-encodes
     /// the moment anything re-encodes on output, and it mangles the perfectly
-    /// ordinary sentences this field exists to collect — an artist writing
+    /// ordinary sentences this field exists to collect. An artist writing
     /// <c>the &lt;Twi'lek&gt; portrait is mine</c> deserves to have said that.
     /// </para>
     /// <para>
@@ -119,7 +119,7 @@ public sealed class ContentFlagRow
     /// string and may live in a database of its own. The queue resolves display
     /// names by asking the identity store for the accounts it needs, in one
     /// query per page, and renders "a removed account" for an identifier that
-    /// no longer matches one — which is also what a deleted account should look
+    /// no longer matches one. Which is also what a deleted account should look
     /// like on a report that outlived it.
     /// </remarks>
     public Guid ReporterUserId { get; set; }
@@ -143,7 +143,7 @@ public sealed class ContentFlagRow
     /// Written by a Contributor or an Administrator rather than by the public,
     /// which makes it less hostile and not trustworthy: an account can be
     /// compromised, and a note is rendered to other reviewers. It is treated
-    /// exactly like <see cref="Details"/> — bounded, stored verbatim, escaped
+    /// exactly like <see cref="Details"/>. Bounded, stored verbatim, escaped
     /// on output.
     /// </remarks>
     public string? ReviewerNote { get; set; }
@@ -163,8 +163,8 @@ public sealed class ContentFlagRow
     /// <para>
     /// Deliberately not a foreign key, and deliberately a bare identifier
     /// rather than a navigation. Moderation is its own schema and may be its own
-    /// database — the whole reason it does not carry an FK to the reporter's
-    /// account either — so a constraint reaching into the content schema would
+    /// database, the whole reason it does not carry an FK to the reporter's
+    /// account either, so a constraint reaching into the content schema would
     /// either not exist or would weld the two together. The store checks the
     /// revision is real before writing it; nothing downstream assumes it still
     /// is.

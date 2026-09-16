@@ -17,7 +17,7 @@ namespace Sw5e.Api.Tests.Integration.Authoring;
 /// <para>
 /// The store already works all of this out. It extracts every reference a
 /// document declares, resolves what it can against the catalogue, writes a null
-/// target for the rest — and then answers 200 and says nothing. An author who
+/// target for the rest, and then answers 200 and says nothing. An author who
 /// types "reckles" for a weapon property gets the same green tick as one who
 /// spells it correctly, and the corpus carries a reference to nothing until
 /// somebody reads an importer summary months later.
@@ -29,8 +29,8 @@ namespace Sw5e.Api.Tests.Integration.Authoring;
 /// </para>
 /// <para>
 /// These are notices rather than refusals, deliberately. Naming content that
-/// does not exist yet is a normal way to author — the weapon before the
-/// property, the creature before the power — and the store already re-resolves
+/// does not exist yet is a normal way to author (the weapon before the
+/// property, the creature before the power) and the store already re-resolves
 /// waiting edges when the target arrives. Refusing would make the corpus
 /// impossible to build in any order but one. What was missing was never a veto.
 /// It was the sentence.
@@ -130,7 +130,7 @@ public sealed class PublishNoticeTests(PostgresFixture postgres) : IAsyncLifetim
     /// <remarks>
     /// "reckless" is the real example. Four weapons in the corpus carry it in
     /// exactly the grammar "vicious 1" uses, and no such property was ever
-    /// written — so four documents point at nothing, and did so silently for as
+    /// written, so four documents point at nothing, and did so silently for as
     /// long as anybody has looked.
     /// </remarks>
     [Fact]
@@ -194,7 +194,7 @@ public sealed class PublishNoticeTests(PostgresFixture postgres) : IAsyncLifetim
     /// </summary>
     /// <remarks>
     /// A document is usually wrong in one place, but the guard shoto was wrong
-    /// in a way that produced two — and an author told about one of two mistakes
+    /// in a way that produced two, and an author told about one of two mistakes
     /// will fix one and believe they are finished.
     /// </remarks>
     [Fact]
@@ -215,7 +215,7 @@ public sealed class PublishNoticeTests(PostgresFixture postgres) : IAsyncLifetim
     /// </summary>
     /// <remarks>
     /// Pinned separately because the cheapest wrong implementation reports every
-    /// reference a document declares rather than the ones that failed — and on a
+    /// reference a document declares rather than the ones that failed, and on a
     /// document with one bad property out of eight, the difference between those
     /// two is the entire point.
     /// </remarks>

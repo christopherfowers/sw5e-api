@@ -16,8 +16,8 @@ namespace Sw5e.Email.Tests;
 /// </summary>
 /// <remarks>
 /// Two things are being protected. The first is that misconfiguration stops the
-/// application rather than producing one that runs and silently sends nothing —
-/// so every case here asserts that registration actually throws, and names the
+/// application rather than producing one that runs and silently sends nothing.
+/// So every case here asserts that registration actually throws, and names the
 /// key it throws about. The second is that selecting a provider selects that
 /// provider and only that provider.
 /// </remarks>
@@ -51,7 +51,7 @@ public sealed class EmailRegistrationTests
     }
 
     /// <summary>
-    /// With nothing configured at all — no provider, no sending address — a
+    /// With nothing configured at all (no provider, no sending address) a
     /// Development host still starts. That is the whole point: cloning the
     /// repository and running it must not require an email account.
     /// </summary>
@@ -341,7 +341,7 @@ public sealed class EmailRegistrationTests
 
         // Not HttpClient's hundred-second default, which would let a wedged
         // provider hold a registration request open for over a minute and a
-        // half — and then the retry decorator would do it three more times.
+        // half, and then the retry decorator would do it three more times.
         client.Timeout.ShouldBe(TimeSpan.FromSeconds(10));
         client.Timeout.ShouldBeLessThan(TimeSpan.FromSeconds(30));
     }

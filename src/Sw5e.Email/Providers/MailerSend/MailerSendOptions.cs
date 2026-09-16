@@ -28,7 +28,7 @@ public sealed class MailerSendOptions
     /// Supply it as the environment variable
     /// <c>Email__MailerSend__ApiToken</c>: a container secret, an App Service
     /// application setting, or a gitignored <c>.env</c> locally. MailerSend
-    /// issues tokens per sending domain with granular scopes — the one used
+    /// issues tokens per sending domain with granular scopes. The one used
     /// here needs nothing beyond sending.
     /// </para>
     /// </remarks>

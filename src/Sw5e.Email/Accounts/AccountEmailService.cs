@@ -10,7 +10,7 @@ namespace Sw5e.Email.Accounts;
 /// </summary>
 /// <remarks>
 /// This type knows about templates and sender identity. It knows nothing about
-/// MailerSend, SMTP, HTTP or retries — it depends on <see cref="IEmailSender"/>
+/// MailerSend, SMTP, HTTP or retries. It depends on <see cref="IEmailSender"/>
 /// and therefore works unchanged against every provider, which is the property
 /// the whole design exists to protect.
 /// </remarks>
@@ -19,7 +19,7 @@ public sealed class AccountEmailService : IAccountEmailService
     /// <summary>
     /// Stands in for a display name when the account has none. Second person
     /// and lowercase, so "Hi there," reads as a greeting rather than as a
-    /// failed substitution — which is exactly what an empty greeting looks
+    /// failed substitution. Which is exactly what an empty greeting looks
     /// like to a suspicious reader of a password-reset email.
     /// </summary>
     private const string AnonymousGreeting = "there";
@@ -37,7 +37,7 @@ public sealed class AccountEmailService : IAccountEmailService
     /// rather than per send. Registration has already validated them (see
     /// <see cref="EmailServiceCollectionExtensions"/>), so the throw below is
     /// unreachable through the supported registration path; it is kept because
-    /// the alternative — falling back to some default sender — would mean a
+    /// the alternative, falling back to some default sender, would mean a
     /// typo in configuration silently changes who the mail claims to be from.
     /// </remarks>
     public AccountEmailService(IEmailSender sender, IOptions<EmailOptions> options)

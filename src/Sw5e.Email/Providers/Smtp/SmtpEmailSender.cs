@@ -14,21 +14,21 @@ namespace Sw5e.Email.Providers.Smtp;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This adapter earns its place twice over. It is a real production option —
-/// every mail provider worth using offers SMTP submission, so a provider
+/// This adapter earns its place twice over. It is a real production option.
+/// Every mail provider worth using offers SMTP submission, so a provider
 /// outage or a commercial disagreement is survivable by changing configuration
-/// rather than by writing code. And it is the evidence that the abstraction
+/// rather than by writing code, and it is the evidence that the abstraction
 /// above it is genuine: a MailerSend-shaped interface with one MailerSend
 /// implementation would be a wrapper claiming to be a seam. Two
-/// implementations with nothing in common below <see cref="IEmailSender"/> —
-/// one JSON over HTTP, one a stateful text protocol over a socket — driven by
+/// implementations with nothing in common below <see cref="IEmailSender"/>
+/// (one JSON over HTTP, one a stateful text protocol over a socket) driven by
 /// identical calling code, is a seam that has been tested.
 /// </para>
 /// <para>
 /// Built on <see cref="SmtpClient"/> from the framework rather than on a
 /// third-party client. It handles submission, STARTTLS and <c>AUTH LOGIN</c>,
 /// which is the entire requirement, and it costs no dependency. Its one
-/// relevant limitation — no implicit TLS on port 465 — is documented on
+/// relevant limitation, no implicit TLS on port 465, is documented on
 /// <see cref="SmtpOptions.UseStartTls"/> and rejected at startup rather than
 /// discovered at runtime.
 /// </para>
@@ -95,7 +95,7 @@ public sealed class SmtpEmailSender : IEmailSender
                 options.Port,
                 message.To.Address);
 
-            // SMTP issues no message identifier the client can see — the
+            // SMTP issues no message identifier the client can see. The
             // relay's own Message-ID is assigned server side and never comes
             // back over the wire. Null is the honest answer.
             return EmailDeliveryResult.Success();
@@ -156,7 +156,7 @@ public sealed class SmtpEmailSender : IEmailSender
     /// <para>
     /// Everything is UTF-8, and the subject encoding is set explicitly. A
     /// subject left to the default is encoded per the ambient culture, which in
-    /// this application's containers is invariant — the practical effect being
+    /// this application's containers is invariant. The practical effect being
     /// that a name with an accent in it arrives as mojibake.
     /// </para>
     /// </remarks>
@@ -210,7 +210,7 @@ public sealed class SmtpEmailSender : IEmailSender
     /// <para>
     /// SMTP makes this unusually easy, because RFC 5321 defines the first digit
     /// to mean exactly this: <c>4yz</c> is a temporary failure the sender
-    /// should retry, <c>5yz</c> is permanent and must not be. So a mailbox
+    /// should retry, <c>5yz</c> is permanent and must not be, so a mailbox
     /// that is full (452) is retried and a mailbox that does not exist (550) is
     /// not, with no per-relay knowledge needed.
     /// </para>
@@ -223,7 +223,7 @@ public sealed class SmtpEmailSender : IEmailSender
     /// </para>
     /// <para>
     /// <see cref="SmtpStatusCode.GeneralFailure"/> is the framework's own
-    /// value for "no reply code was obtained" — a refused connection, a failed
+    /// value for "no reply code was obtained". A refused connection, a failed
     /// TLS handshake, a name that would not resolve. Those are transient, so
     /// anything without a recognisable reply code falls to that bucket.
     /// </para>

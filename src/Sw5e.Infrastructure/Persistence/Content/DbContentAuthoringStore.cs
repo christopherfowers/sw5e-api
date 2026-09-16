@@ -12,7 +12,7 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// <para>
 /// <b>Only the database store has one of these.</b> The file-backed store reads
 /// a directory that is mounted read-only in every deployment, and builds its
-/// index once at start-up and never again — so even a write that somehow
+/// index once at start-up and never again, so even a write that somehow
 /// reached the disk would not be visible until the process restarted. Authoring
 /// is registered alongside the database store and nowhere else, and the
 /// endpoints answer 503 when it is absent rather than pretending to accept work
@@ -78,8 +78,8 @@ public sealed class DbContentAuthoringStore(
         var itemKeys = wanted.Select(item => item.ItemKey).Distinct().ToArray();
 
         // Narrowed on both halves of the identity. Filtering on type alone
-        // would be correct and would also drag back every row of that type —
-        // 2,682 of them for `feature` — to answer a question about the handful
+        // would be correct and would also drag back every row of that type
+        // (2,682 of them for `feature`) to answer a question about the handful
         // of documents somebody has open. Filtering on the two lists separately
         // still admits pairs nobody asked for, so the pairing is re-checked
         // when the set is built.
@@ -619,8 +619,8 @@ public sealed class DbContentAuthoringStore(
 
               A null target is stored either way and always was; what did not
               happen was anybody being told. The wording names the identifier
-              because that is the actionable half — it is the thing the author
-              either misspelled or has yet to write — and it says "or is not
+              because that is the actionable half, it is the thing the author
+              either misspelled or has yet to write, and it says "or is not
               uniquely named" because an ambiguous name resolves to null by the
               same route as an absent one, and "does not exist" would be a lie
               in that case.
@@ -665,14 +665,14 @@ public sealed class DbContentAuthoringStore(
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Only asked of a document that is itself on a path. Most content is not —
-    /// a weapon has no place in a reading order — and asking for every publish
+    /// Only asked of a document that is itself on a path. Most content is not,
+    /// a weapon has no place in a reading order, and asking for every publish
     /// would be a query per publish to answer a question about nothing.
     /// </para>
     /// <para>
     /// Scoped to one book. The rules type spans several, each with its own path
     /// starting at one, so inspecting them together would report a duplicate at
-    /// every position where two books both have a chapter — which is all of
+    /// every position where two books both have a chapter. Which is all of
     /// them.
     /// </para>
     /// <para>
@@ -713,7 +713,7 @@ public sealed class DbContentAuthoringStore(
     /// </summary>
     /// <remarks>
     /// Facets are a flat map of display values, so every one of them is a
-    /// string on the way in — including a position, which is why this parses
+    /// string on the way in. Including a position, which is why this parses
     /// rather than reads. A facet that will not parse is treated as absent: a
     /// malformed value means the site cannot order that document either, and
     /// throwing here would refuse a publish over somebody else's document.
@@ -779,7 +779,7 @@ public sealed class DbContentAuthoringStore(
     /// <remarks>
     /// The grouping is done in memory rather than as a <c>GROUP BY</c> with a
     /// correlated "first row per group". That shape is the natural way to write
-    /// it and is the one EF cannot always translate — when it fails it does so
+    /// it and is the one EF cannot always translate. When it fails it does so
     /// at run time, on the worklist endpoint, rather than at build time. The
     /// input here is the drafts outstanding right now, which is a handful of
     /// documents on a screen somebody is looking at, so narrowing on the server
@@ -852,7 +852,7 @@ public sealed class DbContentAuthoringStore(
             // A refusal must leave nothing behind. Publishing writes the
             // catalogue row before it writes the revision, so a validation
             // failure discovered late without this would leave the document
-            // changed and unrecorded — the one outcome this whole path exists
+            // changed and unrecorded. The one outcome this whole path exists
             // to make impossible.
             if (result.Status != ContentAuthoringStatus.Succeeded)
             {

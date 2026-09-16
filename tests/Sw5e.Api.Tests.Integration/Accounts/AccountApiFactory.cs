@@ -19,8 +19,8 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// Only two things are substituted, and both for the same reason: they are the
 /// parts of the flow that leave the process. Mail cannot be delivered from a
 /// test, and the browser's authenticator cannot be driven from one. Everything
-/// else — the identity store, the migration, the cookie policy, the passkey
-/// verifier, the rate limiter, the authorization policies — is exactly what
+/// else (the identity store, the migration, the cookie policy, the passkey
+/// verifier, the rate limiter, the authorization policies) is exactly what
 /// runs in production.
 /// </para>
 /// <para>
@@ -49,7 +49,7 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
     /// <summary>Requests allowed per window to have a sign-in code emailed.</summary>
     /// <remarks>
     /// Same reasoning as above, and separate because the production value is a
-    /// tenth of the sensitive one — a suite that shared the number would be
+    /// tenth of the sensitive one. A suite that shared the number would be
     /// throttled by the tests that are not about throttling.
     /// </remarks>
     protected virtual int EmailCodeRequests => 1000;
@@ -85,7 +85,7 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
         builder.UseSetting("ConnectionStrings:Sw5eIdentity", postgres.ConnectionString);
 
         // The moderation schema shares the test container, in a schema of its
-        // own with a migration history of its own — exactly the arrangement a
+        // own with a migration history of its own. Exactly the arrangement a
         // single-database deployment gets. Named explicitly rather than left to
         // the identity fallback so this fixture states which database the flag
         // endpoints write to instead of inheriting it.
@@ -144,7 +144,7 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
     /// </para>
     /// <para>
     /// It runs after the host has been built and started and before any request
-    /// is made, which is the same ordering a deployment has — the job finishes,
+    /// is made, which is the same ordering a deployment has. The job finishes,
     /// then traffic arrives.
     /// </para>
     /// </remarks>

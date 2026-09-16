@@ -13,9 +13,9 @@ namespace Sw5e.Identity.TwoFactor;
 /// This exists because "works with a real authenticator app" is a property of
 /// the algorithm's parameters, and parameters that are left to a framework
 /// default are parameters nobody has actually checked. Every one of them is
-/// stated here — HMAC-SHA1, a thirty-second step counted from the Unix epoch,
+/// stated here (HMAC-SHA1, a thirty-second step counted from the Unix epoch,
 /// six digits, dynamic truncation per RFC 4226 section 5.4, and no
-/// per-application modifier mixed into the counter — because those five
+/// per-application modifier mixed into the counter) because those five
 /// choices, and only those five, are what Google Authenticator, Authy,
 /// 1Password and Microsoft Authenticator all implement.
 /// </para>
@@ -103,8 +103,8 @@ public static class Rfc6238TimeBasedOneTimePassword
     /// <param name="now">The moment to evaluate against.</param>
     /// <remarks>
     /// <para>
-    /// Every candidate is compared in fixed time, and — this is the part that
-    /// is easy to get wrong — the loop does not stop early on a match. Breaking
+    /// Every candidate is compared in fixed time, and, this is the part that
+    /// is easy to get wrong, the loop does not stop early on a match. Breaking
     /// out on the first hit would make the function's running time depend on
     /// <em>which</em> step matched, which leaks how far the caller's clock is
     /// from the server's. That is a small leak, but it is a free one to close.

@@ -17,8 +17,8 @@ internal sealed record AccountEmailTemplate(string Subject, string PlainText, st
 /// is genuinely nicer to edit, but it moves the wording of a password-reset
 /// email into a vendor's dashboard: it stops being reviewable, stops being
 /// diffable, stops being testable, and stops existing the moment the provider
-/// is swapped. Keeping the bodies here is what makes the provider seam real —
-/// switching to SMTP changes nothing a reader sees.
+/// is swapped. Keeping the bodies here is what makes the provider seam real.
+/// Switching to SMTP changes nothing a reader sees.
 /// </para>
 /// <para>
 /// Both messages are written to the same shape, and the shape is doing work:
@@ -27,7 +27,7 @@ internal sealed record AccountEmailTemplate(string Subject, string PlainText, st
 ///   <item><description>
 ///     <b>A preheader.</b> The first text in the document is what an inbox
 ///     list shows beside the subject. Without one, clients scrape whatever
-///     comes first — historically "View this email in your browser" — and the
+///     comes first, historically "View this email in your browser", and the
 ///     preview line is wasted.
 ///   </description></item>
 ///   <item><description>
@@ -141,7 +141,7 @@ internal static class AccountEmailTemplates
     /// <remarks>
     /// <para>
     /// Every argument is a trusted literal from this file, and the assembled
-    /// result is a template rather than a finished document — the untrusted
+    /// result is a template rather than a finished document. The untrusted
     /// values only arrive later, through <see cref="EmailTemplate.Render"/>,
     /// which encodes them. Passing anything here that did not come from this
     /// file would defeat that.

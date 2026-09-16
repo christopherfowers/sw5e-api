@@ -13,7 +13,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// <remarks>
 /// <para>
 /// A passkey with user verification is already two factors, so TOTP here is a
-/// third — for accounts that hold privileges worth the extra step, and for
+/// third. For accounts that hold privileges worth the extra step, and for
 /// people who simply want it. Because it is optional, the one thing that must
 /// never happen is a route into an account that skips it once it has been
 /// turned on; see PasskeyHandlers for why the framework's own passkey sign-in
@@ -54,7 +54,7 @@ internal static class TwoFactorHandlers
 
         // A fresh secret on every call, even if one already exists. Re-issuing
         // rather than re-displaying means a secret that was shown once and then
-        // exposed — a screenshot, a shoulder, an abandoned browser tab — cannot
+        // exposed (a screenshot, a shoulder, an abandoned browser tab) cannot
         // be recovered by asking again, and it makes an interrupted enrolment
         // safe to restart.
         await users.ResetAuthenticatorKeyAsync(user);
@@ -97,7 +97,7 @@ internal static class TwoFactorHandlers
 
         // Sign-in first. A caller holding the pending two-factor cookie is
         // mid-sign-in and cannot also be signed in, so the branches cannot
-        // overlap — but checking in this order means that if they ever somehow
+        // overlap, but checking in this order means that if they ever somehow
         // did, the caller is treated as the less privileged of the two.
         //
         // The account is read out of the pending state here, before the sign-in
@@ -124,8 +124,8 @@ internal static class TwoFactorHandlers
     {
         // The framework's method does the work that matters here: it re-checks
         // the lockout before verifying, records a failure against the account's
-        // access-failed counter when the code is wrong — which is what makes
-        // repeated guessing actually lock the account rather than merely fail —
+        // access-failed counter when the code is wrong, which is what makes
+        // repeated guessing actually lock the account rather than merely fail,
         // and issues the session cookie on success.
         var result = await signIn.TwoFactorAuthenticatorSignInAsync(
             code,
@@ -152,7 +152,7 @@ internal static class TwoFactorHandlers
         // code was produced during this sign-in. The framework's two-factor
         // method writes the session cookie itself and offers no way to add a
         // claim to it, so the choice is between reimplementing its lockout
-        // handling — which is the part of it worth keeping — and writing the
+        // handling, which is the part of it worth keeping, and writing the
         // cookie a second time. The second cookie replaces the first in the
         // same response; the cost is a few hundred bytes on one response, and
         // what it buys is that no sign-in route can produce an unstamped

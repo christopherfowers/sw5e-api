@@ -97,8 +97,8 @@ public sealed class AuthoringAuthorizationTests(PostgresFixture postgres) : IAsy
 
         var control = AuthoringFlow.NewKey("strong");
 
-        // The control. The same account, with a passkey session, is allowed —
-        // so the refusal below is about the second factor and not about the
+        // The control. The same account, with a passkey session, is allowed.
+        // So the refusal below is about the second factor and not about the
         // account, the role or the request.
         (await AuthoringFlow.SaveDraftAsync(
                 client, control, AuthoringFlow.Valid(control, "Strong", "Stored.")))
@@ -107,7 +107,7 @@ public sealed class AuthoringAuthorizationTests(PostgresFixture postgres) : IAsy
         await client.PostAsync("/api/auth/logout", content: null);
 
         // Sign the same account back in with an emailed one-time code. That is
-        // a real session — /api/auth/me answers — but the code is not a second
+        // a real session, /api/auth/me answers, but the code is not a second
         // factor, so it must not carry the contributor's authoring privileges.
         var weak = _factory.CreateBrowserClient();
 

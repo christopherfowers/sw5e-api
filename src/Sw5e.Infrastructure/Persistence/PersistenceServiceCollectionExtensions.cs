@@ -26,9 +26,9 @@ public static class PersistenceServiceCollectionExtensions
     /// <b>This registers the connection for content, and only for content.</b>
     /// The data source is keyed with <see cref="ContentDataSourceKey"/> rather
     /// than registered as a bare <see cref="NpgsqlDataSource"/> singleton, and
-    /// that is deliberate. Identity resolves its own connection string —
-    /// <c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
-    /// then <c>ConnectionStrings:Sw5e</c> — precisely so a deployment can give
+    /// that is deliberate. Identity resolves its own connection string
+    /// (<c>Identity:ConnectionString</c>, then <c>ConnectionStrings:Sw5eIdentity</c>,
+    /// then <c>ConnectionStrings:Sw5e</c>) precisely so a deployment can give
     /// account data a least-privileged role, or a database of its own, without
     /// touching anything here. An unkeyed singleton would sit in the container
     /// waiting for someone to resolve it "to share the pool", and would then
@@ -196,7 +196,7 @@ public static class PersistenceServiceCollectionExtensions
         // The validator would throw on construction anyway, but its factory is
         // lazy, so a deployment with a wrong or unmounted schema path would
         // start cleanly, report healthy, serve reads perfectly, and fail only
-        // when the first contributor tried to save something — as a 500 with no
+        // when the first contributor tried to save something. As a 500 with no
         // indication that the problem is configuration rather than their
         // document. Failing while the process is starting is the difference
         // between an operator seeing it and a contributor seeing it.
@@ -233,7 +233,7 @@ public static class PersistenceServiceCollectionExtensions
     /// checkout. Only the migrator registers this.
     /// </para>
     /// <para>
-    /// The schemas are needed twice over — once to order a document's members,
+    /// The schemas are needed twice over. Once to order a document's members,
     /// which is what makes the output byte-stable, and once to refuse to write
     /// a document the content repository's CI would reject.
     /// </para>
@@ -265,7 +265,7 @@ public static class PersistenceServiceCollectionExtensions
     /// <remarks>
     /// One instance, shared. Each <see cref="SchemaRepository"/> compiles and
     /// caches all 31 schemas separately, so a second one is both wasted work
-    /// and — more importantly — a second answer to "which directory are the
+    /// and, more importantly, a second answer to "which directory are the
     /// schemas in", which is exactly the kind of thing that is only ever
     /// noticed once a deployment has been validating against the wrong ones.
     /// </remarks>

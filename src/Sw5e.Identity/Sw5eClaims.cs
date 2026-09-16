@@ -28,8 +28,8 @@ public static class Sw5eClaims
     /// <para>
     /// This claim records which it was, on the session itself, at the moment
     /// the session was created. That placement is the important part. The
-    /// obvious alternative — deciding at request time whether the account
-    /// <em>has</em> a passkey or an authenticator — answers a different and
+    /// obvious alternative, deciding at request time whether the account
+    /// <em>has</em> a passkey or an authenticator, answers a different and
     /// much weaker question: it says the account could have proved something
     /// strongly, not that it did. An administrator with a passkey who signed in
     /// with a mailbox code would pass that check, which means a compromised

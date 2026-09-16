@@ -15,8 +15,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <para>
 /// The seam between the two halves, and it exists because they were shaped for
 /// different worlds. <see cref="IAccountEmailService"/> offers exactly the two
-/// messages a password-based account system needs — verify an address, reset a
-/// password — and its verification message is precisely right here. Its reset
+/// messages a password-based account system needs (verify an address, reset a
+/// password) and its verification message is precisely right here. Its reset
 /// message is not: this platform has no passwords, so a message telling the
 /// reader to choose a new one would be actively wrong, and there is nothing in
 /// that contract for the after-the-fact security notice that lets somebody
@@ -26,14 +26,14 @@ namespace Sw5e.Api.Features.Accounts;
 /// So verification is delegated to the account email service, which owns the
 /// wording, the layout and the sender identity; the other two are composed here
 /// and handed to <see cref="IEmailSender"/> directly. That keeps every decision
-/// about how mail is delivered — provider, retries, credentials — on the email
+/// about how mail is delivered (provider, retries, credentials) on the email
 /// library's side of the line, while the wording of a passkey-specific message
 /// stays with the passkey-specific code that knows what it means.
 /// </para>
 /// <para>
 /// <b>A delivery failure is reported, not thrown.</b> It used to be thrown, and
 /// that turned a misconfigured relay into a 500 from <c>register</c> and
-/// <c>email/code</c> — the two endpoints whose entire contract is that they
+/// <c>email/code</c>. The two endpoints whose entire contract is that they
 /// answer identically whether or not the address has an account. Both happened
 /// to fail identically, because both branches send; the moment somebody dropped
 /// the send on the unknown-address branch as a saving, the difference between
@@ -42,7 +42,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// <para>
 /// The concern behind the throw was right, though: an account flow that
 /// swallows an undeliverable message tells the user to check an inbox nothing
-/// will ever arrive in. So it is answered somewhere the caller cannot read.
+/// will ever arrive in, so it is answered somewhere the caller cannot read.
 /// Every failure is logged at error with the provider's own reply, and recorded
 /// in <see cref="AccountEmailDeliveryMonitor"/>, which the readiness surface
 /// reports as degraded. The operator learns everything; the caller learns
@@ -50,7 +50,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// </para>
 /// <para>
 /// Exceptions are still exceptions. A malformed URL, a missing sending
-/// identity, an unconfigured public site URL — those are programmer or
+/// identity, an unconfigured public site URL. Those are programmer or
 /// deployment errors that the code above cannot make right by carrying on, and
 /// they still throw. Cancellation still propagates too: a cancelled request is
 /// not a failed send and must not be recorded as one.
@@ -91,9 +91,9 @@ internal sealed class ProviderAccountEmailSender(
         CancellationToken cancellationToken = default)
     {
         // Composed here rather than sent as a password reset. The reader may
-        // not have asked for this — a registration attempt against an existing
+        // not have asked for this (a registration attempt against an existing
         // address produces it, which is how this platform avoids confirming to
-        // a stranger that an account exists — so the message has to read
+        // a stranger that an account exists) so the message has to read
         // sensibly to somebody who did not, and has to say plainly that
         // ignoring it is safe.
         const string subject = "Set up a new passkey for your SW5e account";
@@ -254,8 +254,8 @@ internal sealed class ProviderAccountEmailSender(
     /// </summary>
     /// <remarks>
     /// Everything interpolated into these messages is either a constant or a
-    /// URL this application built, but the display name is not — it is whatever
-    /// the account holder typed — so it is encoded rather than trusted. An
+    /// URL this application built, but the display name is not, it is whatever
+    /// the account holder typed, so it is encoded rather than trusted. An
     /// unencoded display name in an HTML mail body is a stored cross-site
     /// scripting hole that happens to render in a mail client.
     /// </remarks>
@@ -295,7 +295,7 @@ internal sealed class ProviderAccountEmailSender(
     /// <para>
     /// The provider's reply is logged and goes no further. It is operator-facing
     /// text that can quote the envelope and so name the recipient, which makes
-    /// the application log the widest audience it may have — not the health
+    /// the application log the widest audience it may have. Not the health
     /// surface, which is anonymous, and not the response, which is the caller's.
     /// </para>
     /// </remarks>

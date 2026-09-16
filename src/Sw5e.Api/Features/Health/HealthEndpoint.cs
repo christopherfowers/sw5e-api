@@ -19,7 +19,7 @@ public static class HealthEndpoint
         // there is no proxy and the path is whatever this app says it is. From
         // outside, the QA reverse proxy routes /api/* to this service *without*
         // stripping the prefix, so everything reachable through it lives under
-        // /api — and /api/health, the obvious thing for an external monitor to
+        // /api, and /api/health, the obvious thing for an external monitor to
         // watch, answered 404.
         //
         // Mapping both is better than moving the endpoint: moving it would

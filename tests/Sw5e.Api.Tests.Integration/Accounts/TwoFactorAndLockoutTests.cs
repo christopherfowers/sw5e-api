@@ -37,7 +37,7 @@ public sealed class TwoFactorAndLockoutTests(PostgresFixture postgres) : IAsyncL
         uri.ShouldContain("issuer=SW5e");
 
         // The code is computed here from the URI's secret using an independent
-        // RFC 6238 implementation — the same arithmetic a phone app performs.
+        // RFC 6238 implementation. The same arithmetic a phone app performs.
         // The server accepting it is what proves the QR code it hands out is
         // actually usable, rather than merely well formed.
         var code = TimeBasedOneTimePassword.Generate(TimeBasedOneTimePassword.SecretFrom(uri));
@@ -73,7 +73,7 @@ public sealed class TwoFactorAndLockoutTests(PostgresFixture postgres) : IAsyncL
         var body = await signIn.ReadJsonAsync();
         body.GetProperty("status").GetString().ShouldBe("mfaRequired");
 
-        // The assertion above is not enough on its own — an endpoint could
+        // The assertion above is not enough on its own. An endpoint could
         // report mfaRequired and have issued a session anyway. This is the
         // check that the second factor is actually load-bearing, and it is the
         // reason this API does not use SignInManager.PasskeySignInAsync, which
@@ -125,7 +125,7 @@ public sealed class TwoFactorAndLockoutTests(PostgresFixture postgres) : IAsyncL
 
         // The policy is five failures. Each attempt starts from a fresh passkey
         // assertion, so every one of them is a genuine second-factor failure
-        // that reaches the account's counter — rather than four requests bouncing
+        // that reaches the account's counter. Rather than four requests bouncing
         // off a pending-sign-in cookie that the first failure had already spent.
         for (var attempt = 0; attempt < 5; attempt++)
         {

@@ -11,8 +11,8 @@ namespace Sw5e.Api.Features.Content;
 /// <para>
 /// Nothing here echoes a filesystem path, a stack trace or an internal
 /// identifier. Where a message needs to say what was allowed, it lists the
-/// allowed values — which are already public, because the registry endpoint
-/// serves them — rather than repeating what the caller sent.
+/// allowed values (which are already public, because the registry endpoint
+/// serves them) rather than repeating what the caller sent.
 /// </para>
 /// <para>
 /// Every method fails closed: an unparsable, out-of-range or unrecognised value
@@ -30,8 +30,8 @@ internal static class ContentRequestValidation
     /// arrives from the URL and would otherwise reach a path join in the
     /// filesystem store, so it is never passed onward: what comes back is a
     /// registry instance built from compile-time constants. Anything not in the
-    /// registry — including <c>..</c>, an encoded separator, or a plausible but
-    /// unknown type — resolves to nothing and produces a 404.
+    /// registry (including <c>..</c>, an encoded separator, or a plausible but
+    /// unknown type) resolves to nothing and produces a 404.
     /// </remarks>
     public static bool TryResolveType(
         string? type,

@@ -11,11 +11,11 @@ namespace Sw5e.Api.Security;
 /// Headers rather than body fields, for three reasons. The solution is a
 /// statement about the request rather than about the account being registered,
 /// so putting it in the body would mean every guarded endpoint's documented
-/// request schema grows five fields that have nothing to do with what it does —
-/// and this repository's request shapes are a published contract that another
+/// request schema grows five fields that have nothing to do with what it does.
+/// And this repository's request shapes are a published contract that another
 /// repository generates a client from. It also means the check can be made
 /// before the body is looked at, by a filter that does not need to know what
-/// endpoint it is guarding. And a custom request header cannot be attached to
+/// endpoint it is guarding, and a custom request header cannot be attached to
 /// the kind of cross-origin request an HTML form can make, so it is one more
 /// thing a forged submission cannot produce.
 /// </para>
@@ -55,7 +55,7 @@ internal static class ProofOfWorkHeaders
 /// </para>
 /// <para>
 /// Runs after the group's <see cref="CrossSiteRequestFilter"/>, so a forged
-/// cross-site request is refused before this asks it for anything — the cheaper
+/// cross-site request is refused before this asks it for anything. The cheaper
 /// and more certain check goes first.
 /// </para>
 /// </remarks>
@@ -109,7 +109,7 @@ internal sealed class ProofOfWorkChallengeFilter(ProofOfWorkChallenges challenge
         // NumberStyles.None on both: no sign, no thousands separator, no
         // leading or trailing space. The protocol says a non-negative integer,
         // and accepting anything else means the verifier is asked about values
-        // the protocol does not define — a negative counter, which cannot solve
+        // the protocol does not define. A negative counter, which cannot solve
         // anything, or a spelling the client never sent.
         if (!long.TryParse(
                 headers[ProofOfWorkHeaders.Counter].ToString(),

@@ -112,7 +112,7 @@ internal static class AccountInput
     /// paste both the same way: with the space an app puts in the middle, or
     /// with a hyphen a mail client helpfully inserted at a line break.
     /// Stripping separators is a courtesy. The length and digit check that
-    /// follows is not — it keeps anything that is not a code out of the
+    /// follows is not. It keeps anything that is not a code out of the
     /// verification path entirely, which matters most on the emailed-code path,
     /// where verification costs a deliberately slow key derivation.
     /// </para>

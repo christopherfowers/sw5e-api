@@ -6,8 +6,8 @@ using Sw5e.Email.Tests.Support;
 namespace Sw5e.Email.Tests;
 
 /// <summary>
-/// Tests the retry decorator by pinning its two sources of non-determinism —
-/// the clock and the jitter — and then asserting the exact schedule it
+/// Tests the retry decorator by pinning its two sources of non-determinism,
+/// the clock and the jitter, and then asserting the exact schedule it
 /// produces.
 /// </summary>
 /// <remarks>
@@ -133,7 +133,7 @@ public sealed class RetryingEmailSenderTests
 
     /// <summary>
     /// Equal jitter: never less than half the computed delay, never more than
-    /// all of it. The lower bound is the half that matters — full jitter would
+    /// all of it. The lower bound is the half that matters. Full jitter would
     /// sometimes produce a near-instant retry against a provider that is
     /// already struggling.
     /// </summary>

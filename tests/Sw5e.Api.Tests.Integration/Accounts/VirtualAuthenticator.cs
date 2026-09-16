@@ -19,13 +19,13 @@ namespace Sw5e.Api.Tests.Integration.Accounts;
 /// only that invalid input is invalid; it would pass just as happily against an
 /// endpoint that rejected everything, including correct credentials. The only
 /// way to know that passkey sign-in <em>works</em> is to present a credential
-/// that verifies — which means really signing, over really the right bytes,
+/// that verifies. Which means really signing, over really the right bytes,
 /// with a key the server really recorded during a real registration.
 /// </para>
 /// <para>
 /// Everything here follows the Web Authentication specification, because the
-/// verifier on the other side does. Getting any of it wrong — a flag bit, the
-/// byte order of the signature counter, what exactly is hashed — produces a
+/// verifier on the other side does. Getting any of it wrong (a flag bit, the
+/// byte order of the signature counter, what exactly is hashed) produces a
 /// failed assertion that looks exactly like a broken server, so the details are
 /// commented with what they are rather than left as constants.
 /// </para>
@@ -139,7 +139,7 @@ internal sealed class VirtualAuthenticator(string origin)
             attestedCredentialData: null);
 
         // The signature covers the authenticator data followed by the SHA-256
-        // of the client data — not the client data itself. That is what binds
+        // of the client data. Not the client data itself. That is what binds
         // one signature to one challenge and one origin, and it is the single
         // most commonly mis-implemented line in a WebAuthn client.
         var signedPayload = new byte[authenticatorData.Length + 32];
@@ -189,7 +189,7 @@ internal sealed class VirtualAuthenticator(string origin)
 
     /// <summary>
     /// Builds the authenticator data structure: the relying party hash, the
-    /// flags, the signature counter, and — during registration only — the new
+    /// flags, the signature counter, and, during registration only, the new
     /// credential.
     /// </summary>
     private static byte[] BuildAuthenticatorData(

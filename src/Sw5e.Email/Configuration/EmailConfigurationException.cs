@@ -14,8 +14,8 @@ namespace Sw5e.Email.Configuration;
 /// </para>
 /// <para>
 /// The message always names the exact configuration key at fault, in the
-/// colon-separated form and — because every deployment of this application
-/// configures through environment variables — the double-underscore form as
+/// colon-separated form and, because every deployment of this application
+/// configures through environment variables, the double-underscore form as
 /// well. It never quotes the offending value: the values in this section are
 /// an API token and an SMTP password, and a startup exception is written to
 /// logs that are far more widely readable than either secret should be.

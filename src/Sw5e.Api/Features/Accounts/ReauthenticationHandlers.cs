@@ -11,8 +11,8 @@ namespace Sw5e.Api.Features.Accounts;
 /// <remarks>
 /// <para>
 /// This exists because the rule in <see cref="Sw5eClaims.AuthenticationMethod"/>
-/// — that a session records how it was established, once, and never gains
-/// strength from the account changing underneath it — is correct and was also,
+/// (that a session records how it was established, once, and never gains
+/// strength from the account changing underneath it) is correct and was also,
 /// on its own, a dead end. Somebody who signed in with an emailed code and then
 /// enrolled a passkey held every credential the elevated area asks for and
 /// still could not open it. The only remedy on offer was to sign out and sign
@@ -29,7 +29,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// Nothing is weakened by this, and it is worth being precise about why. The
 /// property being defended is that a compromised mailbox is not an
 /// administrative takeover. An attacker holding the mailbox can reach these two
-/// endpoints — they hold a session — and cannot pass either of them, because
+/// endpoints, they hold a session, and cannot pass either of them, because
 /// passing requires the passkey or the authenticator secret, which is exactly
 /// what the mailbox does not give them. The claim still means "demonstrated
 /// during this session". It stops meaning "demonstrated at the instant the
@@ -57,7 +57,7 @@ internal static class ReauthenticationHandlers
         // Named, unlike the sign-in ceremony, which passes null so that the
         // browser offers whatever it holds and the server learns nothing. Here
         // the server already knows who is asking, so there is no secret left to
-        // keep, and naming the account produces an allowCredentials list — the
+        // keep, and naming the account produces an allowCredentials list. The
         // browser then offers this account's keys rather than every key it
         // holds for the site, and somebody with two accounts is not invited to
         // pick the wrong one and be told it failed.
@@ -138,7 +138,7 @@ internal static class ReauthenticationHandlers
 
         // Writes back the signature counter and the backup-state flags. The
         // counter is the framework's clone detection and it is worthless unless
-        // every assertion updates it — including the ones that happen here
+        // every assertion updates it. Including the ones that happen here
         // rather than on the sign-in path.
         var updated = await users.AddOrUpdatePasskeyAsync(user, assertion.Passkey);
 
@@ -183,7 +183,7 @@ internal static class ReauthenticationHandlers
             return AccountProblems.Invalid("A six-digit code from the authenticator app is required.");
         }
 
-        // Enrolment is a different endpoint with different consequences — it
+        // Enrolment is a different endpoint with different consequences. It
         // switches two-factor authentication on and mints recovery codes.
         // Refusing here when there is nothing enrolled keeps the two apart, so
         // a client that posts to the wrong one meets a refusal rather than a

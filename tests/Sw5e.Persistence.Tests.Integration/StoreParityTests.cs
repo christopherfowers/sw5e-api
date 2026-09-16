@@ -18,8 +18,8 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// be one registration change, which is only true if it is invisible: the same
 /// request has to return the same rows, in the same order, with the same
 /// totals, the same match explanations and the same snippets. Testing the two
-/// stores separately against hand-written expectations cannot establish that —
-/// two sets of expectations drift, and the drift is exactly the bug.
+/// stores separately against hand-written expectations cannot establish that.
+/// Two sets of expectations drift, and the drift is exactly the bug.
 /// </para>
 /// <para>
 /// So every case here runs both stores over the same corpus and compares them
@@ -31,9 +31,9 @@ namespace Sw5e.Persistence.Tests.Integration;
 /// </para>
 /// <para>
 /// One thing is deliberately not compared: the version token. The two stores
-/// compute validators differently on purpose — the file-backed store mixes in a
+/// compute validators differently on purpose (the file-backed store mixes in a
 /// hash of the whole index, the database-backed one uses the versions of the
-/// exact rows in the response — and requiring them to agree would mean giving
+/// exact rows in the response) and requiring them to agree would mean giving
 /// up the better of the two. ETags are opaque, and the interface says so.
 /// </para>
 /// </remarks>
@@ -208,7 +208,7 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     /// single-character name. The file-backed store treats the filter as a
     /// plain substring, so both must return nothing here: nothing in the corpus
     /// contains any of these characters. Asserting the two stores agree is not
-    /// enough on its own — they would agree on returning everything — so the
+    /// enough on its own, they would agree on returning everything, so the
     /// count is asserted outright.
     /// </remarks>
     [DockerTheory]
@@ -295,7 +295,7 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     /// <remarks>
     /// Compared as canonicalised JSON rather than as raw text. jsonb stores a
     /// parsed value, so member order and whitespace are lost on the way in and
-    /// the returned text differs from the file's — which is documented and
+    /// the returned text differs from the file's. Which is documented and
     /// intentional, and is not a difference any consumer of this API can
     /// observe, because JSON objects are unordered. Everything else about the
     /// document must survive exactly: every member, every nested array, every
@@ -371,9 +371,9 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
     /// assertion to make a change pass is how a suite stops meaning anything.
     /// </para>
     /// <para>
-    /// So this compares everything that must still hold — the same documents,
+    /// So this compares everything that must still hold (the same documents,
     /// under the same groups, with the same totals, the same tier, the same
-    /// named field and the same quoted evidence — and compares order only where
+    /// named field and the same quoted evidence) and compares order only where
     /// both stores score flatly and therefore must agree: a name, a slug or a
     /// display field. Inside a prose tier the sets are compared unordered.
     /// </para>

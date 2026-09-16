@@ -60,7 +60,7 @@ public sealed class ContentSearchRelevanceTests(PostgresFixture fixture) : Datab
     /// "difficult terrain" is the query the regression was reported on. It
     /// matched a hundred and twenty-two documents; the Adventuring chapter,
     /// which has a section by that name, came fifth, behind twenty-nine class
-    /// features. Nothing was broken in the sense of throwing — every one of
+    /// features. Nothing was broken in the sense of throwing. Every one of
     /// those documents does contain the phrase. They were simply all given the
     /// same score, and once every score is equal the only thing left to sort by
     /// is the tiebreak, which is the name.
@@ -87,8 +87,8 @@ public sealed class ContentSearchRelevanceTests(PostgresFixture fixture) : Datab
         rules[0].MatchedField.ShouldBe(SearchMatchField.Heading);
 
         // Named rather than positioned. Two chapters carry a "Difficult
-        // Terrain" section — Combat, where it is a movement rule, and
-        // Adventuring — and which of the two is more about it is a judgement
+        // Terrain" section (Combat, where it is a movement rule, and
+        // Adventuring) and which of the two is more about it is a judgement
         // about the corpus that the corpus is entitled to change. That both
         // outrank a class feature mentioning the phrase once is not, and that
         // these two are the only sections named after it is a fact about the
@@ -118,7 +118,7 @@ public sealed class ContentSearchRelevanceTests(PostgresFixture fixture) : Datab
     /// <para>
     /// Asserted as tie density, which is the thing that actually broke. When
     /// every document in a tier is given the same number, ordering falls
-    /// through to the tiebreak, and the tiebreak is the name — so the reader
+    /// through to the tiebreak, and the tiebreak is the name, so the reader
     /// gets an alphabetical list of everything in the game that mentions
     /// poison. The fix is not that some particular document comes first; it is
     /// that the scores carry enough information to order by at all.

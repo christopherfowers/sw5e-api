@@ -12,7 +12,7 @@ namespace Sw5e.Api.Features.Accounts;
 /// The one endpoint on this API that gives something away to anybody who asks,
 /// which is only safe because what it gives away costs nothing to produce and
 /// is worthless until somebody spends CPU on it. Issuing a challenge is one
-/// draw from the RNG and one HMAC, and — by design — no write of any kind: see
+/// draw from the RNG and one HMAC, and, by design, no write of any kind: see
 /// <see cref="ProofOfWorkChallenges"/> for why a stored challenge table would
 /// have made this endpoint the very denial of service the challenge exists to
 /// prevent.

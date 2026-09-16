@@ -7,8 +7,8 @@
 namespace Sw5e.Infrastructure.Persistence.Migrations
 {
     /// <summary>
-    /// Adds the six combat-option types — maneuvers, fighting styles, fighting
-    /// masteries, lightsaber forms, weapon focuses and weapon supremacies — to
+    /// Adds the six combat-option types (maneuvers, fighting styles, fighting
+    /// masteries, lightsaber forms, weapon focuses and weapon supremacies) to
     /// the seeded type registry.
     /// </summary>
     /// <remarks>
@@ -23,7 +23,7 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
     /// <para>
     /// The two <c>UpdateData</c> calls are not incidental. <c>sort_order</c> is
     /// the type's position in the registry, and the combat options belong after
-    /// powers and before equipment — that is the order a character is built in
+    /// powers and before equipment. That is the order a character is built in
     /// and the order the site's navigation shows. Appending them to the end
     /// instead would have avoided touching equipment and monsters, and would
     /// have left the seeded order disagreeing with the compiled one, which is

@@ -13,7 +13,7 @@ namespace Sw5e.Infrastructure.Content;
 /// <para>
 /// This type holds no validation logic. Everything it does is resolve which
 /// schema version applies and hand the document to
-/// <see cref="SchemaValidator"/> — the same class, from the same assembly, that
+/// <see cref="SchemaValidator"/>. The same class, from the same assembly, that
 /// the content repository's CI runs over the whole corpus on every pull
 /// request. That is the entire reason the schema project is referenced through
 /// a submodule rather than reimplemented here: two validators drift, and the
@@ -39,7 +39,7 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
     /// Every schema in the repository is at v1 today. This constant is what a
     /// probe falls back to, not a hard-coded answer: the probe reads the
     /// directory, so publishing <c>v2.json</c> is picked up without a code
-    /// change, which is the property the design asks for — a content type's
+    /// change, which is the property the design asks for. A content type's
     /// definition is a reviewed schema file, never a migration.
     /// </remarks>
     public const int FallbackVersion = SchemaRepository.FallbackVersion;
@@ -138,8 +138,8 @@ public sealed class ContentSchemaValidator : IContentSchemaValidator
     /// <remarks>
     /// <para>
     /// Delegated to the repository's own reader rather than opening the file
-    /// again here. That reader already answers the document as it is written —
-    /// key order and all — and caches it, and going through it is what keeps
+    /// again here. That reader already answers the document as it is written,
+    /// key order and all, and caches it, and going through it is what keeps
     /// the schema that is served and the schema that is evaluated provably the
     /// same file rather than two files that happen to agree.
     /// </para>

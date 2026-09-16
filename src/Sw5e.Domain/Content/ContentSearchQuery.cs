@@ -21,7 +21,7 @@ public enum SearchMatchField
     /// Worth telling apart from <see cref="Text"/> because it is a much
     /// stronger signal about what a document is about. Somebody typing a phrase
     /// that a section is named after wants that section, not the places that
-    /// mention it in passing — and before this existed, "difficult terrain"
+    /// mention it in passing, and before this existed, "difficult terrain"
     /// returned twenty-nine class features before the rules chapter with a
     /// section of that name.
     /// </remarks>

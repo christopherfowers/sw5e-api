@@ -71,7 +71,7 @@ public static class MigratorCommands
                     // are separate contexts so that each can be authored and
                     // reviewed on its own, and they are applied together
                     // because a deployment that migrated one and not the other
-                    // is a deployment where half the site works — and because
+                    // is a deployment where half the site works, and because
                     // the alternative is a second job somebody has to remember
                     // to add to the pipeline.
                     await MigrateModerationAsync(services, logger, cancellationToken);
@@ -158,7 +158,7 @@ public static class MigratorCommands
     /// <remarks>
     /// A thin forward to the implementation that lives beside the model, so
     /// that the test host can play the migrator's part without depending on
-    /// this executable — and so there is exactly one implementation of "bring
+    /// this executable, and so there is exactly one implementation of "bring
     /// the moderation schema up to date" rather than one the deployment runs
     /// and one the tests approximate.
     /// </remarks>
@@ -201,7 +201,7 @@ public static class MigratorCommands
             logger.LogWarning("Import: {Warning}", warning);
         }
 
-        // An import that wrote nothing is not by itself a failure — redeploying
+        // An import that wrote nothing is not by itself a failure. Redeploying
         // unchanged content is exactly that, and is the normal case. An import
         // that found nothing to write is, because the only way to reach it is a
         // content directory that was missing or unreadable, and continuing would
@@ -229,7 +229,7 @@ public static class MigratorCommands
     /// pushing needs a credential with write access to the content repository,
     /// held by a process that already holds the whole catalogue. Neither buys
     /// anything a scheduled job running <c>git commit</c> beside this one does
-    /// not — the review still happens in a pull request either way — and the
+    /// not, the review still happens in a pull request either way, and the
     /// credential is a real thing to get wrong.
     /// </para>
     /// <para>

@@ -22,8 +22,8 @@ namespace Sw5e.Infrastructure.Persistence;
 /// <para>
 /// It reports degraded rather than unhealthy for that case on purpose. An
 /// application whose schema is one migration behind is usually still serving
-/// every request correctly — the new column is not read by any code path the
-/// old rows reach — and marking it unhealthy would take a working deployment
+/// every request correctly, the new column is not read by any code path the
+/// old rows reach, and marking it unhealthy would take a working deployment
 /// out of rotation over a problem that is fixed by running a job. Unreachable
 /// is a different matter: nothing works, and unhealthy is the honest answer.
 /// </para>

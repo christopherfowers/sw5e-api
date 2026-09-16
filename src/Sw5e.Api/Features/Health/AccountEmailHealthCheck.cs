@@ -20,8 +20,8 @@ namespace Sw5e.Api.Features.Health;
 /// <b>Why it is never unhealthy.</b> The standing rule is that
 /// <c>/health/ready</c> must not take the site out of rotation for reasons that
 /// do not warrant it, and this is squarely one of those. Every replica sends
-/// through the same relay, so failing the probe cannot route around the fault —
-/// it removes capacity from a site whose reading, searching and browsing are
+/// through the same relay, so failing the probe cannot route around the fault.
+/// It removes capacity from a site whose reading, searching and browsing are
 /// entirely unaffected, and an orchestrator draining every instance turns a mail
 /// outage into a total one. Degraded says the same thing to a human without
 /// asking the infrastructure to act on it, exactly as the database check does
@@ -31,7 +31,7 @@ namespace Sw5e.Api.Features.Health;
 /// <b>What it deliberately does not say.</b> Not the provider's reply, and not
 /// any address. This endpoint is anonymous, and the reply is text a relay wrote
 /// about a specific envelope; the log is where it belongs. What is published
-/// here is one global fact — mail is getting out, or it is not — which is the
+/// here is one global fact (mail is getting out, or it is not) which is the
 /// same answer for every reader and so cannot be turned into a question about
 /// anybody's account.
 /// </para>

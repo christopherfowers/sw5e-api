@@ -12,7 +12,7 @@ namespace Sw5e.Identity;
 /// ASP.NET Core Identity's EF Core context builds a different model per schema
 /// version, and passkeys exist only from version 3. Version selection is read
 /// out of <see cref="IdentityOptions"/> through the context's application
-/// service provider — and when there is no service provider, which is exactly
+/// service provider, and when there is no service provider, which is exactly
 /// the situation <c>dotnet ef</c> is in, it silently falls back to version 1.
 /// </para>
 /// <para>

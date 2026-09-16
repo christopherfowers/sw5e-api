@@ -36,7 +36,7 @@ internal sealed record ExtractedReference(
 /// <para>
 /// <b>Why almost every rule produces a name reference.</b> The corpus was
 /// transcribed from print, where the only identifier a cross-reference can use
-/// is the printed name. Exactly one field points at another item by slug —
+/// is the printed name. Exactly one field points at another item by slug.
 /// <c>sourceKey</c>. Everything else names its target: a feature says which
 /// archetype grants it by writing the archetype's name, a background lists its
 /// feat options by name, a power names the power it requires. Resolving those
@@ -51,7 +51,7 @@ internal sealed record ExtractedReference(
 /// property, and taking the first token yields "power", which is the name of
 /// nothing. Matching against the 76 published property names would resolve it,
 /// and this class cannot: it is a pure function of one document and holds no
-/// catalogue. Handing it one was considered and rejected — the edges a document
+/// catalogue. Handing it one was considered and rejected. The edges a document
 /// produced would then depend on what else happened to be imported beside it,
 /// which is the coupling the separate resolution pass exists to remove.
 /// </para>
@@ -59,7 +59,7 @@ internal sealed record ExtractedReference(
 /// It does not need one. A printed clause is a name, then at most one numeric
 /// argument, then at most one parenthesised argument, so dropping everything
 /// from the parenthesis onwards and then a trailing run of digits leaves the
-/// name — "two-handed", "burst", "power cell", "versatile" — without knowing
+/// name ("two-handed", "burst", "power cell", "versatile") without knowing
 /// what any of the names are. Which glossary that name is in comes from the
 /// item's own <c>category</c>, because interlocking, silent, strength and
 /// versatile are published in both: "strength 13" on a suit of armour is a
@@ -81,7 +81,7 @@ internal sealed record ExtractedReference(
 /// not one. Its meaning follows from <c>itemType</c>, and across the corpus it
 /// is variously a specific item ("bo-rifle"), a family ("any blaster",
 /// "vibroweapon"), a body slot ("hands", "waist") and a bare noun
-/// ("ammunition") — with nothing on the document to say which of those is
+/// ("ammunition"). With nothing on the document to say which of those is
 /// meant. Some of those strings do match an equipment name, so a rule here
 /// would produce edges that resolve for a minority of rows and dangle for the
 /// rest, and the resolved ones would be indistinguishable from correct. It
@@ -92,7 +92,7 @@ internal sealed record ExtractedReference(
 /// <item>
 /// <description>
 /// <c>enhanced-item.prerequisite</c>. Printed conditions of several kinds in
-/// one string — an ability score ("Constitution 13"), a class level ("At least
+/// one string. An ability score ("Constitution 13"), a class level ("At least
 /// 3 levels in berserker"), a droid class, or a property the host equipment
 /// must have or lack. Two of those name content types that do not exist and one
 /// is not a reference at all, so there is nothing to point at yet. The feat
@@ -104,8 +104,8 @@ internal sealed record ExtractedReference(
 /// <description>
 /// <c>monster.behaviors[].descriptionWithLinks</c>. This is the one field in
 /// the whole corpus designed to carry explicit cross-references, as Markdown
-/// links. Not one document populates it — there is not a single Markdown link
-/// anywhere in the content — so a parser for it would be untested code guarding
+/// links. Not one document populates it, there is not a single Markdown link
+/// anywhere in the content, so a parser for it would be untested code guarding
 /// against nothing. It becomes a rule here the day the field carries data.
 /// </description>
 /// </item>
@@ -177,8 +177,8 @@ internal static class ContentReferenceMap
         public const string AmmunitionLauncher = "ammunitionLauncher";
         /// <summary>
         /// A weapon or armour property an equipment row names. One relation
-        /// rather than two, because the question a reader asks — "what rules
-        /// does this weapon obey" — is the same either way; which glossary the
+        /// rather than two, because the question a reader asks, "what rules
+        /// does this weapon obey", is the same either way; which glossary the
         /// answer is in is carried by the edge's target type.
         /// </summary>
         public const string Property = "property";
@@ -193,9 +193,9 @@ internal static class ContentReferenceMap
     /// The starship prerequisite lists are the one place in this corpus where a
     /// reference is already resolved in the document: the import parsed each
     /// printed clause and, where it could name what the clause meant, wrote the
-    /// target into a field of its own beside the wording. So unlike a feat's
+    /// target into a field of its own beside the wording, so unlike a feat's
     /// prerequisite, which has to be picked out of prose here, these are read
-    /// straight off the entry — and an entry whose field is absent is one the
+    /// straight off the entry, and an entry whose field is absent is one the
     /// import deliberately declined to resolve, not one this map should guess at.
     /// </remarks>
     private static readonly (string Field, string TargetType, string Relation)[]
@@ -239,7 +239,7 @@ internal static class ContentReferenceMap
 
         // Universal: every type but five records the book it came from. Source
         // has no provenance of its own; feature is missing the field
-        // entirely — a gap in the feature schema rather than in the data, and
+        // entirely. A gap in the feature schema rather than in the data, and
         // the reason a feature currently cannot be attributed in printed
         // output; and the two property glossaries and the reference tables
         // record none because the archive records none, and naming a book that
@@ -298,9 +298,9 @@ internal static class ContentReferenceMap
                 // Two edges, and they are not the same edge written twice. The
                 // prerequisite is the gate and names the tier immediately
                 // below; `improves` names the base maneuver the whole chain
-                // hangs off. For a third tier those are different documents —
+                // hangs off. For a third tier those are different documents,
                 // Administer Aid (Greater) requires Administer Aid (Improved)
-                // and improves Administer Aid — so collapsing them would lose
+                // and improves Administer Aid, so collapsing them would lose
                 // either the chain or the gate.
                 ExtractManeuverPrerequisites(body, references);
 
@@ -461,8 +461,8 @@ internal static class ContentReferenceMap
     /// <remarks>
     /// The same shape of prose as a feat prerequisite, and the same
     /// conservative rule: a maneuver prerequisite mixes conditions of different
-    /// kinds — "Proficiency in Medicine", "The ability to cast force powers",
-    /// "Administer Aid maneuver" — and only the clauses ending in the word
+    /// kinds ("Proficiency in Medicine", "The ability to cast force powers",
+    /// "Administer Aid maneuver") and only the clauses ending in the word
     /// "maneuver" name one. The rest are mechanical conditions with no target
     /// to point at. A missing edge shows up in the unresolved report; a wrong
     /// one does not.
@@ -637,7 +637,7 @@ internal static class ContentReferenceMap
     /// in one string. Only the clauses that end in the word "feat" name a feat;
     /// the rest are mechanical conditions with no target to point at, and are
     /// left for the rule engine that will eventually parse them properly. This
-    /// is a narrow, conservative rule on purpose — it extracts the clauses that
+    /// is a narrow, conservative rule on purpose. It extracts the clauses that
     /// unambiguously name a feat and ignores everything it is not sure about,
     /// because a missing edge is visible in a report and a wrong one is not.
     /// </remarks>

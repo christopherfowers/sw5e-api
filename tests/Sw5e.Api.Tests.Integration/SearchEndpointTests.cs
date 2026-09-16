@@ -190,7 +190,7 @@ public sealed class SearchEndpointTests(ContentApiFactory factory)
     /// passage and searches for it. The phrase below sits about 35,000
     /// characters into the fixture chapter, well past the 16,000-character
     /// ceiling the search index used to carry, and the chapter is not split
-    /// into per-heading documents — so an index that truncated the body would
+    /// into per-heading documents, so an index that truncated the body would
     /// return nothing here and look exactly like a passage that was never
     /// written.
     /// </remarks>
@@ -269,7 +269,7 @@ public sealed class SearchEndpointTests(ContentApiFactory factory)
     /// </summary>
     /// <remarks>
     /// The bound on the parameter is the size of the registry, so this is the
-    /// test that fails if the two ever part company — which is what a
+    /// test that fails if the two ever part company. Which is what a
     /// hard-coded count would guarantee the first time a type was added. The
     /// paired over-limit case keeps the bound from being no bound at all.
     /// </remarks>
@@ -283,7 +283,7 @@ public sealed class SearchEndpointTests(ContentApiFactory factory)
 
         // A floor rather than an exact count. Content types arrive from several
         // work streams at once, and an exact number here would mean every one
-        // of them editing this line — which is a merge conflict, not a test.
+        // of them editing this line. Which is a merge conflict, not a test.
         // What this assertion is for is the pairing below: the endpoint has to
         // accept as many types as the registry actually holds, whatever that
         // number has grown to, and refuse one more.

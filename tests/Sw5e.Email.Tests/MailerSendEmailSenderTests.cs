@@ -28,8 +28,8 @@ public sealed class MailerSendEmailSenderTests
     /// </summary>
     /// <remarks>
     /// Asserted as a set rather than field by field, so that a property added
-    /// to the payload type — or one accidentally left in by a serialisation
-    /// change — fails here instead of reaching MailerSend's validator.
+    /// to the payload type, or one accidentally left in by a serialisation
+    /// change, fails here instead of reaching MailerSend's validator.
     /// </remarks>
     private static readonly string[] ExpectedPayloadProperties =
         ["from", "to", "subject", "text", "html", "reply_to"];
