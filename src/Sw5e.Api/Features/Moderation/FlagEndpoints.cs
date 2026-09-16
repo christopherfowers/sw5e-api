@@ -59,7 +59,7 @@ internal static class FlagEndpoints
              .WithSummary("Report a problem with a page or a picture.")
              .WithDescription(
                  "Files a report against one content document. A picture is reported through " +
-                 "its attribution record — content type asset-credit, key {group}-{key} — which " +
+                 "its attribution record (content type asset-credit, key {group}-{key}) which " +
                  "is both what identifies the image and what a reviewer edits to resolve it. " +
                  "The reason decides whether the report is about a picture or about writing, so " +
                  "a picture reason against a rules chapter is refused rather than filed. The " +
@@ -107,7 +107,7 @@ internal static class FlagEndpoints
              .WithSummary("The review queue.")
              .WithDescription(
                  "Reports awaiting review, filtered by status, reason, target kind or target. " +
-                 "Defaults to the outstanding ones — open and accepted — because a queue that " +
+                 "Defaults to the outstanding ones (open and accepted) because a queue that " +
                  "opens on every report ever filed is a queue whose first page is useless. Pass " +
                  "status=all for everything. Rights complaints sort ahead of everything else; " +
                  "the rest are newest first.")

@@ -107,8 +107,8 @@ internal sealed class ProviderAccountEmailSender(
              {greeting}
 
              Someone asked to set up a new passkey for the SW5e account registered
-             to this address. If that was you — perhaps because you lost the device
-             you signed in with — open the link below within {Describe(_identity.EmailTokenLifetime)}:
+             to this address. If that was you (perhaps because you lost the device
+             you signed in with) open the link below within {Describe(_identity.EmailTokenLifetime)}:
 
              {recoveryUrl}
 
@@ -312,7 +312,7 @@ internal sealed class ProviderAccountEmailSender(
         monitor.RecordFailure(failure.Kind);
 
         logger.LogError(
-            "Account email {Operation} was not delivered: {Kind} — {Reason}. The request was " +
+            "Account email {Operation} was not delivered: {Kind}, {Reason}. The request was " +
             "answered normally, because the response to it must not depend on whether mail " +
             "got out; nothing will arrive in the recipient's inbox.",
             operation,

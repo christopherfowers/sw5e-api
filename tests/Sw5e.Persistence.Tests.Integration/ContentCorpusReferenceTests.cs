@@ -116,7 +116,7 @@ public sealed class ContentCorpusReferenceTests(PostgresFixture fixture) : Datab
             string.Join(
                 Environment.NewLine,
                 found.Select(row =>
-                    $"  {row.TargetType} '{row.Identifier}' — cited {row.Count} time" +
+                    $"  {row.TargetType} '{row.Identifier}', cited {row.Count} time" +
                     (row.Count == 1 ? string.Empty : "s"))) +
             Environment.NewLine +
             "Either the target is missing from the corpus, or the citing document " +

@@ -102,7 +102,7 @@ internal static class AuthoringEndpoints
              .WithSummary("The JSON Schema one content type is validated against.")
              .WithDescription(
                  "The schema document as it ships, including the description on every " +
-                 "property — which is what an editor puts under each field. This is the same " +
+                 "property, which is what an editor puts under each field. This is the same " +
                  "schema the write path evaluates, read from the same file, so a form " +
                  "generated from it cannot describe a shape the service would refuse. A type " +
                  "with no schema published answers 404 rather than an error: a client that " +
@@ -125,7 +125,7 @@ internal static class AuthoringEndpoints
              .WithDescription(
                  "Every outstanding draft, most recently touched first. Each entry says whether " +
                  "it would create a document or replace one, and whether the version it was " +
-                 "started from is still current — a draft whose base is stale will be refused " +
+                 "started from is still current. A draft whose base is stale will be refused " +
                  "at publication rather than overwriting somebody else's work.")
              .Produces<DraftListResponse>()
              .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -156,7 +156,7 @@ internal static class AuthoringEndpoints
              .WithDescription(
                  "Stores a proposed document without publishing it. The document is validated " +
                  "against the published JSON Schema for its content type on the way in, and a " +
-                 "document that fails is refused with the failing locations — nothing is " +
+                 "document that fails is refused with the failing locations. Nothing is " +
                  "stored. The key in the URL and the document's own \"key\" property must " +
                  "agree. Optionally names the moderation report this work answers, which is " +
                  "what lets publishing it close that report.")
@@ -192,7 +192,7 @@ internal static class AuthoringEndpoints
              .WithSummary("Make a draft live.")
              .WithDescription(
                  "Validates the draft again, writes it to the catalogue, records a revision " +
-                 "naming the account that published it, and clears the draft — in one " +
+                 "naming the account that published it, and clears the draft, in one " +
                  "transaction, so a refusal leaves nothing behind. Refused with 409 if the " +
                  "document has been published by somebody else since the draft was started. " +
                  "If the draft names a moderation report that a reviewer had already accepted, " +
@@ -216,7 +216,7 @@ internal static class AuthoringEndpoints
              .WithSummary("A document's history, newest first.")
              .WithDescription(
                  "Who changed this document, when, why, and what kind of change it was. " +
-                 "Bodies are not included — fetch two revisions to build a diff. A document " +
+                 "Bodies are not included. Fetch two revisions to build a diff. A document " +
                  "that has only ever been imported has no history until somebody edits it, at " +
                  "which point the state it was imported in is recorded as revision 1, " +
                  "attributed to nobody.")
