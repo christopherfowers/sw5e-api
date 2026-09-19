@@ -20,7 +20,7 @@
          registration flow depends on; no substitute provider models all three,
          so a suite running against one would assert on behaviour the deployed
          system does not have. -->
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
 
     <!-- WebAuthn carries attestation objects and public keys as CBOR. The
          virtual authenticator has to produce both. -->
