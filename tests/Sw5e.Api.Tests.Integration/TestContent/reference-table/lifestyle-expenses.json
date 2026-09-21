@@ -1,0 +1,7 @@
+{
+  "key": "lifestyle-expenses",
+  "name": "Lifestyle Expenses",
+  "contentSet": "core",
+  "body": "|\tLifestyle\t\t|\tPrice/Day\t|\n|:--|--:|\n|\tWretched\t\t|\t—\t|\n|\tSqualid\t\t|\t1 cr\t|\n|\tPoor\t\t|\t2 cr\t|\n|\tModest\t\t|\t10 cr\t|\n|\tComfortable\t\t|\t20 cr\t|\n|\tWealthy\t\t|\t40 cr\t|\n|\tAristocratic\t\t|\tat least 100 cr \t|",
+  "subject": "Downtime"
+}

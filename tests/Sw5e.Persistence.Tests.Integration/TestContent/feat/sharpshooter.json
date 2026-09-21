@@ -1,0 +1,11 @@
+{
+  "key": "sharpshooter",
+  "name": "Sharpshooter",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "prerequisite": "Dexterity 13 or higher",
+  "abilityScoreIncreases": [
+    "dexterity"
+  ],
+  "description": "You have mastered ranged weapons and can make shots others find impossible."
+}

@@ -1,0 +1,40 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          queries: security-extended
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - uses: github/codeql-action/analyze@v4

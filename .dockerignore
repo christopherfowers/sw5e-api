@@ -1,0 +1,31 @@
+# Default-deny. The build context is exactly what the image needs and nothing
+# else, so nothing new at the repository root — history, tests, editor state,
+# local tooling directories, a stray .env — can leak into an image or bust the
+# build cache by changing. Anything the Dockerfile needs is re-included below.
+*
+
+!global.json
+!src/
+
+# The content repository, as a submodule. Only two parts of it are re-included:
+# the schema project the write path validates through, and the schema documents
+# themselves.
+#
+# Everything else stays excluded, and `content/` in particular. That directory
+# is 7,877 documents and about 27 MB, none of which this image serves — the API
+# reads the catalogue from PostgreSQL or from a mounted volume, never from here.
+# Letting it into the context would add tens of megabytes to every build and
+# would invalidate the restore layer every time a game document changed.
+!external/sw5e-database/src/Sw5e.Database.Schemas/
+!external/sw5e-database/schemas/
+
+# Build output, in case the context is a working checkout that has been built
+# locally: it would otherwise be copied over the layer the SDK just produced.
+**/bin/
+**/obj/
+
+# Local developer settings and per-environment overrides never belong in an
+# image; configuration arrives as environment variables at run time.
+**/*.user
+**/appsettings.*.local.json
+**/Properties/launchSettings.json

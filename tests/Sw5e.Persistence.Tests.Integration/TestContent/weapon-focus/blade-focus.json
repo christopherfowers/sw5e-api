@@ -1,0 +1,13 @@
+{
+  "key": "blade-focus",
+  "name": "Blade Focus",
+  "weaponGroup": "blade",
+  "description": "You've focused your combat training on blade weapons. You gain the following benefits while wielding any of these weapons, if you are proficient with it:",
+  "benefits": [
+    "You gain a +1 bonus to the weapon's damage rolls.",
+    "When you score a critical hit with the weapon, the next attack roll the target makes before the start of your next turn has disadvantage.",
+    "When you take the Attack action, you can choose to forgo one or more attacks to **parry**. For each attack you forgo, you gain a +1 bonus to AC until the start of your next turn."
+  ],
+  "sourceKey": "wh",
+  "contentSet": "core"
+}

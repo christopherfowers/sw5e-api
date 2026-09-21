@@ -1,0 +1,16 @@
+{
+  "key": "human",
+  "name": "Human",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "size": "medium",
+  "homeworld": "Coruscant",
+  "nativeLanguage": "Galactic Basic",
+  "lore": "Humans are the most numerous and politically dominant species in the galaxy.",
+  "traits": [
+    {
+      "name": "Ability Score Increase",
+      "description": "Your ability scores each increase by 1."
+    }
+  ]
+}

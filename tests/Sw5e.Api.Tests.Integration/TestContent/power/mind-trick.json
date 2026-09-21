@@ -1,0 +1,17 @@
+{
+  "key": "mind-trick",
+  "name": "Mind Trick",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "powerType": "force",
+  "level": 1,
+  "forceAlignment": "light",
+  "castingTime": {
+    "period": "action",
+    "text": "1 action"
+  },
+  "range": "30 feet",
+  "duration": "1 minute",
+  "concentration": true,
+  "description": "You plant a suggestion in the mind of a weak-minded creature, who believes it was its own idea."
+}

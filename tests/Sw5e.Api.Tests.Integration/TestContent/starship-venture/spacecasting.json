@@ -1,0 +1,13 @@
+{
+  "key": "spacecasting",
+  "name": "Spacecasting",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "prerequisites": [
+    {
+      "kind": "casting",
+      "text": "The ability to cast force or tech powers"
+    }
+  ],
+  "description": "When casting a force or tech power while aboard your ship and in space, the power's range is multiplied by 2. You can not target a hostile creature with a power unless you are aware of their presence and location."
+}

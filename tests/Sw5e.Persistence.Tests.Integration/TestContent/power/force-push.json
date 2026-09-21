@@ -1,0 +1,17 @@
+{
+  "key": "force-push",
+  "name": "Force Push",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "powerType": "force",
+  "level": 1,
+  "forceAlignment": "universal",
+  "castingTime": {
+    "period": "action",
+    "text": "1 action"
+  },
+  "range": "30 feet",
+  "duration": "Instantaneous",
+  "concentration": false,
+  "description": "You shove a creature away from you with a wave of telekinetic force."
+}

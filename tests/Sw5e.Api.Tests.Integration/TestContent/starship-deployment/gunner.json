@@ -1,0 +1,54 @@
+{
+  "key": "gunner",
+  "name": "Gunner",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "role": "Controls one or more weapon emplacements",
+  "rankProgression": [
+    {
+      "rank": 1,
+      "features": [
+        "Venture",
+        "Gunner Techniques"
+      ]
+    },
+    {
+      "rank": 2,
+      "features": [
+        "Gunning Style",
+        "Improved Critical"
+      ]
+    },
+    {
+      "rank": 3,
+      "features": [
+        "Dependable Gunner",
+        "Brutal Critical"
+      ]
+    },
+    {
+      "rank": 4,
+      "features": [
+        "Gunning Mastery",
+        "Protean Gunner"
+      ]
+    },
+    {
+      "rank": 5,
+      "features": [
+        "Paragon Gunner",
+        "Maximum Power"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "name": "Venture",
+      "description": "Beginning when you choose this deployment as your specialty, at 1st rank, and again at 2nd, 3rd, 4th, and 5th rank, you can choose a venture (see Chapter 6 for a list of ventures)."
+    },
+    {
+      "name": "Gunner Techniques",
+      "description": "Also at 1st rank, you learn gambits that are fueled by special dice called power dice.\n\n#### Gambits\nYou learn two gambits of your choice, which are detailed under \"Gambits\" below. Many gambits enhance an attack in some way. You can use only one gambit per attack, and you can only use each gambit once per turn.\n\nYou learn an additional gambit at 2nd, 3rd, 4th, and 5th rank in this deployment. Each time you learn a new gambit, you can also replace one gambit you know with a different one.\n\n#### Power Dice\nA power die is expended when you use it. Your ship must have a power die at the required system in order to use the gambit.\n\nYour ship gains power dice based primarily on reactor production.  These power dice are stored in a central and/or system capacitors to power abilities of crewmembers.  Your power die type is determined by your ship tier."
+    }
+  ]
+}

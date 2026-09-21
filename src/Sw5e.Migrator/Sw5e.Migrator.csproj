@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sw5e.Infrastructure\Sw5e.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The JSON Schemas, beside the assemblies. The export command needs them
+         twice over — to order each document's members, which is what makes the
+         output byte-stable, and to refuse to write one the content repository
+         would reject — and it resolves them relative to this directory.
+
+         The published image copies the same files from the same submodule
+         commit, so this changes nothing there. What it changes is running the
+         command from a source checkout, where without it the exporter would
+         simply not register and `export` would report the schemas missing. -->
+    <Content Include="..\..\external\sw5e-database\schemas\**\*.json"
+             Link="schemas\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Design is what `dotnet ef` loads to build the model at design time. It
+         is referenced by this project rather than by Sw5e.Api so the API's
+         published output carries no design-time tooling, and so scaffolding a
+         migration never involves starting a web host. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Sw5e.Migrator</RootNamespace>
+    <AssemblyName>Sw5e.Migrator</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,11 @@
+{
+  "key": "soresu-form",
+  "name": "Soresu Form",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "className": "Guardian",
+  "casterType": "force",
+  "casterRatio": 0.3333333333333333,
+  "classCasterType": "force",
+  "description": "Soresu is the most defensive of the lightsaber forms, built to outlast an attacker."
+}

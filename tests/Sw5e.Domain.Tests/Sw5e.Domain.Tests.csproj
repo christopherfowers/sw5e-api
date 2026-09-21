@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The domain's own tests, and the only suite in this repository that needs
+    nothing running.
+
+    Every other test project starts a PostgreSQL container, which is right for
+    what they check and means the whole suite is unavailable when Docker is not.
+    Logic that is genuinely a pure function over its inputs — whether a book's
+    chapters still form a path, and nothing else — belongs here instead: it can
+    be exhausted quickly, and it can be run on a machine with no daemon.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.0.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sw5e.Domain\Sw5e.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

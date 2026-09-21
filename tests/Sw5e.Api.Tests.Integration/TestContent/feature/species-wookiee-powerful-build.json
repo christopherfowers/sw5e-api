@@ -1,0 +1,7 @@
+{
+  "key": "species-wookiee-powerful-build",
+  "name": "Powerful Build",
+  "grantedBy": "species",
+  "grantedByName": "Wookiee",
+  "description": "You count as one size larger when determining your carrying capacity."
+}

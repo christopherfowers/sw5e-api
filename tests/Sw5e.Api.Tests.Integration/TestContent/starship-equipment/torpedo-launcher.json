@@ -1,0 +1,16 @@
+{
+  "key": "torpedo-launcher",
+  "name": "Torpedo launcher",
+  "sourceKey": "sotg",
+  "contentSet": "core",
+  "category": "weapon",
+  "costInCredits": 6900,
+  "weapon": {
+    "mounting": "tertiary",
+    "weaponSize": "small"
+  },
+  "properties": [
+    "ammunition",
+    "reload 4"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "key": "zabrak",
+  "name": "Zabrak",
+  "sourceKey": "phb",
+  "contentSet": "expanded-content",
+  "size": "medium",
+  "homeworld": "Iridonia",
+  "nativeLanguage": "Zabraki",
+  "lore": "Zabraks are a hardy, horned species with a reputation for stubborn self-reliance.",
+  "traits": [
+    {
+      "name": "Resilient",
+      "description": "You have advantage on saving throws against being frightened."
+    }
+  ]
+}

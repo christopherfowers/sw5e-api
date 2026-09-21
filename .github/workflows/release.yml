@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    # Semver tags publish version-numbered tags alongside the moving ones.
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # One publish at a time, so two pushes cannot race to move `latest`. Releases
+  # are never cancelled midway: an interrupted push can leave a manifest with
+  # no image behind it.
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/christopherfowers/sw5e-api
+
+jobs:
+  publish:
+    name: Build and publish image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
+
+      # Registered even though the runtime stage contains no RUN instruction,
+      # so a later change that adds one cannot silently break arm64 builds.
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Long form: `sha-` plus the full 40-character commit SHA. The
+            # homelab deploy contract calls deploy.sh with "sha-${GITHUB_SHA}"
+            # and refuses anything that is not a SHA tag, so the short form
+            # would name an image that was never pushed. `latest` is published
+            # as a convenience fallback and is never what a deploy resolves.
+            type=sha,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          labels: |
+            org.opencontainers.image.title=sw5e-api
+            org.opencontainers.image.description=Backend API for the SW5e community platform
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # Full provenance records the build's source commit and steps; the
+          # SBOM records what ended up in the image. Both are attached to the
+          # manifest, so a consumer can answer "where did this come from" and
+          # "does it contain CVE-x" without the build logs.
+          provenance: mode=max
+          sbom: true
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  # The QA host runs a self-hosted runner that polls GitHub outbound, so no
+  # inbound port is opened. The runner holds no secrets and has no broad Docker
+  # access: its only privilege is a sudoers rule permitting this one script
+  # path. Everything host-side — image pull, the content-publish gate, the
+  # controlled restart, the health check — lives in deploy.sh on the host.
+  #
+  # Gated on the DEPLOY_ENABLED repository variable. A job targeting a runner
+  # label that is not registered yet does not fail, it queues indefinitely, so
+  # without this gate every merge would leave a run pending forever. Set the
+  # variable once the runner is up.
+  deploy:
+    name: Deploy to QA
+    needs: publish
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, marvel, sw5e]
+    permissions:
+      contents: read
+    environment:
+      name: qa
+      url: https://sw5e.cfowers.io
+    concurrency:
+      # Serialises deploys originating from THIS repository. GitHub scopes
+      # concurrency to one repository, so it cannot serialise against the other
+      # two — and all three drive a single compose stack sharing one .env.
+      # deploy.sh therefore takes a lock of its own; this group only stops a
+      # repository from racing itself.
+      group: deploy-sw5e-qa
+      cancel-in-progress: false
+    steps:
+      # The immutable long SHA is the only thing ever deployed; deploy.sh
+      # rejects `latest` and anything that is not a 40-character SHA tag. Naming
+      # the service means only this component's tag moves, so a merge here
+      # cannot roll the other two back or forward.
+      - name: Deploy this commit
+        run: sudo -u jannet /srv/homelab/apps/sw5e/deploy.sh api "sha-${{ github.sha }}"

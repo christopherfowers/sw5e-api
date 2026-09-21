@@ -1,0 +1,23 @@
+{
+  "key": "bowcaster",
+  "name": "Bowcaster",
+  "category": "weapon",
+  "costInCredits": 1150,
+  "weight": 11.0,
+  "properties": [
+    "burst 4",
+    "power cell (range 50/200)",
+    "reload 4",
+    "strength 13",
+    "two-handed"
+  ],
+  "weaponClassification": "simpleBlaster",
+  "damage": {
+    "numberOfDice": 1,
+    "dieFaces": 10,
+    "type": "energy"
+  },
+  "stealthDisadvantage": false,
+  "sourceKey": "phb",
+  "contentSet": "core"
+}

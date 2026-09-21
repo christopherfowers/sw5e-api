@@ -1,0 +1,398 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release /warnaserror
+
+      - name: Test
+        run: |
+          set -euo pipefail
+
+          # pipefail matters here for the same reason it does in the audit
+          # below: without it `tee`'s exit status hides a failing test run.
+          dotnet test --no-build --configuration Release --verbosity normal \
+            | tee test-output.txt
+
+      # The PostgreSQL integration tests start a real database with
+      # Testcontainers, and skip themselves when no Docker daemon is reachable
+      # so the suite still runs on a machine without one. That escape hatch is
+      # only safe if something notices when it is taken somewhere it should not
+      # be: a runner has a daemon, so a skip here means the probe is broken and
+      # the entire database layer went untested behind a green build.
+      - name: Verify the database tests actually ran
+        run: |
+          set -euo pipefail
+
+          if ! grep -q "Sw5e.Persistence.Tests.Integration.dll" test-output.txt; then
+            echo "::error::The persistence test assembly did not run at all"
+            exit 1
+          fi
+
+          if grep -qE "Skipped:[[:space:]]*[1-9]" test-output.txt; then
+            echo "::error::Tests were skipped on a runner that has a Docker daemon"
+            grep -E "\[SKIP\]" test-output.txt | head -20
+            exit 1
+          fi
+
+      - name: Audit dependencies
+        env:
+          # Pin the SDK's output language so the marker string below cannot be
+          # invalidated by a localised runner image.
+          DOTNET_CLI_UI_LANGUAGE: en
+        run: |
+          # pipefail matters: without it `tee`'s exit status masks a failing
+          # `dotnet list`, leaving an empty audit.txt that greps clean and
+          # reports the gate as passed.
+          set -euo pipefail
+
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.txt
+
+          if [ ! -s audit.txt ]; then
+            echo "::error::Dependency audit produced no output; treating as a failed audit"
+            exit 1
+          fi
+
+          if grep -q "has the following vulnerable packages" audit.txt; then
+            echo "::error::Vulnerable packages detected"
+            exit 1
+          fi
+
+  # The Dockerfile is not exercised anywhere else: the developer machine has no
+  # Docker daemon, so this job is the only thing standing between a broken
+  # image and the deployment. It builds and then actually runs the image —
+  # a build that succeeds and a container that cannot start are different
+  # outcomes, and only the second one matters in production.
+  container-image:
+    name: Build and smoke-test the container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The content repository is a submodule: the JSON Schemas and the
+          # validator that evaluates them are consumed from it directly, so that
+          # a document accepted by this API cannot be one that repository's own
+          # CI would reject. Without this the build has no schema project to
+          # restore and stops at the project reference.
+          submodules: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          # Load into the daemon so the container can be started below. This
+          # restricts the build to the runner's own architecture; the release
+          # workflow is where the multi-architecture manifest is produced.
+          load: true
+          tags: sw5e-api:ci
+
+      - name: Run the image and verify it serves content
+        run: |
+          set -euo pipefail
+
+          # The image's own HEALTHCHECK interval is tuned for production, which
+          # would make this job wait 30s for the first probe. The overrides
+          # below only change how often the probe runs, not what it does, so
+          # what is being verified is still the healthcheck baked into the
+          # image.
+          #
+          # The content directory is mounted read-only at the path the image
+          # defaults Content__RootPath to, mirroring the compose stack's shared
+          # volume. The test fixture stands in for the sw5e-database content.
+          #
+          # The image runs as Production, where the email subsystem refuses to
+          # register without a provider — a deployment that cannot send a
+          # password-reset email should not come up quietly. Capture satisfies
+          # that gate without credentials and delivers nothing, which is what a
+          # smoke test wants. A container that fails to start because these are
+          # missing is the gate working, not the image being broken.
+          #
+          # The identity connection string is there for the same reason: an
+          # image that boots happily with no account system is an image serving
+          # an unauthenticated site without saying so. Nothing here connects to
+          # it — the endpoints exercised below are the anonymous content ones —
+          # so a syntactically valid string pointing at nothing is enough to
+          # prove the image starts with the configuration a deployment supplies.
+          docker run --detach --name sw5e-api-smoke \
+            --publish 127.0.0.1:8080:8080 \
+            --env Email__Provider=Capture \
+            --env Email__FromAddress=noreply@sw5e.test \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            --env 'ConnectionStrings__Sw5eIdentity=Host=127.0.0.1;Port=5432;Database=sw5e_identity;Username=sw5e' \
+            --env 'Identity__PublicSiteUrl=https://sw5e.example' \
+            --health-interval=2s \
+            --health-start-period=1s \
+            --health-retries=15 \
+            sw5e-api:ci
+
+          for _ in $(seq 1 45); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' sw5e-api-smoke)
+            if [ "$status" = "healthy" ] || [ "$status" = "unhealthy" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Container health: $status"
+          if [ "$status" != "healthy" ]; then
+            echo "::error::Container never reported healthy"
+            exit 1
+          fi
+
+          # The healthcheck runs inside the container; confirm the port is
+          # also reachable from outside it.
+          curl --fail --silent --show-error http://127.0.0.1:8080/health
+          echo
+
+          # A non-zero item count proves the read-only volume is genuinely
+          # readable by the non-root user the image runs as. The type registry
+          # is static, so the endpoint answers 200 with every type listed even
+          # when nothing loaded at all — the count is what distinguishes a
+          # mounted volume from an unreadable one.
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/content-types > content-types.json
+          species=$(jq '.types[] | select(.key == "species") | .itemCount' content-types.json)
+          echo "Species items served: $species"
+          if [ "$species" -lt 1 ]; then
+            echo "::error::Mounted content was not readable inside the container"
+            exit 1
+          fi
+
+          # The published image, told nothing about which environment it is,
+          # must report production.
+          #
+          # This is the only place that claim can be checked against the artifact
+          # that actually ships. The site's "this is a test environment, nothing
+          # here is kept" banner is drawn from this endpoint and from nothing
+          # else, because the web tier is static prerendered HTML promoted from
+          # QA to production unchanged and has no way to know where it is
+          # running. So a default that slipped to non-production would put that
+          # banner on the live site, on every page, and the unit tests would stay
+          # green throughout: they exercise the decision, not the image, and the
+          # image is where an appsettings default or a stray ENV line would do
+          # the damage.
+          #
+          # Note what is deliberately absent from the `docker run` above: there
+          # is no ASPNETCORE_ENVIRONMENT. That is the point of asserting here.
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8080/api/site/environment > environment.json
+          cat environment.json
+          echo
+
+          if [ "$(jq -r '.isProduction' environment.json)" != "true" ]; then
+            echo "::error::The image reports a non-production environment when" \
+              "nothing told it which environment it is. A deployment that" \
+              "forgets one variable would show a test-environment banner on the" \
+              "live site."
+            exit 1
+          fi
+
+          # A root-run container would defeat the point of the USER line.
+          uid=$(docker exec sw5e-api-smoke id -u)
+          echo "Container UID: $uid"
+          if [ "$uid" = "0" ]; then
+            echo "::error::Container is running as root"
+            exit 1
+          fi
+
+      # The same image, deployed the way the QA stack deploys it: run the
+      # migrator once against PostgreSQL, then serve from the database instead
+      # of from the content volume.
+      #
+      # The integration tests already prove the migrator and the database store
+      # work. What only this step can prove is that they are actually in the
+      # published image and reachable through its entry point — a Dockerfile
+      # that forgot to publish the migrator, or an appsettings default that made
+      # `Content__Store=database` unreachable, would pass every test and fail on
+      # the first deploy.
+      - name: Migrate into PostgreSQL and serve from it
+        run: |
+          set -euo pipefail
+
+          docker network create sw5e-ci
+
+          docker run --detach --name sw5e-db --network sw5e-ci \
+            --env POSTGRES_DB=sw5e \
+            --env POSTGRES_USER=sw5e \
+            --env POSTGRES_PASSWORD=ci-only-not-a-secret \
+            postgres:17-alpine
+
+          for _ in $(seq 1 30); do
+            if docker exec sw5e-db pg_isready -U sw5e -d sw5e >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+          docker exec sw5e-db pg_isready -U sw5e -d sw5e
+
+          connection="Host=sw5e-db;Port=5432;Database=sw5e;Username=sw5e;Password=ci-only-not-a-secret"
+
+          # The deploy-time job: apply migrations, then import the content. The
+          # entry point is overridden because the image's default is the API.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll all
+
+          # Running it twice must be safe. A deploy can be retried, and an
+          # importer that was not idempotent would only reveal that in
+          # production.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll all
+
+          # No content volume this time: if the API answered from the
+          # filesystem after all, every count below would be zero.
+          #
+          # The email and identity settings are the ones the file-backed
+          # container above is given. Outside Development both subsystems treat
+          # a missing setting as a startup failure by design, so every container
+          # in this job has to supply them.
+          #
+          # Identity is deliberately pointed at a database that does not exist
+          # on this server. It never connects during startup — schema is the
+          # migrator's job, not a starting web process's — so an unreachable
+          # identity database is harmless here, and naming a different one turns
+          # the separation into something this step can actually prove: if the
+          # content store resolved identity's connection string through some
+          # fallback, every content request below would fail against a database
+          # that was never created.
+          docker run --detach --name sw5e-api-db --network sw5e-ci \
+            --publish 127.0.0.1:8081:8080 \
+            --env Content__Store=database \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env "ConnectionStrings__Sw5eIdentity=Host=sw5e-db;Port=5432;Database=sw5e_identity_does_not_exist;Username=sw5e;Password=ci-only-not-a-secret" \
+            --env 'Identity__PublicSiteUrl=https://sw5e.example' \
+            --env Email__Provider=Capture \
+            --env Email__FromAddress=noreply@sw5e.test \
+            sw5e-api:ci
+
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8081/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:8081/health
+
+          # Readiness must report the database as healthy, which also means the
+          # schema is not behind the build.
+          curl --fail --silent --show-error http://127.0.0.1:8081/health/ready > ready.json
+          cat ready.json
+          jq -e '.status == "healthy"' ready.json > /dev/null
+          jq -e '.checks[] | select(.name == "database") | .status == "healthy"' ready.json > /dev/null
+
+          # The counts served from PostgreSQL must match the ones the
+          # file-backed container served from the same corpus earlier in this
+          # job. Comparing the two is what makes this more than a smoke test:
+          # a store that silently returned nothing would answer 200 with every
+          # type listed at zero.
+          curl --fail --silent --show-error http://127.0.0.1:8081/api/content-types \
+            > content-types-db.json
+
+          diff <(jq -S '.' content-types.json) <(jq -S '.' content-types-db.json) \
+            || { echo "::error::The two stores disagree about the catalogue"; exit 1; }
+
+          # One document in full, to prove the body survives the round trip
+          # through jsonb rather than only the row projection.
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8081/api/content/species/wookiee > wookiee.json
+          jq -e '.data.traits | length > 0' wookiee.json > /dev/null
+          jq -e '.data.homeworld == "Kashyyyk"' wookiee.json > /dev/null
+
+      # The other direction, from the same image. The integration tests already
+      # prove the exporter reproduces the committed corpus; what only this step
+      # can prove is that the command is in the published image, that the
+      # schemas it needs to order and validate documents were baked in beside
+      # it, and that it can write to a mounted volume as the non-root user the
+      # image runs as. A Dockerfile that stopped copying the schemas would pass
+      # every test and fail the first time anybody ran an export.
+      - name: Export the catalogue back out of the image
+        run: |
+          set -euo pipefail
+
+          connection="Host=sw5e-db;Port=5432;Database=sw5e;Username=sw5e;Password=ci-only-not-a-secret"
+
+          mkdir -p exported
+          chmod 0777 exported
+
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --volume "$PWD/exported:/export" \
+            sw5e-api:ci Sw5e.Migrator.dll export --output /export
+
+          written=$(find exported -name '*.json' | wc -l)
+
+          # How many documents the catalogue actually holds, taken from an
+          # import over the corpus it was loaded from rather than from a number
+          # written down here. Counting the fixture's files instead would count
+          # the deliberately invalid one the importer skips.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --env Content__RootPath=/srv/content \
+            --volume "$PWD/tests/Sw5e.Api.Tests.Integration/TestContent:/srv/content:ro" \
+            sw5e-api:ci Sw5e.Migrator.dll import 2>&1 | tee import.txt
+
+          catalogued=$(grep -oE '[0-9]+ unchanged' import.txt | head -1 | grep -oE '[0-9]+')
+          echo "exported $written document(s) from a catalogue of $catalogued"
+
+          if [ -z "$catalogued" ] || [ "$catalogued" -lt 1 ]; then
+            echo "::error::could not determine how many documents the catalogue holds"
+            exit 1
+          fi
+
+          if [ "$written" -ne "$catalogued" ]; then
+            echo "::error::exported $written documents from a catalogue of $catalogued"
+            exit 1
+          fi
+
+          # Exporting again into the tree it just wrote must find nothing to do.
+          # An export that reported changes every run would be useless for
+          # deciding whether there is a pull request worth opening — and this is
+          # the only place that is checked against a volume the container wrote
+          # to itself rather than against a checkout.
+          docker run --rm --network sw5e-ci --entrypoint dotnet \
+            --env "ConnectionStrings__Sw5e=$connection" \
+            --volume "$PWD/exported:/export" \
+            sw5e-api:ci Sw5e.Migrator.dll export --output /export --check
+
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs sw5e-api-smoke || true
+          docker logs sw5e-api-db || true
+          docker logs sw5e-db || true

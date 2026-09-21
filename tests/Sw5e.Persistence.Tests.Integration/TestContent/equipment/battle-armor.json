@@ -1,0 +1,17 @@
+{
+  "key": "battle-armor",
+  "name": "Battle armor",
+  "category": "armor",
+  "costInCredits": 750,
+  "weight": 55.0,
+  "description": "Battle armor is an armor that reduced weight, but restricts movement. The armor is commonly used by mercenaries, bounty hunters, soldiers, and civilians that live in dangerous areas.",
+  "properties": [
+    "bulky",
+    "strength 13"
+  ],
+  "armorClassification": "heavy",
+  "armorClass": "16",
+  "stealthDisadvantage": true,
+  "sourceKey": "phb",
+  "contentSet": "core"
+}

@@ -1,0 +1,17 @@
+{
+  "key": "energy-shield",
+  "name": "Energy Shield",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "powerType": "tech",
+  "level": 2,
+  "forceAlignment": "none",
+  "castingTime": {
+    "period": "bonusAction",
+    "text": "1 bonus action"
+  },
+  "range": "Self",
+  "duration": "Up to 10 minutes",
+  "concentration": true,
+  "description": "A shimmering barrier of deflector energy surrounds you."
+}

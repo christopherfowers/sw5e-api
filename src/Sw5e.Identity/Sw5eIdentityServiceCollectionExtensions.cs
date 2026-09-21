@@ -1,0 +1,707 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Sw5e.Identity.Administration;
+using Sw5e.Identity.Authorization;
+using Sw5e.Identity.Email;
+using Sw5e.Identity.EmailSignIn;
+using Sw5e.Identity.TwoFactor;
+
+namespace Sw5e.Identity;
+
+/// <summary>
+/// Registers the whole identity stack: the store, the managers, the cookie
+/// policy, the passkey configuration and the authorization policies.
+/// </summary>
+/// <remarks>
+/// One entry point on purpose. Authentication configuration that is spread
+/// across a composition root is configuration nobody can audit, and the
+/// questions a reviewer needs to answer (is the session cookie
+/// <c>HttpOnly</c>, does an unverified account get in, how many failures
+/// before a lockout) should all be answerable by reading one file.
+/// </remarks>
+public static class Sw5eIdentityServiceCollectionExtensions
+{
+    /// <summary>
+    /// The session cookie's name.
+    /// </summary>
+    /// <remarks>
+    /// The <c>__Host-</c> prefix is not decoration. A browser refuses to store
+    /// a cookie with this prefix unless it is <c>Secure</c>, has
+    /// <c>Path=/</c> and carries no <c>Domain</c> attribute. Which means no
+    /// sibling subdomain can set it, and nothing served over plain HTTP can
+    /// either. That closes cookie fixation and subdomain-takeover cookie
+    /// injection at the browser, where it holds even if a future change here
+    /// gets the server-side flags wrong.
+    /// </remarks>
+    public const string SessionCookieName = "__Host-sw5e.session";
+
+    /// <summary>The cookie carrying "this account has passed its first factor".</summary>
+    public const string TwoFactorCookieName = "__Host-sw5e.mfa";
+
+    public static IServiceCollection AddSw5eIdentity(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var options = BindOptions(configuration);
+        options.Validate();
+        services.AddSingleton(Options.Create(options));
+
+        AddStore(services, options);
+        AddDataProtection(services);
+        AddIdentityCore(services, options);
+        AddCookiePolicy(services, options);
+        AddPasskeyPolicy(services, options);
+        AddAuthorizationPolicies(services, options.RecentAuthenticationWindow);
+
+        // Fails closed: if nothing else supplies a mail provider, the first
+        // attempt to send throws rather than pretending it delivered. See
+        // UnconfiguredAccountEmailSender for why a no-op would be a bug.
+        services.TryAddScoped<IAccountEmailSender, UnconfiguredAccountEmailSender>();
+
+        // Issues and redeems the emailed sign-in codes. Scoped, because it
+        // holds the request's DbContext.
+        services.AddScoped<EmailSignInCodeService>();
+
+        // Every clock in this assembly is read through TimeProvider, so a test
+        // can move the acceptance window of an authenticator code or the expiry
+        // of an emailed one without waiting for real minutes to pass.
+        services.TryAddSingleton(TimeProvider.System);
+
+        if (options.InitializeDatabaseAtStartup)
+        {
+            services.AddHostedService<Sw5eIdentityInitializer>();
+        }
+
+        return services;
+    }
+
+    private static Sw5eIdentityOptions BindOptions(IConfiguration configuration)
+    {
+        var options = new Sw5eIdentityOptions();
+        configuration.GetSection(Sw5eIdentityOptions.SectionName).Bind(options);
+
+        // The dedicated key wins, then the platform-wide one. Identity is happy
+        // to share the platform connection string, but a deployment that wants
+        // a least-privileged role for account data can hand it one without
+        // touching anything else.
+        options.ConnectionString ??=
+            configuration.GetConnectionString("Sw5eIdentity") ??
+            configuration.GetConnectionString("Sw5e");
+
+        return options;
+    }
+
+    private static void AddStore(IServiceCollection services, Sw5eIdentityOptions options)
+    {
+        services.AddDbContext<Sw5eIdentityDbContext>(builder => builder
+            .UseNpgsql(options.ConnectionString, npgsql => npgsql
+                // The migration history table lives in the identity schema
+                // alongside the tables it describes. Left in the default schema
+                // it would sit in whatever the content store also calls home,
+                // and two independent migration streams sharing one history
+                // table is a corruption waiting for a deploy to trigger it.
+                .MigrationsHistoryTable("__EFMigrationsHistory", Sw5eIdentityDbContext.Schema)));
+    }
+
+    private static void AddDataProtection(IServiceCollection services)
+    {
+        // Data protection keys sign and encrypt the session cookie, the
+        // two-factor cookie, the passkey challenge cookies and every token
+        // emailed to a user. Left on the default file-system key ring inside a
+        // container they are lost on every restart, silently logging every
+        // user out and invalidating every outstanding verification link, and
+        // are not shared between replicas at all, so a two-replica deployment
+        // rejects half its own cookies.
+        //
+        // Persisting them into the identity schema fixes both: the ring is
+        // durable, it is shared, and it is backed up by whatever already backs
+        // up the account data it protects. It also keeps the deployment free of
+        // a writable volume that would otherwise have to exist purely for keys.
+        services.AddDataProtection()
+                .PersistKeysToDbContext<Sw5eIdentityDbContext>()
+                .SetApplicationName("Sw5e");
+    }
+
+    private static void AddIdentityCore(IServiceCollection services, Sw5eIdentityOptions options)
+    {
+        services
+            .AddIdentityCore<Sw5eUser>(identity =>
+            {
+                // Passkey storage exists only from schema version 3, and the
+                // framework defaults to version 1. See Sw5eIdentitySchema for
+                // what goes wrong when the runtime and the migration disagree.
+                identity.Stores.SchemaVersion = Sw5eIdentitySchema.Version;
+
+                // An account that has not proved control of its address cannot
+                // sign in. Without this an attacker registers somebody else's
+                // address, enrols their own passkey, and owns an account
+                // wearing a stranger's identity; the real owner then cannot
+                // register because the address is taken.
+                identity.SignIn.RequireConfirmedEmail = true;
+                identity.SignIn.RequireConfirmedAccount = true;
+
+                // Uniqueness is enforced in the database by a unique index as
+                // well. This setting is what makes the framework check first
+                // and return a clean result instead of a constraint violation.
+                identity.User.RequireUniqueEmail = true;
+
+                // Lockout applies to every account from the moment it is
+                // created, new ones included. The framework's default excludes
+                // new users, which would leave the freshest accounts, the ones
+                // an attacker just created a target list from, as the only
+                // ones with unlimited attempts.
+                identity.Lockout.AllowedForNewUsers = true;
+                identity.Lockout.MaxFailedAccessAttempts = 5;
+                identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+
+                // Six digits over a thirty-second window is 5 000 guesses per
+                // hour at one attempt per try. Five attempts and a fifteen
+                // minute pause reduces that to twenty per hour, which is a
+                // rounding error against a million-code space.
+
+                // No flow here sets a password and none reads one. These bounds
+                // exist so that if some future code path ever does, it cannot
+                // do it weakly by accident.
+                identity.Password.RequiredLength = 16;
+                identity.Password.RequireDigit = true;
+                identity.Password.RequireLowercase = true;
+                identity.Password.RequireUppercase = true;
+                identity.Password.RequireNonAlphanumeric = true;
+
+                // Shown in the authenticator app beside the account's code.
+                identity.Tokens.AuthenticatorIssuer = "SW5e";
+            })
+            .AddRoles<Sw5eRole>()
+            .AddEntityFrameworkStores<Sw5eIdentityDbContext>()
+            .AddSignInManager()
+            // Supplies the authenticator (TOTP) provider used for two-factor
+            // enrolment and verification, and the data-protection token
+            // provider behind email verification and recovery.
+            .AddDefaultTokenProviders()
+
+            // Replaces the authenticator provider that line just registered,
+            // under the same name, so that every existing caller
+            // (VerifyTwoFactorTokenAsync during enrolment,
+            // TwoFactorAuthenticatorSignInAsync during sign-in) resolves to
+            // this one without being changed. Registering under a new name
+            // instead would leave the framework's provider in place as a
+            // second, differently-behaved way to satisfy the same check.
+            //
+            // The only difference is that the acceptance window becomes a
+            // configured value instead of a constant compiled into an internal
+            // framework type. See Sw5eAuthenticatorTokenProvider.
+            .AddTokenProvider<Sw5eAuthenticatorTokenProvider>(
+                TokenOptions.DefaultAuthenticatorProvider);
+
+        // Replaces the framework's DefaultUserConfirmation, which answers
+        // EmailConfirmed and nothing else. This one additionally refuses a
+        // suspended account, and it is registered here rather than checked in
+        // the sign-in handlers because SignInManager.CanSignInAsync is the one
+        // gate every route in (a passkey assertion, an emailed code, and the
+        // authenticator step that can follow either) already passes through.
+        // See SuspensionAwareUserConfirmation.
+        services.Replace(ServiceDescriptor
+            .Scoped<IUserConfirmation<Sw5eUser>, SuspensionAwareUserConfirmation>());
+
+        // Applies to the email verification and recovery tokens.
+        services.Configure<DataProtectionTokenProviderOptions>(
+            tokens => tokens.TokenLifespan = options.EmailTokenLifetime);
+
+        // How often a live session is re-checked against the account's security
+        // stamp. The framework default is thirty minutes, which is how long a
+        // stolen session survives after the account is locked, its roles are
+        // revoked or its passkeys are removed. Five minutes is a far more
+        // defensible ceiling on "revoked but still working", and the check is a
+        // single indexed read.
+        services.Configure<SecurityStampValidatorOptions>(validator =>
+        {
+            validator.ValidationInterval = TimeSpan.FromMinutes(5);
+
+            // What the refresh above would otherwise throw away.
+            //
+            // A refresh rebuilds the principal from the store with
+            // CreateUserPrincipalAsync, which knows about the account and
+            // nothing about this sign-in, so every claim describing the session
+            // is dropped. The framework acknowledges this in a comment of its
+            // own next to the call. The effect here was that an administrator
+            // who signed in with a passkey was refused administrative work five
+            // minutes later, told to sign in more strongly, and had in fact
+            // done so. Which looked like a permissions bug and was a claim
+            // quietly going missing.
+            //
+            // Both session claims are carried across unchanged, and unchanged
+            // is the important word for the timestamp. Stamping the refresh
+            // time would mean a session re-proved itself every five minutes
+            // without anybody touching anything, which is not a lie the server
+            // should tell itself.
+            validator.OnRefreshingPrincipal = context =>
+            {
+                if (context.CurrentPrincipal is { } current &&
+                    context.NewPrincipal?.Identity is ClaimsIdentity identity)
+                {
+                    CarryForward(current, identity, Sw5eClaims.AuthenticationMethod);
+                    CarryForward(current, identity, Sw5eClaims.AuthenticatedAt);
+                }
+
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    private static void AddCookiePolicy(IServiceCollection services, Sw5eIdentityOptions options)
+    {
+        services
+            .AddAuthentication(IdentityConstants.ApplicationScheme)
+            .AddIdentityCookies();
+
+        // The session cookie. This is the credential for every authenticated
+        // request, so every attribute below is load-bearing.
+        services.ConfigureApplicationCookie(cookie =>
+        {
+            cookie.Cookie.Name = SessionCookieName;
+
+            // Unreachable from JavaScript. The whole reason this API uses a
+            // cookie rather than a bearer token is that a token has to live
+            // somewhere script can reach, which makes any cross-site scripting
+            // bug anywhere on the origin an immediate credential theft.
+            cookie.Cookie.HttpOnly = true;
+
+            // Never sent over plain HTTP, in any environment. Not
+            // SameAsRequest: that would emit a non-Secure cookie the one time
+            // it mattered, on a request that reached the app over HTTP because
+            // a proxy header was missing.
+            cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+            // Strict, not Lax. Lax still attaches the cookie to top-level
+            // cross-site GET navigations, which is enough for an attacker's
+            // page to navigate a victim into an authenticated state and read
+            // what comes back through a side channel. The cost is that
+            // following a link from an email lands logged out until the
+            // application makes its first same-site request, which for a
+            // single-page front end is invisible.
+            cookie.Cookie.SameSite = SameSiteMode.Strict;
+
+            // Required by the __Host- prefix, and correct anyway.
+            cookie.Cookie.Path = "/";
+            cookie.Cookie.IsEssential = true;
+
+            cookie.ExpireTimeSpan = options.SessionLifetime;
+            cookie.SlidingExpiration = true;
+
+            // This is an API. The framework's default is to answer an
+            // unauthenticated request with a 302 to a login page that does not
+            // exist here, which a fetch() client sees as a successful
+            // navigation to nowhere. Answer with the status codes the contract
+            // promises instead.
+            //
+            // The body matters as much as the status. Setting the status alone
+            // produces a 401 with no content type and no payload, which is
+            // indistinguishable, to a client that decides what happened by
+            // looking at the body, from a reverse proxy answering while the
+            // API is not mounted. A browser client that made that mistake would
+            // tell every signed-out reader the service was unreachable instead
+            // of offering them a way to sign in. Every other refusal in this
+            // API is a problem document, so these two are as well.
+            cookie.Events.OnRedirectToLogin = context => WriteProblemAsync(
+                context.HttpContext,
+                StatusCodes.Status401Unauthorized,
+                "Authentication required",
+                "This request requires a signed-in account.");
+
+            // Three different refusals wear the same status code, and telling
+            // them apart is the difference between a page that says "you cannot
+            // do this" and one that says "sign in with your passkey and you
+            // can". All three are facts about the caller's own session, so none
+            // discloses anything: an account already knows how it signed in.
+            cookie.Events.OnRedirectToAccessDenied = context =>
+                DescribeAccessDeniedAsync(
+                    context.HttpContext, options.RecentAuthenticationWindow);
+
+            cookie.Events.OnRedirectToLogout = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                return Task.CompletedTask;
+            };
+
+            // What decides, on every authenticated request, whether the cookie
+            // in front of us still stands for anything.
+            //
+            // AddIdentityCookies installs SecurityStampValidator here. That is
+            // kept, it is what makes a role revocation or a passkey removal
+            // take effect on a session that is already open, and one check is
+            // added after it. Assigning the delegate replaces the framework's,
+            // so calling it explicitly is not politeness: omitting the call
+            // would silently switch off stamp validation altogether, and the
+            // symptom would be a revoked administrator who kept working for
+            // eight hours.
+            //
+            // The added check is suspension, and it runs every time rather than
+            // on the stamp validator's five-minute interval. See
+            // AccountSuspension for why a suspension is the one state where
+            // five minutes of grace is the wrong answer.
+            cookie.Events.OnValidatePrincipal = async context =>
+            {
+                await SecurityStampValidator.ValidatePrincipalAsync(context);
+                await AccountSuspension.RejectSuspendedAsync(context);
+            };
+        });
+
+        // The cookie that says "this account passed its first factor and is
+        // waiting on its second". It is a partial credential and is treated
+        // like one: the same flags as the session cookie, and a lifetime
+        // measured in the time it takes to read six digits off a phone.
+        services.Configure<CookieAuthenticationOptions>(
+            IdentityConstants.TwoFactorUserIdScheme,
+            cookie =>
+            {
+                cookie.Cookie.Name = TwoFactorCookieName;
+                cookie.Cookie.HttpOnly = true;
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.Cookie.SameSite = SameSiteMode.Strict;
+                cookie.Cookie.Path = "/";
+                cookie.Cookie.IsEssential = true;
+                cookie.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+                cookie.SlidingExpiration = false;
+            });
+
+        // Neither of the remaining identity cookies is used by any flow here
+        // (there are no external login providers, and no flow asks to be
+        // remembered past its second factor) but the schemes are registered by
+        // AddIdentityCookies, so they are locked down rather than left on
+        // framework defaults in case something later reaches for one.
+        foreach (var scheme in new[]
+                 {
+                     IdentityConstants.ExternalScheme,
+                     IdentityConstants.TwoFactorRememberMeScheme,
+                 })
+        {
+            services.Configure<CookieAuthenticationOptions>(scheme, cookie =>
+            {
+                cookie.Cookie.HttpOnly = true;
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.Cookie.SameSite = SameSiteMode.Strict;
+                cookie.Cookie.Path = "/";
+            });
+        }
+    }
+
+    private static void AddPasskeyPolicy(IServiceCollection services, Sw5eIdentityOptions options)
+    {
+        services.Configure<IdentityPasskeyOptions>(passkey =>
+        {
+            // Null is a supported value and means "use the origin's host",
+            // which is what makes local development on localhost work without
+            // configuration. Every deployed environment sets it.
+            passkey.ServerDomain = options.RelyingPartyId;
+
+            // Require the authenticator to verify the human (biometric, PIN or
+            // equivalent) before it will sign. This is what makes a single
+            // passkey two factors rather than one: possession of the
+            // authenticator, plus something only its owner can supply. It is
+            // also the framework default, restated because the whole
+            // authentication design rests on it.
+            passkey.UserVerificationRequirement = "required";
+
+            // Discoverable (resident) credentials, and the reason is account
+            // enumeration. A non-discoverable credential has to be named in the
+            // request's allowCredentials list, which means the server must be
+            // told which account is signing in before it can build the
+            // challenge, which means the sign-in endpoint takes an email
+            // address and answers differently depending on whether it exists.
+            // Requiring discoverable credentials lets the browser pick the
+            // account, so the sign-in challenge is identical for everybody and
+            // reveals nothing at all.
+            passkey.ResidentKeyRequirement = "required";
+
+            // Long enough to find a phone, short enough that an abandoned
+            // challenge is not left standing.
+            passkey.AuthenticatorTimeout = TimeSpan.FromMinutes(2);
+
+            // 32 bytes of challenge. Restated rather than inherited because a
+            // shorter challenge is the difference between a replay being
+            // impossible and being merely unlikely.
+            passkey.ChallengeSize = 32;
+
+            // The framework's default accepts any origin that matches the
+            // credential's own and refuses cross-origin outright, which is
+            // already sound. This narrows it further to the origins this
+            // deployment actually serves, so a credential produced against some
+            // other host that happens to share the relying party domain is
+            // still refused.
+            passkey.ValidateOrigin = context =>
+                ValueTask.FromResult(IsAllowedPasskeyOrigin(context, options));
+        });
+    }
+
+    private static bool IsAllowedPasskeyOrigin(
+        PasskeyOriginValidationContext context,
+        Sw5eIdentityOptions options)
+    {
+        // An iframe on somebody else's page is never a legitimate place to
+        // present a credential for this site.
+        if (context.CrossOrigin)
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(context.Origin, UriKind.Absolute, out var origin))
+        {
+            return false;
+        }
+
+        // Configured allow-list first, compared as origins rather than as
+        // strings so a trailing slash is not the difference between working and
+        // not.
+        foreach (var allowed in options.AllowedOrigins)
+        {
+            if (Uri.TryCreate(allowed, UriKind.Absolute, out var candidate) &&
+                Uri.Compare(origin, candidate, UriComponents.SchemeAndServer,
+                    UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
+            {
+                return true;
+            }
+        }
+
+        // With no allow-list configured, the request's own origin is the only
+        // acceptable one. The same-origin deployment behind the reverse proxy.
+        var request = context.HttpContext.Request;
+        return string.Equals(origin.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(origin.Authority, request.Host.Value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Writes an RFC 9457 problem document for a refusal raised by the
+    /// authentication handler rather than by an endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Routed through <see cref="IProblemDetailsService"/> so these two answers
+    /// are shaped by the same configuration, and carry the same trace
+    /// identifier, as every refusal an endpoint produces. Falling back to a
+    /// bare status code if the service is not registered keeps this from being
+    /// the reason a request fails.
+    /// </remarks>
+    /// <summary>
+    /// The machine-readable reason on a refusal that a stronger sign-in would
+    /// have satisfied.
+    /// </summary>
+    /// <remarks>
+    /// A stable string the browser application branches on, so that the copy in
+    /// this file can be reworded without silently changing what the front end
+    /// does about it.
+    /// </remarks>
+    public const string StrongAuthenticationRequired = "strong-authentication-required";
+
+    /// <summary>
+    /// The machine-readable reason on a refusal that confirming identity would
+    /// have satisfied.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="StrongAuthenticationRequired"/> because the
+    /// remedies are different and only one of them is available. This account
+    /// has the factor and has used it; it is being asked to use it again. A
+    /// client that collapsed the two would send somebody holding a passkey off
+    /// to enrol one.
+    /// </remarks>
+    public const string RecentAuthenticationRequired = "recent-authentication-required";
+
+    /// <summary>
+    /// Copies one session claim onto a principal that was just rebuilt without
+    /// it.
+    /// </summary>
+    /// <remarks>
+    /// Skips a claim the rebuilt principal somehow already has, so a refresh
+    /// can never leave two answers to a question whose readers take the first
+    /// one they find.
+    /// </remarks>
+    /// <summary>
+    /// Answers a refusal the authorization system raised, saying which of the
+    /// three reasons it was.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The order is the order a caller would fix them in. Somebody with no
+    /// second factor on this session needs a factor before freshness can mean
+    /// anything, so that answer comes first even on a route that wants both.
+    /// </para>
+    /// <para>
+    /// Freshness is only mentioned when it is the thing actually standing in
+    /// the way, which is why this reads the endpoint's own policy and the
+    /// caller's role rather than just the clock. Telling a Contributor who
+    /// wandered onto an administrative route to confirm their identity would
+    /// send them through a ceremony that changes nothing and ends in the same
+    /// refusal, and a prompt that cannot help is worse than a plain no.
+    /// </para>
+    /// </remarks>
+    private static Task DescribeAccessDeniedAsync(HttpContext context, TimeSpan window)
+    {
+        var user = context.User;
+
+        if (user.Identity?.IsAuthenticated == true && !Sw5eClaims.HasStrongAuthentication(user))
+        {
+            return WriteProblemAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Stronger sign-in required",
+                "This action needs a passkey or an authenticator app. Sign in again " +
+                "using one of those, or enrol one first if the account has neither.",
+                StrongAuthenticationRequired);
+        }
+
+        if (NeedsFreshProof(context, window))
+        {
+            return WriteProblemAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Confirm it is you",
+                "This action changes what other accounts may do, so it asks for your " +
+                "passkey or authenticator code again. Confirm and the action goes " +
+                "through. You stay signed in either way.",
+                RecentAuthenticationRequired);
+        }
+
+        return WriteProblemAsync(
+            context,
+            StatusCodes.Status403Forbidden,
+            "Forbidden",
+            "This account may not perform that action.");
+    }
+
+    /// <summary>
+    /// Whether this refusal is one that confirming identity would clear.
+    /// </summary>
+    /// <remarks>
+    /// Reads the policy off the endpoint rather than guessing from the clock,
+    /// because a stale session is only a problem on the routes that ask for
+    /// freshness and is perfectly ordinary everywhere else.
+    /// </remarks>
+    private static bool NeedsFreshProof(HttpContext context, TimeSpan window)
+    {
+        if (!context.User.IsInRole(Sw5eRoles.Administrator))
+        {
+            return false;
+        }
+
+        var wantsFreshProof = context.GetEndpoint()?.Metadata
+            .GetOrderedMetadata<IAuthorizeData>()
+            .Any(data => data.Policy == Sw5ePolicies.AdministerConfirmed) == true;
+
+        if (!wantsFreshProof)
+        {
+            return false;
+        }
+
+        var clock = context.RequestServices.GetRequiredService<TimeProvider>();
+
+        return !Sw5eClaims.HasRecentStrongAuthentication(context.User, window, clock.GetUtcNow());
+    }
+
+    private static void CarryForward(ClaimsPrincipal from, ClaimsIdentity to, string type)
+    {
+        if (to.FindFirst(type) is not null)
+        {
+            return;
+        }
+
+        if (from.FindFirst(type) is { } claim)
+        {
+            to.AddClaim(claim);
+        }
+    }
+
+    private static async Task WriteProblemAsync(
+        HttpContext context,
+        int statusCode,
+        string title,
+        string detail,
+        string? code = null)
+    {
+        context.Response.StatusCode = statusCode;
+
+        if (context.RequestServices.GetService<IProblemDetailsService>() is not { } problems)
+        {
+            return;
+        }
+
+        var problem = new ProblemDetailsContext
+        {
+            HttpContext = context,
+            ProblemDetails =
+            {
+                Status = statusCode,
+                Title = title,
+                Detail = detail,
+            },
+        };
+
+        if (code is not null)
+        {
+            problem.ProblemDetails.Extensions["code"] = code;
+        }
+
+        await problems.WriteAsync(problem);
+    }
+
+    private static void AddAuthorizationPolicies(IServiceCollection services, TimeSpan window)
+    {
+        // Decides the requirement the elevated policies below add. A singleton
+        // because it holds nothing and reads nothing but the principal it is
+        // handed.
+        services.AddSingleton<IAuthorizationHandler, StrongAuthenticationHandler>();
+
+        // Decides the freshness requirement. Also a singleton, and it holds
+        // only the clock.
+        services.AddSingleton<IAuthorizationHandler, RecentAuthenticationHandler>();
+
+        services.AddAuthorizationBuilder()
+            // Deny by default, for mapped endpoints only. See
+            // MappedEndpointsRequireAuthorizationRequirement for both halves of
+            // that sentence.
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+                .AddRequirements(new MappedEndpointsRequireAuthorizationRequirement())
+                .Build())
+            // Authorization is deny-by-default at the policy level too: a
+            // policy always demands an authenticated principal before it looks
+            // at a role, so a misconfigured role name can never silently admit
+            // anonymous callers.
+            .AddPolicy(Sw5ePolicies.SignedIn, policy => policy
+                .RequireAuthenticatedUser())
+            // Both elevated policies additionally require that the session was
+            // established with a passkey or an authenticator code. An emailed
+            // one-time code is enough to reach your own account and not enough
+            // to change what everybody else reads. See
+            // StrongAuthenticationRequirement for why this is checked against
+            // the session rather than against what the account has enrolled.
+            .AddPolicy(Sw5ePolicies.Contribute, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(Sw5eRoles.Contributor, Sw5eRoles.Administrator)
+                .AddRequirements(new StrongAuthenticationRequirement()))
+            .AddPolicy(Sw5ePolicies.Administer, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(Sw5eRoles.Administrator)
+                .AddRequirements(new StrongAuthenticationRequirement()))
+            // Administration, plus a factor proved minutes ago rather than this
+            // morning. Built by restating the requirements rather than by
+            // referring to the policy above, so that a change to what it means
+            // to administer cannot be applied to one of them and missed on the
+            // other. See Sw5ePolicies.AdministerConfirmed for which routes want
+            // this and why the rest deliberately do not.
+            .AddPolicy(Sw5ePolicies.AdministerConfirmed, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(Sw5eRoles.Administrator)
+                .AddRequirements(
+                    new StrongAuthenticationRequirement(),
+                    new RecentAuthenticationRequirement(window)));
+    }
+}

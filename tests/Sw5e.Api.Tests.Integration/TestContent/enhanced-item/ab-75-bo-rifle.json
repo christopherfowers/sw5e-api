@@ -1,0 +1,11 @@
+{
+  "key": "ab-75-bo-rifle",
+  "name": "AB-75 Bo-Rifle",
+  "sourceKey": "wh",
+  "contentSet": "core",
+  "itemType": "weapon",
+  "rarity": "prototype",
+  "requiresAttunement": false,
+  "subtype": "bo-rifle",
+  "description": "You have a +2 bonus to attack and damage rolls with this enhanced weapon. Additionally, while it is in staff mode, the save DC for its shocking property increases to 15.\n\n_This version of the bo-rifle was exclusive to high-ranking members of the Honor Guard of Lasan._"
+}

@@ -1,0 +1,63 @@
+{
+  "key": "guardian",
+  "name": "Guardian",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "summary": "Lightsaber duellist who channels the Force through the blade",
+  "primaryAbility": "strength",
+  "hitPoints": {
+    "dieFaces": 10,
+    "atFirstLevel": "10 + your Constitution modifier",
+    "atFirstLevelValue": 10,
+    "atHigherLevels": "1d10 (or 6) + your Constitution modifier per guardian level after 1st",
+    "atHigherLevelsAverage": 6
+  },
+  "proficiencies": {
+    "armor": "Light armor, medium armor",
+    "weapons": "All lightweapons, all vibroweapons",
+    "savingThrows": ["constitution", "charisma"],
+    "skills": {
+      "choose": 2,
+      "from": ["Athletics", "Insight", "Lore", "Perception", "Persuasion"],
+      "text": "Choose two from Athletics, Insight, Lore, Perception, Persuasion"
+    }
+  },
+  "multiclassProficiencies": "Light armor, all lightweapons, all vibroweapons",
+  "startingWealth": "8d4 x 100 cr",
+  "casterType": "force",
+  "casterRatio": 0.5,
+  "archetypeLabel": "Guardian Foci",
+  "description": "The guardian is the classic lightsaber duellist, part warrior and part forcecaster.",
+  "progression": [
+    {
+      "level": 1,
+      "proficiencyBonus": 2,
+      "features": ["Forcecasting", "Focused Strikes"],
+      "entries": [
+        { "label": "Force Powers Known", "value": "3" },
+        { "label": "Force Points", "value": "4" },
+        { "label": "Max Power Level", "value": "1st" }
+      ]
+    },
+    {
+      "level": 2,
+      "proficiencyBonus": 2,
+      "features": ["Guardian Aura"],
+      "entries": [
+        { "label": "Force Powers Known", "value": "4" },
+        { "label": "Force Points", "value": "6" },
+        { "label": "Max Power Level", "value": "1st" }
+      ]
+    },
+    {
+      "level": 3,
+      "proficiencyBonus": 2,
+      "features": ["Guardian Focus"],
+      "entries": [
+        { "label": "Force Powers Known", "value": "5" },
+        { "label": "Force Points", "value": "9" },
+        { "label": "Max Power Level", "value": "1st" }
+      ]
+    }
+  ]
+}

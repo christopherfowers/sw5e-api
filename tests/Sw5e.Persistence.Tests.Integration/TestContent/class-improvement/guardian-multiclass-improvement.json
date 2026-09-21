@@ -1,0 +1,10 @@
+{
+  "key": "guardian-multiclass-improvement",
+  "name": "Guardian Multiclass Improvement",
+  "sourceKey": "ec",
+  "contentSet": "expanded-content",
+  "className": "Guardian",
+  "improvementType": "multiclass",
+  "prerequisite": "At least 3 levels in guardian",
+  "description": "You can add half your other chosen class's levels, rounded down, to your guardian levels when determining the radius of your auras."
+}

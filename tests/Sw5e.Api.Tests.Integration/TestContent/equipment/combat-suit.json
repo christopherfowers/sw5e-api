@@ -1,0 +1,12 @@
+{
+  "key": "combat-suit",
+  "name": "Combat suit",
+  "sourceKey": "phb",
+  "contentSet": "core",
+  "category": "armor",
+  "costInCredits": 500,
+  "weight": 13,
+  "stealthDisadvantage": false,
+  "armorClassification": "medium",
+  "armorClass": "14 + Dex modifier (max 2)"
+}
