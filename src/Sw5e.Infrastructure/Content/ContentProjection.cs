@@ -50,7 +50,7 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "7-the-front-pages-furniture";
+    internal const string Version = "8-the-front-page-chooses";
 
     /// <summary>
     /// A stable description of which fields each type is projected from.
@@ -155,13 +155,13 @@ internal static class ContentProjection
             ["resource"] = new(
                 "name",
                 ["blurb"],
-                ["fillable", "pages", "sanitized", "order"]),
+                ["fillable", "pages", "sanitized", "order", "showOnHomePage"]),
             ["channel"] = new(
                 // What a reader sees on the button, and what an administrator
                 // picks one out by in a list, are the same thing: the service.
                 "platform",
                 ["blurb"],
-                ["platform", "group", "enabled", "order"]),
+                ["platform", "group", "showOnHomePage", "order"]),
             ["page"] = new(
                 // A page carries no title. It is addressed by the route it
                 // belongs to, so its key is the only thing that names it.
@@ -176,7 +176,8 @@ internal static class ContentProjection
                 // had to be edited and deployed before a book could appear;
                 // they are facts about a publication, so they travel with it.
                 ["abbreviation", "publisher", "publishedAt", "isOfficial",
-                 "shelfName", "blurb", "accent", "order", "isCoreRulebook"]),
+                 "shelfName", "blurb", "accent", "order", "isCoreRulebook",
+                 "showOnHomePage"]),
             ["species"] = new(
                 "name",
                 ["lore"],
