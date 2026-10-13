@@ -145,6 +145,12 @@ namespace Sw5e.Infrastructure.Persistence.Migrations
                         .HasColumnName("heading_text_lower")
                         .UseCollation("C");
 
+                    b.Property<string>("ImportedVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("imported_version")
+                        .UseCollation("C");
+
                     b.Property<string>("ItemKey")
                         .IsRequired()
                         .HasMaxLength(128)
