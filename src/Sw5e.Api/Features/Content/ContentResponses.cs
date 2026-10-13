@@ -83,6 +83,24 @@ public sealed record ContentItemResponse(
     string Name,
     JsonElement Data);
 
+/// <summary>
+/// One item and everything needed to render its page.
+/// </summary>
+/// <remarks>
+/// A page on this site is not one document. A class page is the class plus
+/// every feature it grants, plus its archetypes and improvements. That join
+/// used to happen at build time, which is why a change published through the
+/// content tools never reached a reader: the assembled page only existed as a
+/// build output and nothing rebuilt it.
+/// </remarks>
+/// <param name="Item">The document the page is about.</param>
+/// <param name="Related">
+/// Documents one edge away, keyed by content type. A type with nothing related
+/// is absent rather than present and empty.
+/// </param>
+public sealed record ContentPageResponse(
+    ContentItemResponse Item,
+    IReadOnlyDictionary<string, IReadOnlyList<ContentItemResponse>> Related);
 /// <summary>Results of a search across every content type.</summary>
 /// <param name="Query">The search text, echoed back.</param>
 /// <param name="TotalMatches">Items matched across all types, before any per-group cut.</param>

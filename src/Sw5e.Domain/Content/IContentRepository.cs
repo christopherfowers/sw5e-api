@@ -62,6 +62,22 @@ public interface IContentRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// One item, and the documents needed to render its page.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="GetAsync"/> because the two answer different
+    /// questions and one of them is much more expensive. A caller wanting the
+    /// document itself, which is most of them, should not pay for a join it
+    /// will not read.
+    /// </remarks>
+    /// <returns>
+    /// The bundle, or null when the type holds no item with that key.
+    /// </returns>
+    Task<ContentPage?> GetPageAsync(
+        ContentTypeDefinition type,
+        string key,
+        CancellationToken cancellationToken = default);
+    /// <summary>
     /// Free-text search across every type, already grouped and ranked.
     /// </summary>
     /// <remarks>

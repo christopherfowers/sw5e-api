@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Sw5e.Domain.Content;
+using Sw5e.Infrastructure.Persistence.Content;
 
 namespace Sw5e.Infrastructure.Content;
 
@@ -39,7 +40,11 @@ public sealed class FileContentRepository : IContentRepository
 
     private readonly ContentIndex _index;
 
-    private FileContentRepository(ContentIndex index) => _index = index;
+    private FileContentRepository(ContentIndex index)
+    {
+        _index = index;
+        _edges = new Lazy<EdgeIndex>(BuildEdges, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     /// <summary>
     /// Scans <paramref name="rootPath"/> and returns a repository over what it
@@ -240,6 +245,130 @@ public sealed class FileContentRepository : IContentRepository
     /// a display field, and finally the body prose. Only the strongest tier is
     /// reported, because a result row has room for one explanation.
     /// </remarks>
+    /// <inheritdoc />
+    public Task<ContentPage?> GetPageAsync(
+        ContentTypeDefinition type,
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        var item = _index.Find(type, key);
+
+        if (item is null)
+        {
+            return Task.FromResult<ContentPage?>(null);
+        }
+
+        var edges = _edges.Value;
+        var self = Address(type.Key, item.Key);
+
+        /*
+          One hop, both directions, exactly as the database store answers it.
+
+          The two implementations have to agree about this or a deployment
+          running on files renders different pages from one running on
+          PostgreSQL, and the site's own tests would pass against whichever
+          one they happened to be pointed at.
+        */
+        var neighbours = new SortedDictionary<string, IndexedContentItem>(StringComparer.Ordinal);
+
+        foreach (var target in edges.Out.GetValueOrDefault(self, []))
+        {
+            if (Resolve(target) is { } found) neighbours[target] = found;
+        }
+
+        foreach (var origin in edges.In.GetValueOrDefault(self, []))
+        {
+            if (Resolve(origin) is { } found) neighbours[origin] = found;
+        }
+
+        var related = neighbours.Values
+            .GroupBy(neighbour => neighbour.Type.Key, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<ContentDocument>)[.. group.Select(Document)],
+                StringComparer.Ordinal);
+
+        return Task.FromResult<ContentPage?>(new ContentPage(
+            Document(item),
+            related,
+            Version([item.Version, .. neighbours.Values.Select(neighbour => neighbour.Version)])));
+    }
+
+    private static ContentDocument Document(IndexedContentItem item) =>
+        new(item.Type.Key, item.Key, item.Name, item.Version, item.Body);
+
+    private static string Address(string type, string key) => $"{type}/{key}";
+
+    private IndexedContentItem? Resolve(string address)
+    {
+        var slash = address.IndexOf('/');
+
+        return ContentTypeRegistry.TryResolve(address[..slash], out var type)
+            ? _index.Find(type, address[(slash + 1)..])
+            : null;
+    }
+
+    /*
+      The edge index, built once on first use rather than at startup.
+
+      Extracting references from eight thousand documents is work that only a
+      page request needs, and the file store is also what a build-time tool and
+      a test fixture use, neither of which asks for a page. Lazy keeps those
+      paying nothing for it, and the index is immutable once built so the
+      instance stays safe to share.
+    */
+    private readonly Lazy<EdgeIndex> _edges;
+
+    private sealed record EdgeIndex(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> Out,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> In);
+
+    private EdgeIndex BuildEdges()
+    {
+        var outward = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var inward = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        foreach (var definition in ContentTypeRegistry.All)
+        {
+            foreach (var item in _index.Items(definition))
+            {
+                var from = Address(definition.Key, item.Key);
+
+                foreach (var edge in ContentReferenceMap.Extract(definition.Key, item.Body))
+                {
+                    /*
+                      Only edges naming a slug are followed. A name-matched edge
+                      is ambiguous when two documents share a display name, and
+                      the database store resolves those at import with a rule
+                      this one cannot reproduce cheaply. Both stores therefore
+                      follow the unambiguous ones and neither guesses.
+                    */
+                    if (edge.TargetKind is not ContentReferenceTargetKind.Key) continue;
+
+                    var to = Address(edge.TargetType, edge.TargetIdentifier);
+
+                    if (Resolve(to) is null) continue;
+
+                    outward.TryAdd(from, []);
+                    outward[from].Add(to);
+                    inward.TryAdd(to, []);
+                    inward[to].Add(from);
+                }
+            }
+        }
+
+        return new EdgeIndex(
+            outward.ToDictionary(
+                entry => entry.Key,
+                entry => (IReadOnlyList<string>)entry.Value,
+                StringComparer.Ordinal),
+            inward.ToDictionary(
+                entry => entry.Key,
+                entry => (IReadOnlyList<string>)entry.Value,
+                StringComparer.Ordinal));
+    }
     private static SearchHit? Match(IndexedContentItem item, string phrase, string[] tokens)
     {
         if (phrase.Length == 0)
