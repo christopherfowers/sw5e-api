@@ -50,7 +50,7 @@ internal static class ContentProjection
     /// text, or the cap on any of them.
     /// </para>
     /// </remarks>
-    internal const string Version = "8-the-front-page-chooses";
+    internal const string Version = "9-canon-and-homebrew";
 
     /// <summary>
     /// A stable description of which fields each type is projected from.
@@ -177,7 +177,7 @@ internal static class ContentProjection
                 // they are facts about a publication, so they travel with it.
                 ["abbreviation", "publisher", "publishedAt", "isOfficial",
                  "shelfName", "blurb", "accent", "order", "isCoreRulebook",
-                 "showOnHomePage"]),
+                 "showOnHomePage", "homebrew"]),
             ["species"] = new(
                 "name",
                 ["lore"],

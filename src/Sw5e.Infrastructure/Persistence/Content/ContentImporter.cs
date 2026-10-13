@@ -19,6 +19,13 @@ namespace Sw5e.Infrastructure.Persistence.Content;
 /// <param name="Inserted">Items that were not previously in the database.</param>
 /// <param name="Updated">Items whose document had changed.</param>
 /// <param name="Unchanged">Items already present with an identical document.</param>
+/// <param name="Preserved">
+/// Items left alone because they carry a publish the repository has not changed.
+/// </param>
+/// <param name="Replaced">
+/// Items where a publish was overwritten by a reviewed repository change. The
+/// publish remains in the document's revision history.
+/// </param>
 /// <param name="Deleted">Items removed from the database because the corpus no longer has them.</param>
 /// <param name="ReferencesWritten">Cross-reference edges written for inserted and updated items.</param>
 /// <param name="ReferencesUnresolved">
@@ -34,6 +41,8 @@ public sealed record ContentImportResult(
     int Inserted,
     int Updated,
     int Unchanged,
+    int Preserved,
+    int Replaced,
     int Deleted,
     int ReferencesWritten,
     int ReferencesUnresolved,
@@ -131,12 +140,19 @@ public sealed class ContentImporter(
         await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
 
         var existing = await database.ContentItems
-            .Select(item => new ExistingItem(item.Id, item.ContentType, item.ItemKey, item.Version))
+            .Select(item => new ExistingItem(
+                item.Id, item.ContentType, item.ItemKey, item.Version, item.ImportedVersion))
             .ToDictionaryAsync(item => (item.ContentType, item.ItemKey), cancellationToken);
 
         var inserted = 0;
         var updated = 0;
         var unchanged = 0;
+
+        // Documents a publish owns, left as they are.
+        var preserved = 0;
+
+        // Documents where a publish was replaced by a reviewed repository change.
+        var replaced = 0;
 
         // Items whose edges have to be rewritten: everything inserted or
         // updated. An unchanged item's document did not change, so neither did
@@ -150,13 +166,64 @@ public sealed class ContentImporter(
 
             if (!existing.TryGetValue((item.Type.Key, item.Key), out var current))
             {
-                database.ContentItems.Add(Project(item, now));
+                /*
+                  Stamped here rather than inside Project, which the authoring
+                  store also calls when it publishes. Putting it there marked a
+                  publish as the importer's own work, and the guard below could
+                  never fire: the first version of this fix was exactly that
+                  mistake, and the test caught it.
+                */
+                var fresh = Project(item, now);
+                fresh.ImportedVersion = item.Version;
+
+                database.ContentItems.Add(fresh);
                 inserted++;
                 continue;
             }
 
-            if (string.Equals(current.Version, item.Version, StringComparison.Ordinal))
+            /*
+              What the importer last wrote, which is not always what is there.
+
+              Null on a row written before this column existed, and read as
+              the live version then: true for every row the import put there,
+              and the safe reading for the few it is not.
+            */
+            var lastImported = current.ImportedVersion ?? current.Version;
+
+            if (string.Equals(lastImported, item.Version, StringComparison.Ordinal))
             {
+                /*
+                  The repository has not changed this document since the last
+                  import. Whether the live row matches is a different question,
+                  and the answer decides everything.
+                */
+                if (!string.Equals(current.Version, lastImported, StringComparison.Ordinal))
+                {
+                    /*
+                      Somebody published here. Left alone.
+
+                      The importer's job is to make the database match the
+                      repository, which was the whole truth while it was the
+                      only writer. It is not any more: a correction published
+                      through the content tools is newer than the file it came
+                      from, and overwriting it threw away work with nothing in
+                      the log to say so. One did vanish that way, a week after
+                      it was made, and was only found because somebody went
+                      looking for it.
+
+                      A repository change still wins, which is the branch
+                      below: that is a reviewed edit by a maintainer and is
+                      meant to land. What is refused here is the unreviewed
+                      overwrite that happens merely because a deploy ran.
+                    */
+                    warnings.Add(
+                        $"{item.Type.Key}/{item.Key} has been published since the last import " +
+                        "and the repository has not changed it; the published version is kept.");
+
+                    preserved++;
+                    continue;
+                }
+
                 // Identical document. Not even a touched timestamp: an import
                 // that changes nothing must be indistinguishable from one that
                 // never ran.
@@ -164,10 +231,30 @@ public sealed class ContentImporter(
                 continue;
             }
 
+            if (!string.Equals(current.Version, lastImported, StringComparison.Ordinal))
+            {
+                /*
+                  Both sides moved. The repository wins, because a maintainer
+                  changed a reviewed file deliberately, but it is said out loud:
+                  somebody's published work is being replaced and the only way
+                  to notice used to be that a reader complained.
+
+                  Nothing is lost. The publish is still a revision and one
+                  revert brings it back.
+                */
+                warnings.Add(
+                    $"{item.Type.Key}/{item.Key} was published since the last import and the " +
+                    "repository has also changed it; the repository version is written and the " +
+                    "published one remains in this document's revision history.");
+
+                replaced++;
+            }
+
             var row = await database.ContentItems.SingleAsync(
                 candidate => candidate.Id == current.Id, cancellationToken);
 
             Apply(row, item, now);
+            row.ImportedVersion = item.Version;
             touchedIds.Add(current.Id);
             updated++;
         }
@@ -190,13 +277,17 @@ public sealed class ContentImporter(
         await transaction.CommitAsync(cancellationToken);
 
         var result = new ContentImportResult(
-            inserted, updated, unchanged, deleted, referencesWritten, unresolved, warnings);
+            inserted, updated, unchanged, preserved, replaced, deleted, referencesWritten,
+            unresolved, warnings);
 
         logger.LogInformation(
             "Content import from {RootPath}: {Inserted} inserted, {Updated} updated, " +
-            "{Unchanged} unchanged, {Deleted} deleted, {References} references written, " +
+            "{Unchanged} unchanged, {Preserved} left to their published version, " +
+            "{Replaced} published version replaced, " +
+            "{Deleted} deleted, {References} references written, " +
             "{Unresolved} unresolved.",
-            rootPath, inserted, updated, unchanged, deleted, referencesWritten, unresolved);
+            rootPath, inserted, updated, unchanged, preserved, replaced, deleted,
+            referencesWritten, unresolved);
 
         return result;
     }
@@ -454,7 +545,8 @@ public sealed class ContentImporter(
         row.UpdatedAt = now;
     }
 
-    private sealed record ExistingItem(long Id, string ContentType, string ItemKey, string Version);
+    private sealed record ExistingItem(
+        long Id, string ContentType, string ItemKey, string Version, string? ImportedVersion);
 
     private sealed record CatalogueEntry(long Id, string ContentType, string ItemKey, string Name);
 

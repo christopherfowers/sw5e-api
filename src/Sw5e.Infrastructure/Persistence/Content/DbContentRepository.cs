@@ -176,6 +176,120 @@ public sealed class DbContentRepository(IDbContextFactory<Sw5eContentDbContext> 
     }
 
     /// <inheritdoc />
+    public async Task<ContentPage?> GetPageAsync(
+        ContentTypeDefinition type,
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        if (!ContentSlug.IsValid(key))
+        {
+            return null;
+        }
+
+        await using var database = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var item = await database.ContentItems
+            .AsNoTracking()
+            .Where(row => row.ContentType == type.Key && row.ItemKey == key)
+            .Select(row => new { row.Id, row.ItemKey, row.Name, row.Version, row.Body })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (item is null)
+        {
+            return null;
+        }
+
+        /*
+          One hop, both directions, in a single round trip.
+
+          Outbound is what this document points at; inbound is what points at
+          it. Both are needed and neither is the obvious one: a feature names
+          the class that grants it, so a feature page wants its outbound edge,
+          and a class page wants the inbound edges of all its features.
+
+          Only resolved edges are followed. The table deliberately records
+          unresolved ones too, because a corpus mid-authoring refers to things
+          nobody has written yet, and those have nothing to return.
+        */
+        var neighbourIds = await database.ContentReferences
+            .AsNoTracking()
+            .Where(edge => edge.FromItemId == item.Id && edge.ResolvedItemId != null)
+            .Select(edge => edge.ResolvedItemId!.Value)
+            .Union(database.ContentReferences
+                .AsNoTracking()
+                .Where(edge => edge.ResolvedItemId == item.Id)
+                .Select(edge => edge.FromItemId))
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var neighbours = neighbourIds.Count == 0
+            ? []
+            : await database.ContentItems
+                .AsNoTracking()
+                .Where(row => neighbourIds.Contains(row.Id))
+                .OrderBy(row => row.ContentType).ThenBy(row => row.ItemKey)
+                .Select(row => new
+                {
+                    row.ContentType,
+                    row.ItemKey,
+                    row.Name,
+                    row.Version,
+                    row.Body,
+                })
+                .ToListAsync(cancellationToken);
+
+        var related = new Dictionary<string, IReadOnlyList<ContentDocument>>(StringComparer.Ordinal);
+
+        foreach (var group in neighbours.GroupBy(row => row.ContentType, StringComparer.Ordinal))
+        {
+            var documents = new List<ContentDocument>();
+
+            foreach (var row in group)
+            {
+                using var parsed = JsonDocument.Parse(row.Body);
+                documents.Add(new ContentDocument(
+                    row.ContentType,
+                    row.ItemKey,
+                    row.Name,
+                    row.Version,
+                    parsed.RootElement.Clone()));
+            }
+
+            related[group.Key] = documents;
+        }
+
+        using var body = JsonDocument.Parse(item.Body);
+
+        return new ContentPage(
+            new ContentDocument(
+                type.Key, item.ItemKey, item.Name, item.Version, body.RootElement.Clone()),
+            related,
+            BundleVersion(item.Version, neighbours.Select(row => row.Version)));
+    }
+
+    /*
+      A validator for the whole bundle rather than for the item.
+
+      Republishing a feature changes the class page that lists it and leaves
+      the class document untouched, so a tag built from the item alone would
+      hand that reader a cached page that is now wrong. Hashed rather than
+      concatenated because a class with two hundred features would otherwise
+      carry a header measured in kilobytes.
+    */
+    private static string BundleVersion(string item, IEnumerable<string> related)
+    {
+        // Versions are hex digests, so a dot cannot occur inside one and
+        // needs no escaping to separate them.
+        var joined = string.Join('.', related.Order(StringComparer.Ordinal).Prepend(item));
+        var digest = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(joined));
+
+        return Convert.ToHexStringLower(digest.AsSpan(0, 16));
+    }
+
+    /// <inheritdoc />
     public async Task<ContentSearchResult> SearchAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)

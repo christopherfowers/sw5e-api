@@ -184,6 +184,14 @@ public sealed class Sw5eContentDbContext(DbContextOptions<Sw5eContentDbContext> 
             entity.Property(item => item.Body).HasColumnName("body").HasColumnType("jsonb");
             entity.Property(item => item.SearchText).HasColumnName("search_text");
             entity.Property(item => item.Version).HasColumnName("version").HasMaxLength(64);
+
+            // Nullable, and a row where it is null is one the importer has
+            // not written since this column existed. Treated as equal to
+            // version, which is true for every row the import put there and
+            // is the safe reading for the handful it is not.
+            entity.Property(item => item.ImportedVersion)
+                  .HasColumnName("imported_version")
+                  .HasMaxLength(64);
             entity.Property(item => item.NameLower).HasColumnName("name_lower").HasMaxLength(512);
             entity.Property(item => item.SearchTextLower).HasColumnName("search_text_lower");
 

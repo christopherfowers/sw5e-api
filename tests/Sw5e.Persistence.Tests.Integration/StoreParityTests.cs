@@ -334,6 +334,64 @@ public sealed class StoreParityTests(PostgresFixture fixture) : DatabaseTest(fix
         compared.ShouldBe(ContentFixture.ExpectedTotal);
     }
 
+    /// <summary>
+    /// The two stores assemble a page from the same documents.
+    /// </summary>
+    /// <remarks>
+    /// This is the test that matters most in the file. A page is a join, the
+    /// two stores reach it by completely different routes, and the site renders
+    /// whichever one its deployment happens to be configured for. If they
+    /// disagree, a reader sees a page the suite never built.
+    /// </remarks>
+    [DockerFact]
+    public async Task Page_GathersTheSameRelatedDocumentsFromBothStores()
+    {
+        var compared = 0;
+        var withRelations = 0;
+
+        foreach (var type in ContentFixture.ExpectedCounts.Keys)
+        {
+            var definition = Resolve(type);
+
+            var listing = await FileStore.ListAsync(new ContentListQuery(
+                definition, null, null, null,
+                ContentSortField.Key, SortDirection.Ascending, 1, 100));
+
+            foreach (var row in listing.Items)
+            {
+                var fromFile = await FileStore.GetPageAsync(definition, row.Key);
+                var fromDatabase = await Database.Repository.GetPageAsync(definition, row.Key);
+
+                fromDatabase.ShouldNotBeNull($"{type}/{row.Key} is missing from the database");
+                fromFile.ShouldNotBeNull();
+
+                Canonical(fromDatabase!.Item.Body).ShouldBe(
+                    Canonical(fromFile!.Item.Body), $"{type}/{row.Key}");
+
+                // Compared as addresses rather than as bodies: the bodies are
+                // already held equal by Get_ReturnsAnEquivalentDocumentFromBothStores,
+                // and what is in question here is which documents were gathered.
+                Addresses(fromDatabase.Related).ShouldBe(
+                    Addresses(fromFile.Related), $"{type}/{row.Key} related");
+
+                if (fromFile.Related.Count > 0) withRelations++;
+                compared++;
+            }
+        }
+
+        compared.ShouldBe(ContentFixture.ExpectedTotal);
+
+        // A guard on the guard. If the edge extraction silently stopped
+        // producing anything, every comparison above would pass on two empty
+        // dictionaries and this test would be worthless.
+        withRelations.ShouldBeGreaterThan(0, "no page gathered any related document");
+    }
+
+    private static IReadOnlyList<string> Addresses(
+        IReadOnlyDictionary<string, IReadOnlyList<ContentDocument>> related) =>
+        [.. related
+            .SelectMany(entry => entry.Value.Select(document => $"{entry.Key}/{document.Key}"))
+            .Order(StringComparer.Ordinal)];
     [DockerTheory]
     [InlineData("species", "no-such-key")]
     [InlineData("power", "force-push-pull")]
