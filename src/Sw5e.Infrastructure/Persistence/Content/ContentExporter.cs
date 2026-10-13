@@ -52,6 +52,13 @@ public readonly record struct ContentExportChange(
 /// Every document that was written, added or removed. In other words, every
 /// way the database and the repository disagreed.
 /// </param>
+/// <param name="HomebrewSkipped">
+/// Documents held back because they belong to a homebrew book.
+///
+/// Reported rather than left silent. An operator who exports and finds fewer
+/// documents than the database holds is looking at either a deliberate
+/// exclusion or data loss, and those must not be indistinguishable.
+/// </param>
 /// <param name="Warnings">
 /// Diagnostics an operator should see. These name filesystem paths and are for
 /// a log, not a response.
@@ -60,7 +67,8 @@ public sealed record ContentExportResult(
     int Examined,
     int Unchanged,
     IReadOnlyList<ContentExportChange> Changes,
-    IReadOnlyList<string> Warnings)
+    IReadOnlyList<string> Warnings,
+    int HomebrewSkipped = 0)
 {
     /// <summary>Whether the database and the repository agreed about everything.</summary>
     public bool InAgreement => Changes.Count == 0;
@@ -195,6 +203,14 @@ public sealed class ContentExporter(
             }
         }
 
+        var homebrewSkipped = homebrewSources.Count == 0
+            ? 0
+            : await database.ContentItems
+                .AsNoTracking()
+                .CountAsync(item => homebrewSources.Contains(item.ItemKey) && item.ContentType == "source"
+                    || (item.SourceKey != null && homebrewSources.Contains(item.SourceKey)),
+                    cancellationToken);
+
         var root = Path.GetFullPath(request.ContentRoot);
         var warnings = new List<string>();
         var changes = new List<ContentExportChange>();
@@ -302,7 +318,8 @@ public sealed class ContentExporter(
             }
         }
 
-        var result = new ContentExportResult(examined, unchanged, changes, warnings);
+        var result = new ContentExportResult(
+            examined, unchanged, changes, warnings, homebrewSkipped);
 
         foreach (var warning in warnings)
         {

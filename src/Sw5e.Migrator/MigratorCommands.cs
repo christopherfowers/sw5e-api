@@ -299,6 +299,21 @@ public static class MigratorCommands
             "{Added} added, {Changed} changed, {Removed} removed.",
             result.Examined, result.Unchanged, result.Added, result.Changed, result.Removed);
 
+        foreach (var warning in result.Warnings)
+        {
+            logger.LogWarning("Export: {Warning}", warning);
+        }
+
+        // Said out loud, because a tree with fewer documents in it than the
+        // database holds otherwise reads as data loss.
+        if (result.HomebrewSkipped > 0)
+        {
+            logger.LogInformation(
+                "Export: {Skipped} homebrew document(s) held back. Homebrew belongs to " +
+                "whoever wrote it and is not published to the content repository.",
+                result.HomebrewSkipped);
+        }
+
         foreach (var change in result.Changes.Take(ChangesLogged))
         {
             logger.LogInformation("  {Change}", change);
