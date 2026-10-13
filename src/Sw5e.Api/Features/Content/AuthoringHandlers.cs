@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Sw5e.Domain.Content;
 using Sw5e.Domain.Moderation;
+using Sw5e.Domain.Notifications;
 using Sw5e.Identity;
 using Sw5e.Infrastructure.Persistence.Moderation;
 
@@ -198,6 +200,7 @@ internal static class AuthoringHandlers
         UserManager<Sw5eUser> users,
         [FromServices] IContentAuthoringStore? store,
         Sw5eModerationDbContext moderation,
+        INotificationService notifications,
         TimeProvider clock,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -244,9 +247,105 @@ internal static class AuthoringHandlers
             await ResolveFlagAsync(moderation, flagId, revision.Id, actor.Id, clock, cancellationToken);
         }
 
+        await TellAdministratorsAsync(
+            notifications,
+            NotificationKind.ContentPublished,
+            revision,
+            DisplayName(draft?.Body, revision.ItemKey),
+            actor,
+            loggerFactory,
+            cancellationToken);
+
         return TypedResults.Ok(ToPublishResponse(revision, result.Notices));
     }
 
+    /// <summary>
+    /// Tells the administrators that a document changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Last, after the revision is written and the flag resolved, and never
+    /// allowed to fail the request. The work is safe by this point: a publish
+    /// that answered 500 because nobody could be told would send its author
+    /// back to publish again, which is precisely the behaviour this whole
+    /// feature exists to stop.
+    /// </para>
+    /// <para>
+    /// The detail carries the document's name and the revision number as they
+    /// are now. A notification is a statement about a moment, so renaming the
+    /// document later must not rewrite what this line said.
+    /// </para>
+    /// </remarks>
+    /// <summary>
+    /// What to call a document in a notification.
+    /// </summary>
+    /// <remarks>
+    /// Most types carry <c>name</c>, a few carry <c>title</c>, and the key is
+    /// the last resort. Written out here rather than reaching for the store's
+    /// projection table, because the worst this can get wrong is a line
+    /// reading "sentinel" where it could have read "Sentinel", and that is
+    /// not worth widening an internal API over.
+    /// </remarks>
+    private static string DisplayName(JsonElement? body, string itemKey)
+    {
+        if (body is { ValueKind: JsonValueKind.Object } document)
+        {
+            foreach (var field in (string[])["name", "title"])
+            {
+                if (document.TryGetProperty(field, out var value) &&
+                    value.ValueKind is JsonValueKind.String &&
+                    value.GetString() is { Length: > 0 } text)
+                {
+                    return text;
+                }
+            }
+        }
+
+        return itemKey;
+    }
+    private static async Task TellAdministratorsAsync(
+        INotificationService notifications,
+        string kind,
+        ContentRevisionSummary revision,
+        string name,
+        Sw5eUser actor,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notifications.WriteAsync(
+                new NotificationEvent(
+                    kind,
+                    actor.Id,
+                    SubjectUserId: null,
+                    revision.ContentType,
+                    revision.ItemKey,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["name"] = name,
+                        ["revision"] = revision.Number.ToString(CultureInfo.InvariantCulture),
+                        ["actor"] = actor.DisplayName ?? actor.UserName ?? "somebody",
+                    }),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            /*
+              Swallowed deliberately, and loudly.
+
+              Everything the author asked for has happened. The only thing lost
+              is that other administrators will not see a line about it, which
+              is worth a log and an operator's attention, and is not worth
+              telling the author their publish failed when it did not.
+            */
+            loggerFactory.CreateLogger(LogCategories.Authoring).LogError(
+                exception,
+                "Published {Type}/{Key} but could not write notifications.",
+                revision.ContentType,
+                revision.ItemKey);
+        }
+    }
     public static async Task<Results<Ok<RevisionListResponse>, ProblemHttpResult>> ListRevisionsAsync(
         string type,
         string key,
@@ -316,6 +415,7 @@ internal static class AuthoringHandlers
         HttpContext context,
         UserManager<Sw5eUser> users,
         [FromServices] IContentAuthoringStore? store,
+        INotificationService notifications,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -354,6 +454,17 @@ internal static class AuthoringHandlers
             key,
             request.RevisionId,
             actor.Id);
+
+        // Reverting is a change to what readers see, so it carries the same
+        // weight as publishing and tells the same people.
+        await TellAdministratorsAsync(
+            notifications,
+            NotificationKind.ContentReverted,
+            result.Revision!,
+            key,
+            actor,
+            loggerFactory,
+            cancellationToken);
 
         return TypedResults.Ok(ToSummaryResponse(result.Revision!));
     }

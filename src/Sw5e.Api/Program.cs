@@ -315,6 +315,7 @@ app.MapSiteEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
 app.MapFlagEndpoints();
+app.MapNotificationEndpoints();
 
 // Authoring: drafting, publishing, history and revert.
 //
