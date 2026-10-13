@@ -45,9 +45,14 @@ import subprocess
 import urllib.parse
 import urllib.request
 
-API = "http://localhost:8098"
-MAIL = "http://localhost:8025"
+# One origin for the site and the API, through the same reverse proxy the
+# deployment puts in front of them. Addressing the API's own port instead
+# would be exercising a path no browser takes, and would miss the thing that
+# matters: the site asks its own origin for /api, and something has to route
+# that.
 SITE = "http://localhost:8099"
+API = SITE
+MAIL = "http://localhost:8025"
 ADMIN = "admin@sw5e.test"          # never a real address, by project rule
 
 session = {"cookies": {}}

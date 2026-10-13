@@ -43,9 +43,17 @@ docker compose -f compose.local.yml up -d
 python tools/verify-stack.py
 ```
 
-The site is on <http://localhost:8099>, the API on <http://localhost:8098>, and
-the mail catcher on <http://localhost:8025>. Every port is bound to the loopback
+Everything is on <http://localhost:8099>, behind one reverse proxy, with the
+mail catcher on <http://localhost:8025>. Both ports are bound to the loopback
 address and the mail provider delivers nowhere, so nothing reaches the network.
+
+The one origin is not a convenience. The site addresses the API as `/api` on
+its own origin, which keeps the cookie same-site, keeps CORS out of it, and
+gives the browser's origin check one answer. A stack that served the two on
+different ports would be one where every request the site makes 404s against a
+static file server, and where none of that is exercised. That is exactly what
+the first version of this file did, and the API-level checks all passed while
+the site itself was broken in a browser.
 
 To start again from nothing:
 
@@ -61,7 +69,7 @@ half-finished enrolments, and starting clean is one command.
 
 | | Deployment | Here |
 |---|---|---|
-| Ports | behind a reverse proxy | bound to 127.0.0.1 only |
+| Ports | behind a reverse proxy | the same, bound to 127.0.0.1 |
 | Mail | a real provider | a catcher, delivering nowhere |
 | `UseStartTls` | on, and a fatal error off | off, for a credential-free relay on the compose network |
 | Identity schema | migrated as a deliberate step | migrated at API startup |

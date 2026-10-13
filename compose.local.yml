@@ -108,8 +108,8 @@ services:
       # notifications but not identity, so on a stack with one replica and
       # nobody racing it this is the only way to get the schema in place."
       Identity__InitializeDatabaseAtStartup: "true"
-    ports:
-      - "127.0.0.1:8098:8080"
+    # No published port. Everything reaches the API through the proxy, which
+    # is the only path a browser has and therefore the only one worth testing.
     volumes:
       - content:/srv:ro
     depends_on:
@@ -129,10 +129,24 @@ services:
 
   web:
     image: sw5e-web:local
-    ports:
-      - "127.0.0.1:8099:8080"
     depends_on:
       - api
+
+  # One origin for both, which is what the deployment's reverse proxy gives
+  # them. The site addresses the API as /api on its own origin: it keeps the
+  # cookie same-site, keeps CORS out of it, and gives the browser's origin
+  # check one answer. Serving the two on separate ports locally would leave
+  # every one of the site's own requests 404ing against a static file server,
+  # which is a stack that cannot show whether the site works.
+  proxy:
+    image: nginx:1.29-alpine
+    ports:
+      - "127.0.0.1:8099:8080"
+    volumes:
+      - ./tools/local-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
 
 volumes:
   content:
