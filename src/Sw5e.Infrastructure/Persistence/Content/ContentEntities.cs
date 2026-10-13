@@ -178,6 +178,25 @@ public sealed class ContentItemRow
     /// </remarks>
     public NpgsqlTsVector? SearchVector { get; set; }
 
+    /// <summary>
+    /// The version the importer last wrote here, which is not always
+    /// <see cref="Version"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two differ exactly when somebody has published through the content
+    /// tools since the last import, and telling those apart is the whole point
+    /// of carrying it.
+    /// </para>
+    /// <para>
+    /// Without it the importer compared the repository against the live row
+    /// and overwrote anything that differed, which is correct for a store it
+    /// is the only writer of and wrong the moment there is a second one. A
+    /// published correction survived until the next deploy and then vanished,
+    /// with nothing in the log to say it had been replaced.
+    /// </para>
+    /// </remarks>
+    public string? ImportedVersion { get; set; }
     /// <summary>When the row was first imported.</summary>
     public DateTimeOffset CreatedAt { get; set; }
 
