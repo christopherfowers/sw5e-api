@@ -52,6 +52,13 @@ public readonly record struct ContentExportChange(
 /// Every document that was written, added or removed. In other words, every
 /// way the database and the repository disagreed.
 /// </param>
+/// <param name="HomebrewSkipped">
+/// Documents held back because they belong to a homebrew book.
+///
+/// Reported rather than left silent. An operator who exports and finds fewer
+/// documents than the database holds is looking at either a deliberate
+/// exclusion or data loss, and those must not be indistinguishable.
+/// </param>
 /// <param name="Warnings">
 /// Diagnostics an operator should see. These name filesystem paths and are for
 /// a log, not a response.
@@ -60,7 +67,8 @@ public sealed record ContentExportResult(
     int Examined,
     int Unchanged,
     IReadOnlyList<ContentExportChange> Changes,
-    IReadOnlyList<string> Warnings)
+    IReadOnlyList<string> Warnings,
+    int HomebrewSkipped = 0)
 {
     /// <summary>Whether the database and the repository agreed about everything.</summary>
     public bool InAgreement => Changes.Count == 0;
@@ -162,6 +170,47 @@ public sealed class ContentExporter(
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ContentRoot);
 
         var types = ResolveTypes(request);
+
+        /*
+          Homebrew never leaves the database.
+
+          A homebrew book belongs to whoever wrote it; this repository is the
+          project's canon, reviewed by pull request and carried into every
+          deployment as a container image. Writing somebody's table material
+          into it would put their content behind a maintainer's review and in
+          front of every reader of the site.
+
+          Read and decided in memory rather than in SQL. There are five sources
+          and there will not be thousands, and the predicate is `homebrew is
+          true` rather than `homebrew is present`: a book that carries the
+          field set to false is canon, and a JSON key test cannot tell those
+          apart.
+        */
+        var homebrewSources = new HashSet<string>(StringComparer.Ordinal);
+        var sourceRows = await database.ContentItems
+            .AsNoTracking()
+            .Where(item => item.ContentType == "source")
+            .Select(item => new { item.ItemKey, item.Body })
+            .ToListAsync(cancellationToken);
+
+        foreach (var source in sourceRows)
+        {
+            using var parsed = JsonDocument.Parse(source.Body);
+            if (parsed.RootElement.TryGetProperty("homebrew", out var flag) &&
+                flag.ValueKind == JsonValueKind.True)
+            {
+                homebrewSources.Add(source.ItemKey);
+            }
+        }
+
+        var homebrewSkipped = homebrewSources.Count == 0
+            ? 0
+            : await database.ContentItems
+                .AsNoTracking()
+                .CountAsync(item => homebrewSources.Contains(item.ItemKey) && item.ContentType == "source"
+                    || (item.SourceKey != null && homebrewSources.Contains(item.SourceKey)),
+                    cancellationToken);
+
         var root = Path.GetFullPath(request.ContentRoot);
         var warnings = new List<string>();
         var changes = new List<ContentExportChange>();
@@ -179,6 +228,10 @@ public sealed class ContentExporter(
                 .AsNoTracking()
                 .Where(item => item.ContentType == type.Key)
                 .Where(item => request.Key == null || item.ItemKey == request.Key)
+                // The book's own document, and everything published into it.
+                .Where(item => !(type.Key == "source" && homebrewSources.Contains(item.ItemKey)))
+                .Where(item => item.SourceKey == null
+                    || !homebrewSources.Contains(item.SourceKey))
                 .OrderBy(item => item.ItemKey)
                 .Select(item => new ExportRow(item.ItemKey, item.Body))
                 .ToListAsync(cancellationToken);
@@ -265,7 +318,8 @@ public sealed class ContentExporter(
             }
         }
 
-        var result = new ContentExportResult(examined, unchanged, changes, warnings);
+        var result = new ContentExportResult(
+            examined, unchanged, changes, warnings, homebrewSkipped);
 
         foreach (var warning in warnings)
         {

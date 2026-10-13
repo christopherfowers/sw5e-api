@@ -159,12 +159,21 @@ public sealed class ContentImporterTests(PostgresFixture fixture) : DatabaseTest
         withHeadings.ShouldBeGreaterThan(0,
             "the fixture has no headings at all, so this cannot detect losing them");
 
-        // What a database looks like after a release that changed the
-        // projection: rows built by the old rules, carrying old versions.
+        /*
+          What a database looks like after a release that changed the
+          projection: rows built by the old rules, carrying old versions.
+
+          Both version columns, because the projection's version is mixed into
+          the hash: a release that changes it changes what the importer
+          computes, so the value it recorded last time is stale too. Moving
+          only one of them would describe a database that has never existed,
+          and would read as somebody having published.
+        */
         await using (var database = Database.CreateContext())
         {
             await database.ContentItems.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.HeadingTextLower, "")
+                .SetProperty(item => item.ImportedVersion, "old-projection")
                 .SetProperty(item => item.Version, "old-projection"));
         }
 
