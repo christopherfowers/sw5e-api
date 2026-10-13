@@ -81,7 +81,8 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
         // does.
         ids.ShouldBe(
             [
-                "listContentTypes", "listContent", "getContentItem", "searchContent",
+                "listContentTypes", "listContent", "getContentItem", "getContentPage",
+                "searchContent",
                 "HealthThroughProxy",
                 "getSiteEnvironment",
                 "issueChallenge", "register", "verifyEmail",

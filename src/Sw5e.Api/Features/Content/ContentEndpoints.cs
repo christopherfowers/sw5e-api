@@ -55,6 +55,20 @@ public static class ContentEndpoints
              .ProducesProblem(StatusCodes.Status404NotFound)
              .AllowAnonymous();
 
+        group.MapGet("/content/{type}/{key}/page", GetContentPageAsync)
+             .WithName("getContentPage")
+             .WithSummary("One item, with what its page needs to render.")
+             .WithDescription(
+                 "The document, plus the documents one edge away from it, which is what a " +
+                 "page is actually made of: a class page is the class together with every " +
+                 "feature it grants and every archetype that belongs to it. The validator " +
+                 "covers the whole bundle rather than the item alone, so republishing a " +
+                 "feature invalidates the class page that lists it.")
+             .Produces<ContentPageResponse>()
+             .Produces(StatusCodes.Status304NotModified)
+             .ProducesProblem(StatusCodes.Status400BadRequest)
+             .ProducesProblem(StatusCodes.Status404NotFound)
+             .AllowAnonymous();
         group.MapGet("/search", SearchAsync)
              .WithName("searchContent")
              .WithSummary("Search every content type.")
@@ -180,6 +194,49 @@ public static class ContentEndpoints
                 document.Body));
     }
 
+    private static async Task<Results<Ok<ContentPageResponse>, ProblemHttpResult, StatusCodeHttpResult>>
+        GetContentPageAsync(
+            HttpContext context,
+            IContentRepository repository,
+            string type,
+            string key,
+            CancellationToken cancellationToken)
+    {
+        if (!ContentRequestValidation.TryResolveType(type, out var definition, out var typeProblem))
+        {
+            return typeProblem!;
+        }
+
+        if (!ContentRequestValidation.TryValidateKey(key, out var validKey, out var keyProblem))
+        {
+            return keyProblem!;
+        }
+
+        var page = await repository.GetPageAsync(definition, validKey, cancellationToken);
+
+        if (page is null)
+        {
+            return TypedResults.Problem(
+                title: "Content not found",
+                detail: $"No {definition.DisplayName.ToLowerInvariant()} with that key exists.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        if (ContentCaching.ApplyAndCheckFreshness(context, page.Version))
+        {
+            return TypedResults.StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        return TypedResults.Ok(new ContentPageResponse(
+            Describe(page.Item),
+            page.Related.ToDictionary(
+                entry => entry.Key,
+                entry => (IReadOnlyList<ContentItemResponse>)[.. entry.Value.Select(Describe)],
+                StringComparer.Ordinal)));
+    }
+
+    private static ContentItemResponse Describe(ContentDocument document) =>
+        new(document.Type, document.Key, document.Name, document.Body);
     private static async Task<Results<Ok<SearchResponse>, ProblemHttpResult, StatusCodeHttpResult>>
         SearchAsync(
             HttpContext context,
