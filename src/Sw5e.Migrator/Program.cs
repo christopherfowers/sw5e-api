@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sw5e.Infrastructure.Persistence;
 using Sw5e.Infrastructure.Persistence.Moderation;
+using Sw5e.Infrastructure.Persistence.Notifications;
 using Sw5e.Migrator;
 
 // The deploy-time database job: apply migrations, then load the canonical
@@ -64,6 +65,8 @@ if (Directory.Exists(schemaRoot))
 // database and writing to another, which fails at the first report rather than
 // at deploy time.
 builder.Services.AddSw5eModeration(builder.Configuration);
+
+builder.Services.AddSw5eNotifications(builder.Configuration);
 
 using var host = builder.Build();
 

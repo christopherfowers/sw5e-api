@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sw5e.Infrastructure.Persistence.Content;
 using Sw5e.Infrastructure.Persistence.Moderation;
+using Sw5e.Infrastructure.Persistence.Notifications;
 
 namespace Sw5e.Migrator;
 
@@ -67,14 +68,15 @@ public static class MigratorCommands
                 case "migrate":
                     await MigrateAsync(services, logger, cancellationToken);
 
-                    // Two schemas, two migration histories, one command. They
-                    // are separate contexts so that each can be authored and
+                    // Three schemas, three migration histories, one command.
+                    // They are separate contexts so each can be authored and
                     // reviewed on its own, and they are applied together
-                    // because a deployment that migrated one and not the other
-                    // is a deployment where half the site works, and because
-                    // the alternative is a second job somebody has to remember
-                    // to add to the pipeline.
+                    // because a deployment that migrated one and not the
+                    // others is a deployment where part of the site works,
+                    // and because the alternative is another job somebody has
+                    // to remember to add to the pipeline.
                     await MigrateModerationAsync(services, logger, cancellationToken);
+                    await MigrateNotificationsAsync(services, logger, cancellationToken);
                     break;
 
                 case "import":
@@ -97,6 +99,7 @@ public static class MigratorCommands
                     // migrations create.
                     await MigrateAsync(services, logger, cancellationToken);
                     await MigrateModerationAsync(services, logger, cancellationToken);
+                    await MigrateNotificationsAsync(services, logger, cancellationToken);
                     await ImportAsync(services, logger, cancellationToken);
                     break;
 
@@ -169,6 +172,18 @@ public static class MigratorCommands
         ModerationServiceCollectionExtensions.MigrateModerationAsync(
             services, logger, cancellationToken);
 
+    /// <summary>Brings the notification schema up to date.</summary>
+    /// <remarks>
+    /// Delegated for the same reason moderation is: one implementation of
+    /// bringing a schema up to date, which the deployment runs and the tests
+    /// use, rather than one of each.
+    /// </remarks>
+    public static Task MigrateNotificationsAsync(
+        IServiceProvider services,
+        ILogger logger,
+        CancellationToken cancellationToken = default) =>
+        NotificationServiceCollectionExtensions.MigrateNotificationsAsync(
+            services, logger, cancellationToken);
     /// <summary>Loads the canonical content into the database.</summary>
     /// <exception cref="InvalidOperationException">
     /// No content path is configured, or the configured path yielded nothing.

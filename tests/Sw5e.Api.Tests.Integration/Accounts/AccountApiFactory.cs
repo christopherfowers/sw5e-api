@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Persistence.Moderation;
+using Sw5e.Infrastructure.Persistence.Notifications;
 
 namespace Sw5e.Api.Tests.Integration.Accounts;
 
@@ -154,6 +155,13 @@ public class AccountApiFactory(PostgresFixture postgres) : WebApplicationFactory
 
         ModerationServiceCollectionExtensions
             .MigrateModerationAsync(
+                host.Services,
+                host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Tests"))
+            .GetAwaiter()
+            .GetResult();
+
+        NotificationServiceCollectionExtensions
+            .MigrateNotificationsAsync(
                 host.Services,
                 host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Sw5e.Tests"))
             .GetAwaiter()
