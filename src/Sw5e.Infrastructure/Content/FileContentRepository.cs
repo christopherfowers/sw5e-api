@@ -301,6 +301,56 @@ public sealed class FileContentRepository : IContentRepository
 
     private static string Address(string type, string key) => $"{type}/{key}";
 
+    /*
+      Display name to address, for the types that name their targets that way.
+
+      Case-insensitive, matching the importer's comparer. Built once alongside
+      the edge index and thrown away with it.
+    */
+    private Dictionary<(string Type, string Name), string?>? _byName;
+
+    private string? ByName(string type, string name)
+    {
+        _byName ??= BuildNameIndex();
+
+        return _byName.GetValueOrDefault((type, name));
+    }
+
+    private Dictionary<(string Type, string Name), string?> BuildNameIndex()
+    {
+        var index = new Dictionary<(string, string), string?>(NameComparer.Instance);
+
+        foreach (var definition in ContentTypeRegistry.All)
+        {
+            foreach (var item in _index.Items(definition))
+            {
+                var identity = (definition.Key, item.Name);
+
+                // Null marks a name two documents share, which resolves to
+                // neither. Recorded rather than removed so a third document
+                // with the same name cannot put it back.
+                index[identity] = index.ContainsKey(identity)
+                    ? null
+                    : Address(definition.Key, item.Key);
+            }
+        }
+
+        return index;
+    }
+
+    private sealed class NameComparer : IEqualityComparer<(string Type, string Name)>
+    {
+        public static NameComparer Instance { get; } = new();
+
+        public bool Equals((string Type, string Name) left, (string Type, string Name) right) =>
+            string.Equals(left.Type, right.Type, StringComparison.Ordinal) &&
+            string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Type, string Name) value) =>
+            HashCode.Combine(
+                StringComparer.Ordinal.GetHashCode(value.Type),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(value.Name));
+    }
     private IndexedContentItem? Resolve(string address)
     {
         var slash = address.IndexOf('/');
@@ -339,17 +389,27 @@ public sealed class FileContentRepository : IContentRepository
                 foreach (var edge in ContentReferenceMap.Extract(definition.Key, item.Body))
                 {
                     /*
-                      Only edges naming a slug are followed. A name-matched edge
-                      is ambiguous when two documents share a display name, and
-                      the database store resolves those at import with a rule
-                      this one cannot reproduce cheaply. Both stores therefore
-                      follow the unambiguous ones and neither guesses.
+                      Both kinds of edge, resolved by the same rule the importer
+                      applies, because the two stores have to reach the same
+                      answer.
+
+                      Most of the corpus names its targets by display name
+                      rather than by slug: a feature says it is granted by
+                      "Wookiee", not by `wookiee`. Following only the slug
+                      edges lost almost every relationship a page is made of,
+                      and the parity test caught it on the first document that
+                      had one.
+
+                      A name matching two documents resolves to neither. That
+                      is the importer's rule exactly: an ambiguous name is an
+                      edge nobody can follow, and picking the first would
+                      invent a relationship that is probably wrong.
                     */
-                    if (edge.TargetKind is not ContentReferenceTargetKind.Key) continue;
+                    var to = edge.TargetKind is ContentReferenceTargetKind.Key
+                        ? Address(edge.TargetType, edge.TargetIdentifier)
+                        : ByName(edge.TargetType, edge.TargetIdentifier);
 
-                    var to = Address(edge.TargetType, edge.TargetIdentifier);
-
-                    if (Resolve(to) is null) continue;
+                    if (to is null || Resolve(to) is null) continue;
 
                     outward.TryAdd(from, []);
                     outward[from].Add(to);
