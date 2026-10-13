@@ -75,10 +75,17 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
             .Select(operation => operation.Value.GetProperty("operationId").GetString())
             .ToArray();
 
-        // Exhaustive rather than a subset check. An operation added without an
-        // id would otherwise slip through, and the generated client would name
-        // its method after the route. Which then changes whenever the route
-        // does.
+        /*
+          Exhaustive rather than a subset check. An operation added without an
+          id would otherwise slip through, and the generated client would name
+          its method after the route, which then changes whenever the route
+          does.
+
+          The inventory is the assertion; the order is not. Where a path falls
+          in the document is not something this project decides, and it shifts
+          as paths are added, so comparing sequences failed for a reason
+          nobody could act on.
+        */
         ids.ShouldBe(
             [
                 "listContentTypes", "listContent", "getContentItem", "getContentPage",
@@ -100,6 +107,8 @@ public sealed class OpenApiDocumentTests(ContentApiFactory factory)
                 "listContentDrafts", "getContentDraft", "saveContentDraft",
                 "discardContentDraft", "publishContentDraft",
                 "listContentRevisions", "getContentRevision", "revertContent",
+                "countNotifications", "listNotifications",
+                "markNotificationsRead", "markAllNotificationsRead",
             ],
             ignoreOrder: true);
     }

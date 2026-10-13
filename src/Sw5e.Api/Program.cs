@@ -15,6 +15,9 @@ using Sw5e.Identity.Email;
 using Sw5e.Infrastructure.Content;
 using Sw5e.Infrastructure.Persistence;
 using Sw5e.Infrastructure.Persistence.Moderation;
+using Sw5e.Api.Features.Notifications;
+using Sw5e.Domain.Notifications;
+using Sw5e.Infrastructure.Persistence.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -230,6 +233,17 @@ builder.Services.AddSw5eProofOfWork(builder.Configuration);
 //
 // No migration runs here. As with content, schema is the migrator's job.
 builder.Services.AddSw5eModeration(builder.Configuration);
+
+// Each account's inbox. A fourth schema for the same reason moderation is a
+// third: it is written by the platform about events in all the others, and a
+// table of things people have been told, sitting among content, is one
+// careless truncate away from gone. See Sw5eNotificationDbContext.
+builder.Services.AddSw5eNotifications(builder.Configuration);
+
+// The half of notifications that has to know about roles. Registered here
+// because this is the only project that references both the store and the
+// identity stack; see RoleNotificationAudienceReader.
+builder.Services.AddScoped<INotificationAudienceReader, RoleNotificationAudienceReader>();
 builder.Services.AddSw5eFlagRateLimiting(builder.Configuration);
 
 // Bridges the identity system's IAccountEmailSender onto the email library
@@ -301,6 +315,7 @@ app.MapSiteEndpoints();
 app.MapContentEndpoints();
 app.MapAccountEndpoints();
 app.MapFlagEndpoints();
+app.MapNotificationEndpoints();
 
 // Authoring: drafting, publishing, history and revert.
 //
