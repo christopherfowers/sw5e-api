@@ -1,0 +1,138 @@
+# The whole stack, on one machine.
+#
+# Written from the three READMEs rather than copied from a deployment, and it
+# exists to answer what a green test suite cannot: the suites run against a
+# test host and a Testcontainers database, never against the images that ship.
+#
+# Deliberately unlike a deployment, and documented as such in
+# docs/running-the-stack-locally.md: every port is bound to the loopback
+# address, mail goes to a catcher that delivers nowhere, and identity migrates
+# at startup rather than as its own step.
+#
+# Build the three images first. The doc gives the four commands, including the
+# tag the site's Dockerfile needs in order to find a locally built content
+# image.
+
+name: sw5e-local
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sw5e
+      POSTGRES_PASSWORD: sw5e-local-only
+      POSTGRES_DB: sw5e
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sw5e -d sw5e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Makes the shared volume writable by the publisher.
+  #
+  # Docker seeds a fresh named volume's ownership from the image of whichever
+  # container mounts it first, and that is not reliably the one that writes to
+  # it: the API mounts the same volume read-only, so starting in the wrong
+  # order leaves it owned by root and the publisher cannot create a directory.
+  #
+  # A deployment does this in its own start-up script, which is worth knowing:
+  # the stack depends on a step that lives outside these repositories.
+  volume-init:
+    image: alpine:3
+    command: ["sh", "-c", "mkdir -p /srv && chown -R 65532:65532 /srv"]
+    user: root
+    volumes:
+      - content:/srv
+
+  # Publishes content and schemas into the shared volume, then exits 0. Not a
+  # service: the API waits for it to complete, exactly as the deploy does.
+  content-init:
+    image: sw5e-database:local
+    volumes:
+      - content:/srv
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+
+  # Migrations and the import, as their own step. The API does not migrate at
+  # startup, for the reason its README gives: every replica runs startup, so N
+  # replicas race to apply the same migration.
+  migrator:
+    image: sw5e-api:local
+    entrypoint: ["dotnet", "/app/Sw5e.Migrator.dll"]
+    command: ["all"]
+    environment:
+      ConnectionStrings__Sw5e: "Host=db;Database=sw5e;Username=sw5e;Password=sw5e-local-only"
+      Content__RootPath: /srv/content
+      Content__SchemaPath: /srv/schemas
+    volumes:
+      - content:/srv:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      content-init:
+        condition: service_completed_successfully
+
+  api:
+    image: sw5e-api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: QA
+      ConnectionStrings__Sw5e: "Host=db;Database=sw5e;Username=sw5e;Password=sw5e-local-only"
+      # The whole point of the exercise: serve content from the database, which
+      # is what makes a publish reach a reader.
+      Content__Store: database
+      Content__RootPath: /srv/content
+      Content__SchemaPath: /srv/schemas
+      # Nothing leaves this machine: Mailpit accepts everything and delivers
+      # nowhere. Smtp rather than Capture because Capture deliberately refuses
+      # to log a sign-in code, which is the right call and leaves no way to
+      # complete a sign-in. The API's README points at exactly this.
+      Email__Provider: Smtp
+      Email__Smtp__Host: mail
+      Email__Smtp__Port: "1025"
+      # Off only because this relay is a catcher on the compose network with no
+      # credentials and no route off the machine. Anywhere else this is a fatal
+      # configuration error, and the adapter treats it as one.
+      Email__Smtp__UseStartTls: "false"
+      Email__FromAddress: noreply@sw5e.test
+      Identity__PublicSiteUrl: http://localhost:8099
+      # The origin check fails closed, so the one origin this stack serves has
+      # to be named. On QA that is the site's real address.
+      Identity__AllowedOrigins__0: http://localhost:8099
+      Identity__ConnectionString: "Host=db;Database=sw5e;Username=sw5e;Password=sw5e-local-only"
+      Identity__BootstrapAdministratorEmail: admin@sw5e.test
+      # Identity migrates itself at startup here, which production deliberately
+      # does not do. The migrator's `all` brings up content, moderation and
+      # notifications but not identity, so on a stack with one replica and
+      # nobody racing it this is the only way to get the schema in place."
+      Identity__InitializeDatabaseAtStartup: "true"
+    ports:
+      - "127.0.0.1:8098:8080"
+    volumes:
+      - content:/srv:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+      mail:
+        condition: service_started
+
+  # Accepts every message and delivers none. Its HTTP side is how a sign-in
+  # code is read back during a local end-to-end check.
+  mail:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  web:
+    image: sw5e-web:local
+    ports:
+      - "127.0.0.1:8099:8080"
+    depends_on:
+      - api
+
+volumes:
+  content:
