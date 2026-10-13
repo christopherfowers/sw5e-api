@@ -7,6 +7,7 @@ using Sw5e.Domain.Content;
 using Sw5e.Infrastructure.Persistence;
 using Sw5e.Infrastructure.Persistence.Content;
 using Sw5e.Infrastructure.Persistence.Moderation;
+using Sw5e.Infrastructure.Persistence.Notifications;
 using Testcontainers.PostgreSql;
 
 namespace Sw5e.Persistence.Tests.Integration;
@@ -171,6 +172,11 @@ public sealed class ContentDatabase : IAsyncDisposable
         // lands in this test's own database in a schema of its own. Which is
         // also what a single-database deployment gets.
         services.AddSw5eModeration(configuration);
+
+        // And the notification schema, for exactly the same reason: `migrate`
+        // and `all` now bring up three, and a provider holding two of them
+        // cannot run the command the deployment runs.
+        services.AddSw5eNotifications(configuration);
 
         // Authoring and the exporter, both pointed at the schemas copied out of
         // the submodule beside this assembly. The migrator registers the
