@@ -1151,6 +1151,17 @@ connects from.
 
 MIT. See [LICENSE](LICENSE).
 
+## Running the whole stack locally
+
+`compose.local.yml` brings up the database, this API, the site and a mail
+catcher, and `tools/verify-stack.py` drives them: it publishes a change and
+checks a reader sees it, then checks a second administrator was told.
+
+That is a different question from the one the test suites answer. They run
+against a test host and a Testcontainers database; this runs against the
+images that ship. See [running the stack locally](docs/running-the-stack-locally.md),
+which also records four things the first assembly turned up.
+
 ## QA deployment
 
 Merging to `main` publishes the image and then deploys it to the internal QA
